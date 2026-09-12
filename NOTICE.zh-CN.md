@@ -1,119 +1,73 @@
 [English](NOTICE.md) | 简体中文
 
-# 声明：数据来源、许可与使用限制
+# 数据来源、许可与使用限制
 
-这份文件说明三件事：**数据是哪来的**、**代码和数据分别按什么许可**、
-以及**这个系统不能拿来做什么**。请在使用或 fork 之前读完。
+## 医疗使用限制
 
----
+**本项目仅供学习、研究和技术演示，不提供诊断、处方或个体化治疗建议。**
 
-## 一、医疗免责声明
+回答由检索记录和语言模型共同生成。图谱中的症状关联不表示诊断结论，药物和饮食关联不构成对个人的用药或饮食建议。医疗数据未经本项目临床审核，可能包含错误、遗漏和过时信息。
 
-**本项目是一个技术演示，不是医疗产品，不构成任何诊疗建议。**
+`app/safety.py` 包含危机表达、急症描述、剂量请求等识别规则。固定提示和生成约束可以处理部分已覆盖的表达，但可能漏判、误判或被模型忽略。它们不能替代医生、临床分诊或人工内容审核。
 
-* 系统的全部回答都来自一份**公开爬取的医疗百科数据**，这份数据没有经过
-  临床审核，本身就含有噪声（详见下面「数据质量」一节）。
-* 系统**不做诊断**。它能做的只是"在图谱里查到某个疾病关联了哪些症状 / 科室 /
-  药物 / 食物"，并把查到的结果复述出来。症状重叠在医学上极其常见，
-  "有这些症状的疾病包括 X" 和 "你得了 X" 是两件完全不同的事。
-* 系统**不会给出用药剂量**。代码里有一层安全闸（`app/safety.py`）会识别
-  索取剂量的提问并硬性拒答 —— 因为个体化剂量取决于体重、肝肾功能、
-  合并用药和当前病情，知识图谱里没有、也不可能有这些信息。
-* **如果你或你身边的人正在经历健康问题，请就医。** 出现胸痛伴大汗、
-  突发言语不清或肢体无力、意识丧失、大出血、呼吸困难等情况，
-  请立即拨打 **120** 或前往急诊，不要依赖任何软件。
-* 如果你有伤害自己的念头，请联系 **心理援助热线 12356**（全国，24 小时）或
-  **希望 24 热线 400-161-9995**。系统识别到这类表达时会直接短路整条问答链路、
-  给出求助渠道，而不是去查知识图谱 —— 但请不要把软件当成求助对象。
+有健康问题请就医；紧急情况请联系当地急救服务，中国大陆拨打 **120**。如有伤害自己的念头，请联系可信任的人或专业支持。中国大陆可拨打全国统一心理援助热线 [12356](https://www.nhc.gov.cn/yzygj/c100068/202412/49a1a65386cd4be582d4702fd0926ee8.shtml)；其他地区可通过 [Find A Helpline](https://findahelpline.com) 查找当地资源。
 
----
+## 数据来源
 
-## 二、数据来源
+`medical.json` 不是本项目采集的，也不随本仓库分发。
 
-本项目使用的疾病知识数据 `medical.json` **不是本项目采集的，也不随本仓库分发**。
-
-| 项 | 内容 |
+| 项目 | 来源 |
 |---|---|
-| 上游项目 | [liuhuanyong/QASystemOnMedicalKG](https://github.com/liuhuanyong/QASystemOnMedicalKG) |
-| 文件位置 | 该仓库的 `data/medical.json` |
-| 原始来源 | 上游项目自述数据采集自**医疗垂直网站**（社区普遍认为是寻医问药网 xywy.com） |
-| 规模 | 8,808 条疾病记录，MongoDB 导出格式（每行一个 JSON 对象，含 `_id.$oid`） |
-| 字段 | `name` `desc` `category` `prevent` `cause` `symptom` `yibao_status` `get_prob` `get_way` `acompany` `cure_department` `cure_way` `cure_lasttime` `cured_prob` `cost_money` `check` `common_drug` `recommand_drug` `drug_detail` `do_eat` `not_eat` `recommand_eat` |
+| 上游仓库 | [liuhuanyong/QASystemOnMedicalKG](https://github.com/liuhuanyong/QASystemOnMedicalKG) |
+| 数据文件 | [data/medical.json](https://github.com/liuhuanyong/QASystemOnMedicalKG/blob/master/data/medical.json) |
+| 采集脚本 | [prepare_data/data_spider.py](https://github.com/liuhuanyong/QASystemOnMedicalKG/blob/master/prepare_data/data_spider.py)，包含寻医问药网 `jib.xywy.com` 的疾病页面地址 |
+| 数据格式 | 每行一个 JSON 对象，包含 MongoDB 标识字段 `_id.$oid` |
+| 项目使用的数据规模 | 8,808 条疾病记录，约 45 MB |
 
-### 上游的使用声明
+上游采集脚本提供了网站来源线索，但数据文件没有为每条记录保留可核验的采集日期、授权或临床审阅信息。本项目也未逐条核验记录与原始网页的对应关系。
 
-上游仓库在 README 中明确写明（原文）：
+### 数据使用条件
 
-> 本项目的数据，如侵犯相关单位权益，请联系我删除。本数据请勿商用。
+上游 [README](https://github.com/liuhuanyong/QASystemOnMedicalKG/blob/master/README.md) 声明：
 
-因此：
+> 本数据请勿商用
 
-* **本数据仅限非商业用途**（学习、研究、技术演示）。
-* 上游仓库**没有附加明确的开源许可证**，数据的权利状态并不清晰。
-* 本仓库据此**不转载 `medical.json`**，只提供获取方式和加载脚本。
-  这既是尊重上游的声明，也避免把一份权利状态不明的数据再扩散一层。
-* 如果原始网站或相关权利方认为本项目的使用方式不当，请提 issue，我会配合处理。
+上游仓库未列出明确的许可证文件。上述非商用要求不等于原始网站或其他权利方对复制、再分发等用途的完整授权。使用前应核对上游声明和适用权限；本项目的 MIT 许可不适用于这份数据。
 
-### 怎么拿到数据
+本仓库提供导入脚本和上游下载地址，不分发原始数据集。评测存档中含少量模型输出与检索内容片段，可能反映上游数据，也不应被理解为本项目另行授予这些内容的使用权。权利方如有疑问，可通过仓库 issue 联系维护者，请勿在公开 issue 中提交个人健康信息。
 
-```bash
-# 方式一：只下这一个文件
-curl -L -o medical.json \
-  https://raw.githubusercontent.com/liuhuanyong/QASystemOnMedicalKG/master/data/medical.json
+### 获取数据
 
-# 方式二：克隆上游仓库后复制
-git clone https://github.com/liuhuanyong/QASystemOnMedicalKG.git
-cp QASystemOnMedicalKG/data/medical.json ./medical.json
+```powershell
+curl.exe -L -o medical.json https://raw.githubusercontent.com/liuhuanyong/QASystemOnMedicalKG/master/data/medical.json
 ```
 
-把 `medical.json` 放在本仓库根目录即可，加载脚本会自动找到它
-（也可以放别处，用 `--data <路径>` 或环境变量 `MEDICAL_JSON` 指定）。
+将文件放在仓库根目录，或通过 `MEDICAL_JSON` 环境变量、导入脚本的 `--data <路径>` 参数指定位置。
 
-### 关于语言
+### 数据质量
 
-数据集是中文的，所以节点名、关系值和系统给出的回答都是中文。代码、测试和文档的组织
-方式尽量不依赖读中文：关系类型名是 ASCII（`diseaseSymptomRelation` 之类），
-schema 在英文 README 里有对应说明。
+- **重复名称：** `胎膜早破` 有不同 `_id` 的同名记录，导入后可能存在重复节点。`python -m app.cli --doctor` 可检查重复情况；`python -m scripts.dedupe` 默认只读报告，加 `--apply` 才修改数据库。
+- **字段语义噪声：** 症状列表可能混入疾病名或其他不适合当作症状的词。
+- **格式不一致：** `cured_prob` 等字段既可能是百分比字符串，也可能是自由文本，不能统一当作数值解析。
+- **关系含义重叠：** 常用药、推荐药等关系需要结合 [schema_notes.json](data/schema_notes.json) 中的说明理解。这些说明帮助查询规划，不构成药物疗效或适用性的审核。
+- **时效性：** 数据不包含可靠的逐条更新日期，治疗方式、费用、医保等内容不能作为现行政策或临床指南使用。
 
-### 数据质量：已知的问题
+数据、别名和意图规则主要面向中文。中英文文档介绍的是同一个系统，不表示已验证英文医疗问答能力。
 
-这份数据是爬来的，没有经过清洗，用之前应当知道：
+## 模型服务与隐私
 
-* **同名重复记录。** `胎膜早破` 在源数据里有两条 `_id` 不同的记录，
-  导致图谱里出现重复节点、`disease.name` 建不了唯一约束。
-  `python -m app.cli --doctor` 会把这类问题报出来，
-  `python -m scripts.dedupe` 可以清理（默认只读预演）。
-* **症状字段混入非症状词。** 例如「感冒」的症状列表里出现过「情绪性感冒」
-  这种实为疾病名的条目。
-* **属性字段格式不统一。** `cured_prob`（治愈率）在多数疾病上是百分比字符串，
-  但在另一些疾病上是自由文本（糖尿病那条是「药物可控制，不易根治」）。
-  本项目的评测集里曾因为假设它一定是百分比而误判过一道题，
-  这件事记在 README 的实测结果一节里。
-* **关系语义有重叠。** `diseaseDrugRelation`（常用药，每病 1–2 个）和
-  `diseaseRecommendDrugRelation`（推荐药，每病平均 8 个）光看名字分不出区别。
-  本项目用 `data/schema_notes.json` 人工补了一层语义说明注入 prompt。
+配置和密钥通过环境变量或本地 `.env` 读取。`.env` 被排除在版本控制之外。
 
----
+使用外部模型服务时，问题、实体名称、图谱结构、检索内容，以及部分路径中的对话上下文可能发送给服务商。具体数据处理方式由所配置服务的条款决定。本项目不提供患者数据去标识化或医疗隐私合规保证，请勿输入可识别个人身份的病历。
 
-## 三、第三方组件
+执行过程显示和评测存档可能包含问题、生成查询及回答。保存或分享这些输出前，应检查其中是否有个人信息。设置本地模型端点后，也应自行核对该服务的日志与网络配置。
 
-| 组件 | 用途 | 许可 | 是否随仓库分发 |
-|---|---|---|---|
-| [Neo4j Community Edition](https://neo4j.com/deployment-center/) 5.26 | 图数据库 | GPLv3 | **否**，请自行下载 |
-| [neo4j Python Driver](https://github.com/neo4j/neo4j-python-driver) | 数据库驱动 | Apache-2.0 | 否（pip 安装） |
-| [openai-python](https://github.com/openai/openai-python) | OpenAI 兼容协议客户端 | Apache-2.0 | 否（pip 安装） |
-| [RapidFuzz](https://github.com/rapidfuzz/RapidFuzz) | 模糊匹配 | MIT | 否（pip 安装） |
-| [python-dotenv](https://github.com/theskumar/python-dotenv) | 读 .env | BSD-3-Clause | 否（pip 安装） |
+## 代码与第三方软件
 
-LLM 服务默认指向智谱 GLM 的 OpenAI 兼容端点，但项目不绑定任何供应商 ——
-改 `.env` 里三行就能换成硅基流动 / DeepSeek / 本地 Ollama。
-**本仓库不包含任何 API 密钥。**
+本仓库代码按 [MIT](LICENSE) 许可发布。第三方数据、模型服务及软件遵循各自的许可或使用条款。
 
----
+Python 依赖列在 [requirements.txt](requirements.txt)，测试依赖列在 [requirements-dev.txt](requirements-dev.txt)。Neo4j 需从 [官方页面](https://neo4j.com/deployment-center/) 单独获取，发行版和模型权重均不随仓库分发。
 
-## 四、开发工具
+## 开发工具
 
-开发过程中使用了 AI 编程助手，包括 Anthropic 的 Claude 和 OpenAI 的 ChatGPT / Codex。
-
-README 里的性能数字都是在真实 Neo4j 实例和真实 LLM 上实测的，不是估算，
-逐题原始结果存档在 `eval/runs/` 可供复核。
+开发过程中使用了 Claude、ChatGPT 和 Codex。

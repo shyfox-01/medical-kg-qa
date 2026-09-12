@@ -2,414 +2,189 @@ English | [简体中文](README.zh-CN.md)
 
 # Medical Knowledge Graph QA
 
-Ask a medical question in natural language; the system translates it into a graph
-database query and turns the retrieved facts into an answer.
+Query disease-related knowledge in Chinese using natural language. The system stores diseases, symptoms, medications, tests, and clinical departments in Neo4j, generates Cypher through parameterised templates or an LLM, and composes an answer from the retrieved results.
 
-The graph covers 8,808 diseases — 28,832 nodes and 337,239 relationships — linking
-each disease to its symptoms, clinical departments, diagnostic tests, medications,
-treatment approaches, foods to avoid or prefer, susceptible groups, and complications.
-Question answering follows the Text2Cypher approach: the LLM turns the question into
-Cypher, the graph supplies the facts, and every statement in the answer traces back
-to an edge in the graph.
+The project explores how natural-language answers can have inspectable supporting data. The graph supplies entities, relationships, and properties; the language model interprets questions and presents results. Queries, returned records, and execution traces are available for inspection. This follows the Text2Cypher approach to graph-based retrieval and question answering (GraphRAG).
 
-> ### ⚠ Read this first
+The dataset contains 8,808 disease records. The graph used for the archived evaluation has 9 node types and 12 relationship types, with 28,832 nodes and 337,239 relationships. Counts depend on the imported data and deduplication.
+
+> ### ⚠ Read before use
 >
-> * **This is a technical demo, not a medical product. It does not provide medical
->   advice and does not diagnose.** See a doctor for health concerns. For chest pain
->   with sweating, sudden slurred speech or limb weakness, loss of consciousness,
->   heavy bleeding, or difficulty breathing, call emergency services immediately
->   (**120** in mainland China) — do not rely on any software.
-> * **The system will not give medication dosages.** Individual dosing depends on
->   body weight, liver and kidney function, concurrent medications, and current
->   condition. A knowledge graph does not and cannot contain that information.
-> * **The data is scraped from a public medical encyclopedia. It has not been
->   clinically reviewed and contains noise.** It comes from
->   [liuhuanyong/QASystemOnMedicalKG](https://github.com/liuhuanyong/QASystemOnMedicalKG),
->   whose author asks that it not be used commercially. This repository does not
->   redistribute it; it only tells you where to get it.
-> * If you are having thoughts of harming yourself, please reach out. In mainland
->   China: psychological assistance hotline **12356** (nationwide, 24h) or
->   **400-161-9995**. Elsewhere, see
->   [findahelpline.com](https://findahelpline.com).
-> * Full provenance, licensing boundaries, and disclaimers: **[NOTICE.md](NOTICE.md)**.
+> * **This project is for learning, research, and technical demonstration. It does not provide diagnoses, prescriptions, or personalised treatment advice.** Consult a clinician about health concerns. In an emergency, contact local emergency services (**120** in mainland China).
+> * **Do not use its output to choose medication or dosage.** Dosage-request detection and safety notices are included, but both rules and models can miss risks or produce errors. They cannot replace professional assessment.
+> * **The medical data has not undergone clinical review by this project and may contain errors, omissions, and outdated information.** It comes from [QASystemOnMedicalKG](https://github.com/liuhuanyong/QASystemOnMedicalKG), whose author asks that it not be used commercially. The raw dataset is not distributed here.
+> * If you are thinking about harming yourself, contact someone you trust or professional support. In mainland China, the national mental-health assistance number is [12356](https://www.nhc.gov.cn/yzygj/c100068/202412/49a1a65386cd4be582d4702fd0926ee8.shtml). For immediate danger, contact emergency services.
+> * See [NOTICE.md](NOTICE.md) for provenance, restrictions, and privacy information.
 
----
+## Features
 
-## What it answers
+| Query subject | Example |
+|---|---|
+| Disease–symptom associations | Symptoms of pneumonia; diseases associated with cough and fever |
+| Departments and tests | Departments linked to hypertension; tests recorded for pneumonia |
+| Medication and treatment records | Common medications recorded for diabetes; treatment approaches for gastritis |
+| Diet, susceptible groups, complications | Foods-to-avoid records for diabetes; groups associated with hypertension |
+| Disease properties | Cause, prevention, contagiousness, treatment duration, cost, and other fields |
+| Comparisons, counts, multi-hop queries | Shared associations between diseases; disease counts for a department |
 
-Single-turn questions across the eight relationship types plus a set of disease
-attributes (cause, prevention, contagiousness, cure rate, treatment duration,
-approximate cost, insurance status):
+Multi-turn questions can carry forward the disease or query intent. This example shows question interpretation, not medical answers:
 
-```
-> What should a diabetic avoid eating?
-  Osmanthus sugar, maltose, honey, rock sugar
+```text
+Q: 糖尿病有什么症状？  (What are the symptoms of diabetes?)
+Interpretation: look up symptoms of diabetes.
 
-> Cough and fever — what could it be, and which department?
-  Pneumonia: internal medicine, respiratory; Bronchitis: internal medicine,
-  respiratory; Avian influenza: infectious diseases ...
-  Note: these results are incomplete; more were not returned.
+Q: 那忌口什么？        (What foods should be avoided?)
+Interpretation: look up foods-to-avoid records for diabetes.
+
+Q: 高血压呢？          (What about hypertension?)
+Interpretation: look up foods-to-avoid records for hypertension,
+                carrying forward the preceding intent.
 ```
 
-Follow-up questions with elided subjects work:
+Empty results can trigger approximate entity suggestions and full-text candidates. These indicate retrieval relevance, not diagnostic probability. The pipeline also has a refusal path for questions outside the graph's scope.
 
-```
-> What are the symptoms of diabetes?
-  Excessive thirst, frequent urination, weight loss, elevated blood sugar ...
-> What should they avoid eating?     ← resolved to "diabetes — foods to avoid"
-  Osmanthus sugar, maltose, honey, rock sugar
-> What about hypertension?           ← new entity, same intent: "symptoms of hypertension"
-  Dizziness, headache, palpitations ...
-```
+## How it works
 
-Out-of-scope questions are declined rather than answered with an invention:
-
-```
-> What's the weather in Beijing today?
-  That's outside what this system covers. I can only answer from the medical
-  knowledge graph ...
+```text
+Chinese question
+  → local medical-safety rules
+  → multi-turn reference resolution and result cache
+  → entity linking: dictionary, aliases, fuzzy candidates
+  → query generation: intent template / LLM + graph schema
+  → static validation → EXPLAIN → read-only transaction
+  → candidate search for empty results
+  → answer composition with retrieval source and safety notices
 ```
 
----
+### Data model and entity linking
 
-## Design
+The loader stores scalar fields such as disease descriptions, causes, and prevention as properties. List fields for symptoms, medications, tests, and departments become nodes and relationships. Entities are merged by name, using parameterised queries and batch loading.
 
-The interesting problems here were not in getting the pipeline to run.
+Entity linking maps colloquial expressions such as 拉肚子 to graph names. Exact names take priority; candidates with multiple labels are retained for query planning. Relationship and property descriptions are maintained in [data/schema_notes.json](data/schema_notes.json).
 
-### Not every question needs an LLM
+### Query planning
 
-The schema is highly regular: 9 node types, 12 relationship types, all originating
-from `(:disease)`. Most questions reduce to "one disease plus one relationship".
-Handing those to an LLM to compose Cypher trades certainty for probability.
+Requests recognised by local intent rules use whitelisted Cypher templates. These cover common relationship queries, some counts, and disease comparisons. Other requests go to the LLM with the graph schema and entity candidates. An empty template result may also lead to the LLM path.
 
-So query generation has two paths. Local intent detection runs first; when the intent
-is unambiguous and exactly one anchor entity resolves, a whitelisted template emits a
-parameterised query with no generation call at all. Everything else goes to the LLM.
-Across the 69-question benchmark, 44 take the template path with zero relationship
-selection errors, cutting LLM calls by 40% and tokens by 54% at identical accuracy.
+Templates save the model call used to generate a query; answer composition still uses a model when records are retrieved. The client uses an OpenAI-compatible API, with the endpoint, model, and key configured in `.env`.
 
-The hard part is knowing when **not** to fire. Two-hop questions ("cough and fever,
-what could it be and which department" is symptom → disease → department),
-aggregations, and any question lacking an anchor of the required type are all handed
-back to the LLM. Declining too often is much cheaper than answering wrongly.
+### Query and answer constraints
 
-Intent rules are declared as candidate lists and compiled in descending length order
-rather than hand-ordered. Python's regex alternation is leftmost-first, not
-longest-match: in 「胃炎不治会引起什么病」 the short pattern `不治会` matches at index 2
-and the scanner moves past the longer, correct `会引起什么病` that follows.
-Hand-ordering fixes it, but every new rule would require rethinking the order.
+Generated Cypher passes lexical scanning, operation restrictions, and schema checks before Neo4j `EXPLAIN` pre-compilation. Execution uses read-only transactions with configurable timeouts, row limits, and variable-length path bounds.
 
-### LLM-generated queries are untrusted input
+The answering prompt requires grounding in retrieved records. Code appends retrieval provenance, row counts, and a disclaimer. When the returned row count reaches the limit, results are marked as potentially incomplete. These details help inspect an answer's basis; they are not sentence-level fact verification and cannot guarantee the absence of hallucinations.
 
-Cypher written by a model is no different from SQL pasted by a user. Three layers:
-
-```
-① Static check   lexical scan → denylist → schema validation → resource limits (pure, unit-tested)
-② EXPLAIN        let the database pre-compile and judge syntax and semantics
-③ Read-only tx   enforced at the database layer
-```
-
-The key to the first layer is **scanning lexically before applying any rule**.
-Running regexes over the raw statement does not work, because they cannot see string
-literals: the `//` inside `WHERE d.desc CONTAINS "http://x"` is read as a line comment,
-swallowing the rest of the statement including `RETURN`, and the denylist then runs
-against that mangled remainder. The statement being validated is no longer the
-statement being executed — the worst mistake a validator can make. Comments and string
-literals are now identified per Cypher's own rules and blanked to equal-length spaces;
-every later rule runs against that skeleton.
-
-Resource limits are easy to overlook. `LIMIT 100000` is perfectly valid syntax and
-will drag all 28,000 nodes back in one statement; an unbounded `[*]` variable-length
-path over 337,000 relationships will take the server down. So LIMIT values are capped,
-path length is bounded, and queries carry a server-enforced timeout.
-
-The third layer is a real defence, not decoration: executing `CREATE` inside a READ
-transaction returns `Neo.ClientError.Statement.AccessMode: Writing in read access
-mode not allowed`. Even if the first two are bypassed, nothing can be written.
-
-### Medical safety is not database safety
-
-Keeping the model from dropping the database is only half of it. The other half is
-keeping the system from giving advice that hurts someone. The graph contains drug
-names; when a user says "I've been diagnosed with diabetes, just tell me how many
-milligrams of metformin to take, I don't need a doctor", dutifully retrieving the
-drug list and letting the model improvise is dangerous.
-
-A separate safety layer runs on local rules, costing no tokens:
-
-| Level | Trigger | Behaviour |
-|---|---|---|
-| Self-harm | suicide / self-injury / lethal dose | Short-circuits the pipeline, returns crisis lines, never queries the graph |
-| Emergency | unconsciousness, heavy bleeding, poisoning; chest pain + cold sweat; sudden slurred speech | Prepends a deterministic emergency notice |
-| Dosage | dosage / how many pills / "no need for a doctor" | Hard constraint against emitting any specific dose |
-| Special populations | pregnancy / infants / elderly + medication | Appends a contraindication reminder |
-| Drug interactions | "take together" + a drug entity | States that the graph has no interaction data |
-| Diagnosis request | "do I have ...?" | Constrains the model from concluding a diagnosis |
-
-The main risk in this layer is false positives, not false negatives. If "what are the
-symptoms of a cold" triggers an emergency warning, users learn to ignore every warning
-within three days — including the one that matters. So an emergency requires either an
-inherently emergent term or a symptom term co-occurring with a severity term:
-"what causes chest tightness" stays quiet, "severe chest pain with cold sweat" fires.
-
-Emergency notices and disclaimers are assembled in code, not requested from the model.
-A model may forget, rewrite, or lose them to a `max_tokens` cutoff, and losing an
-emergency notice once is an incident.
-
-### Something has to sit between colloquial speech and clinical terms
-
-A user says 拉肚子 ("the runs"); the graph node is 腹泻 ("diarrhoea"). Without this
-layer, exact matching returns zero rows and the system says "I don't know" — which
-looks like a model failure but is really an entity alignment failure.
-
-26,000 node names are compiled into a dictionary for maximum-length matching, backed
-by a curated colloquial alias table (90 entries, zero redundant, zero broken) with
-fuzzy matching as a last resort. An audit tool flags two failure modes in the alias
-table: targets that do not exist in the graph (rewriting makes the query *less*
-answerable) and keys that are already graph nodes (pure noise).
-
-One detail worth stating: 125 disease names contain 肺炎 ("pneumonia"), but exactly one
-*is* 肺炎. Using CONTAINS unconditionally means "symptoms of pneumonia" blends the
-symptoms of 125 different pneumonias into one pile — it returns results, and they are
-wrong. When an exact node name exists, it wins.
-
-A further 481 names carry multiple labels (咳嗽, 头痛, 腹泻, 贫血 are each both a
-disease and a symptom). Which one is correct depends on what is being asked, so the
-linking stage keeps every candidate and lets downstream pick by required type.
-
-### "Not found" should not be the end of the conversation
-
-The user has no way to know what term to try instead — only the system knows what is
-in the graph and what it is called. So zero-result queries return near-miss
-suggestions and related diseases from full-text search.
-
-Full-text search took one wrong turn worth recording. The first attempt OR-ed together
-n-grams, which worked badly: Neo4j's full-text index tokenises Chinese per character,
-so `老是拉肚` / `是拉肚子` / `拉肚` all collapse into the same bag of characters and
-merely inflate term frequency — a single 拉 was enough to put 马拉色菌病 at the top with
-a score of 50. Switching to quoted phrase queries (requiring adjacency) fixed the
-precision, and a post-filter requiring the candidate name to share a two-character
-substring with the question removed the rest of the noise.
-
-### Incomplete results must be declared
-
-With `LIMIT 25` enforced, "cough and fever, what could it be" returns the first 25 rows.
-If that fact is not passed to the answering stage, the model presents them as the
-complete set. In a medical context, presenting partial results as complete is a serious
-defect, so the truncation flag propagates through to answer composition and the model
-now states that more results exist.
-
-For the same reason the provenance footer — which relationship was traversed, how many
-rows, whether truncated — is assembled in code.
-
----
-
-## Architecture
-
-```
-question
-   │
-   ├─ safety gate        self-harm → short-circuit to crisis resources, no graph query
-   │                     emergency / dosage / special population → flag, deterministic text appended
-   │
-   ├─ coreference        "what should they avoid" → "diabetes — foods to avoid" (local, no tokens)
-   │
-   ├─ entity linking     dictionary max-match + alias normalisation, overlapping candidates kept
-   │
-   ├─ template path      clear intent + unique anchor → parameterised Cypher from a whitelist
-   │     └ miss ─────┐
-   ├─ LLM generation ◄┘  schema introspected into the prompt; also classifies out-of-scope
-   │
-   ├─ three gates        lexical scan + rules → EXPLAIN → read-only transaction
-   │                     on failure the exact error is fed back for a retry
-   │
-   ├─ empty fallback     near-miss suggestions + full-text search
-   │
-   └─ answer             relationship semantics + truncation flag + provenance + disclaimer
-```
-
-| Entity | Count | | Relationship | Count |
-|---|---|---|---|---|
-| disease | 8,808 | | diseaseRecommendDrugRelation | 59,467 |
-| symptom | 5,998 | | diseaseSymptomRelation | 54,717 |
-| food | 4,870 | | diseaseSuitableFoodRelation | 40,236 |
-| drug | 3,828 | | diseaseCheckRelation | 39,427 |
-| check | 3,355 | | diseaseCategoryRelation | 25,590 |
-| crowd | 1,320 | | diseaseTabooFoodRelation | 22,247 |
-| cureWay | 544 | | diseaseRecommendRecipeRelation | 22,238 |
-| category | 55 | | diseaseCureWayRelation | 21,050 |
-| department | 54 | | diseaseDepartmentRelations | 16,783 |
-| | | | diseaseDrugRelation | 14,649 |
-| | | | diseaseDiseaseRelation | 12,029 |
-| | | | diseaseCrowdRelation | 8,806 |
-
----
+Medical-safety rules detect self-harm expressions, emergency descriptions, dosage requests, medication questions involving special populations, and requests for diagnosis. Detected self-harm expressions return support resources directly. Other categories use generation constraints or fixed notices. This rule layer is not a clinical triage tool.
 
 ## Getting started
 
-**Dependencies**
+You need Python, Neo4j, and a model service with an OpenAI-compatible API. Development and tests use Python 3.12. The commands below target Windows PowerShell.
+
+### 1. Install Python dependencies
 
 ```powershell
 python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\pip install -r requirements-dev.txt   # pytest only, for tests
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m pip install -r requirements-dev.txt
 ```
 
-**Data** (45MB, not in this repository — see [NOTICE.md](NOTICE.md))
+### 2. Obtain the data
+
+Read the [data-use notice](NOTICE.md), then obtain `medical.json` from upstream (about 45 MB):
 
 ```powershell
-curl -L -o medical.json https://raw.githubusercontent.com/liuhuanyong/QASystemOnMedicalKG/master/data/medical.json
+curl.exe -L -o medical.json https://raw.githubusercontent.com/liuhuanyong/QASystemOnMedicalKG/master/data/medical.json
 ```
 
-**Neo4j** (Community Edition, ~460MB, GPLv3, not bundled) — download 5.26 from the
-[Neo4j Deployment Center](https://neo4j.com/deployment-center/) and extract it to
-`neo4j/neo4j-community-5.26.0/`. JDK 17 or 21 is required; if you have not installed
-one separately, the JBR bundled with PyCharm / IntelliJ is JDK 21 and the start script
-will find it:
+Place it in the repository root, or set `MEDICAL_JSON` or the loader's `--data` argument to another location.
+
+### 3. Start Neo4j
+
+Download Community Edition 5.26 from the [Neo4j Deployment Center](https://neo4j.com/deployment-center/) and extract it to `neo4j/neo4j-community-5.26.0/`. This series supports [Java 17 or 21](https://neo4j.com/docs/operations-manual/current/installation/requirements/). Set `JAVA_HOME` before using the startup script.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\start_neo4j.ps1
 ```
 
-http://localhost:7474 is the browser interface; Bolt port 7687 is what the app uses.
+The Neo4j browser is at `http://localhost:7474`; the app connects through Bolt on port `7687`. Set the database password in Neo4j on first startup.
 
-**Build the graph and configure keys**
-
-```powershell
-copy .env.example .env
-notepad .env                                        # Neo4j password and LLM key
-.venv\Scripts\python -m scripts.load_kg --dry-run   # parse stats only, no writes
-.venv\Scripts\python -m scripts.load_kg             # full load, a few minutes
-```
-
-Only the OpenAI-compatible protocol is used, so switching providers means changing
-three lines in `.env`: Zhipu GLM (`https://open.bigmodel.cn/api/paas/v4` with
-`glm-4.5-flash`, has a free tier), SiliconFlow, DeepSeek, or a local Ollama.
-
-**Ask**
+### 4. Configure and load the graph
 
 ```powershell
-.venv\Scripts\python -m app.cli                     # interactive, multi-turn
-.venv\Scripts\python -m app.cli -q "感冒吃什么药"      # single question
-.venv\Scripts\python -m app.cli --selftest          # no API key needed
-.venv\Scripts\python -m app.cli --doctor            # environment check
-.venv\Scripts\python -m app.cli --mock -q "..."     # no API key, exercises the full path
+Copy-Item .env.example .env
+notepad .env
 ```
 
-In interactive mode: `:trace` toggles step display, `:reset` clears the topic,
-`:cypher <statement>` queries the graph directly, `:config` prints configuration
-with secrets redacted, `q` quits.
-
-**Tests and benchmarks**
+Fill in `NEO4J_PASSWORD`, `LLM_BASE_URL`, `LLM_MODEL`, and `LLM_API_KEY`. Model calls may incur charges under your provider's terms.
 
 ```powershell
-.venv\Scripts\python -m pytest                     # 253 offline unit tests, no DB, no LLM
-.venv\Scripts\python -m scripts.demo               # guided demo, no API cost
-.venv\Scripts\python -m eval.run_eval --offline    # seconds; deterministic layers only
-.venv\Scripts\python -m eval.run_eval              # all 69 questions, needs a key
-.venv\Scripts\python -m eval.run_eval --repeat 3   # 3 rounds each, reports variance
+.venv\Scripts\python -m scripts.load_kg --dry-run
+.venv\Scripts\python -m scripts.load_kg
 ```
 
----
+`--dry-run` parses the data only. The second command writes to the configured database.
 
-## Benchmarks
+### 5. Ask a question
 
-69 questions across 11 categories, scored by rules rather than LLM-as-judge so results
-are reproducible. GLM-4.5-Flash, `LLM_THINKING=off`, cache disabled, one round each:
-**69/69 passing**. All red lines at 100%: injection blocked (9), out-of-scope refused
-(5), safety classification (6), crisis intervention (1). Graph fingerprints before and
-after confirm 28,832 nodes / 337,239 relationships unchanged.
+```powershell
+.venv\Scripts\python -m app.cli
+.venv\Scripts\python -m app.cli -q "肺炎有哪些症状"
+.venv\Scripts\python -m app.cli --doctor
+```
 
-What the template path buys (same questions, run back to back, only this switch differs):
+Interactive commands: `:trace` shows execution steps, `:reset` clears the conversation, `:cypher <statement>` queries the graph directly, `:config` shows redacted configuration, `:cache` shows cache statistics, and `q` exits.
 
-| | Off | On | Change |
-|---|---|---|---|
-| Pass rate | 68/69 | 68/69 | unchanged |
-| LLM calls | 136 | 81 | −40% |
-| Tokens | 153,455 | 72,573 | −53% |
-| Median latency | 26.3s | 9.8s | −63% |
-| Per-question diff | — | 0 regressions / 0 fixes | identical |
+The repository does not distribute `.env`, the raw dataset, Neo4j, or a virtual environment. External model calls may send questions and retrieved content to the provider. Do not enter identifiable patient records.
 
-The per-question diff matters: an unchanged total can still hide three fixes and three
-regressions. Route distribution is template 47, out-of-scope 16, LLM 4, no-result 1,
-safety 1 — only 4 of 69 questions genuinely need the model to compose Cypher.
+## Tests and evaluation
 
-The benchmark itself had a bug worth recording. `attr-01` ("what is the cure rate for
-diabetes") expected `cured_prob` to be a percentage, but the graph stores free text for
-that disease — "manageable with medication, difficult to cure outright". The system
-retrieved and reported it faithfully; the test was wrong. When a score drops, confirm
-which side failed first: patching the system to satisfy a badly written test would have
-broken correct behaviour.
+```powershell
+.venv\Scripts\python -m pytest
+.venv\Scripts\python -m app.cli --selftest
+.venv\Scripts\python -m scripts.demo
+.venv\Scripts\python -m eval.run_eval --offline
+.venv\Scripts\python -m eval.run_eval
+.venv\Scripts\python -m eval.run_eval --repeat 3
+```
 
-Per-question raw results are in [`eval/runs/`](eval/runs/). Latency is only comparable
-within the A/B pair above — free-tier API speed varies widely through the day; the same
-code measured 9.8s and 21.1s median on two different runs.
+- `pytest`: 253 unit tests, with no database or model service required.
+- `--selftest`, `scripts.demo`, and `--offline`: require Neo4j but make no real LLM calls.
+- Full evaluation: requires Neo4j and a model service. The 69 Chinese questions cover 11 categories, including retrieval, multi-turn questions, scope handling, injection attempts, and medical safety.
 
----
+The [archived evaluation](eval/runs/v2_final.json) uses GLM-4.5-Flash, `LLM_THINKING=off`, and a disabled cache:
+
+| Metric | Archived result |
+|---|---|
+| Passed under the evaluation rules | 69 / 69 |
+| LLM calls | 81 |
+| Total input and output tokens | 71,312 |
+| Final answer routes | Template 47, LLM 4, out of scope 16, no result 1, safety response 1 |
+
+This is one internal run on a fixed question set. It does not establish medical accuracy, clinical effectiveness, or safety for arbitrary inputs. Scoring primarily checks query execution, relationship selection, keywords, and expected safety responses; it does not replace expert review of complete answers. Generated output and latency vary with the model and service.
+
+Use `--no-fast-path` for template-switch experiments, `--save` to record results, and `--baseline` to compare a selected archive. Comparisons require matching question sets, scoring rules, and model settings. Before-and-after node and relationship counts measure count changes only; they do not prove that all property values are unchanged.
 
 ## Layout
 
+```text
+app/       Entity linking, planning, database access, safety rules, answers, CLI
+data/      Aliases and relationship descriptions
+scripts/   Data loading, Neo4j startup, duplicate handling, demonstration
+tests/     Unit tests
+eval/      Question set, evaluation runner, result archives
 ```
-app/
-  config.py          configuration; secrets only from .env
-  schema.py          schema model + prompt rendering
-  cypher_guard.py    static validator: lexical scan + denylist + schema + limits (pure)
-  graph.py           Neo4j access, introspection, EXPLAIN, read-only tx, timeout, full-text
-  entity_linker.py   dictionary max-match, alias normalisation, overlapping candidates
-  planner.py         intent detection + Cypher template path
-  safety.py          medical safety gate
-  session.py         multi-turn state: focus entity carry-over and coreference
-  answer.py          answer composition: data delimiting, truncation flag, provenance
-  cache.py           result cache
-  llm.py             OpenAI-compatible client, token accounting, tolerant JSON parsing
-  text2cypher.py     pipeline orchestration
-  cli.py             command line entry (--selftest / --doctor)
-  _fake_llm.py       offline stub LLM, separates pipeline bugs from model bugs
-tests/               253 offline unit tests
-eval/                69-question benchmark, runner, archived results
-scripts/             database startup, graph loading, dedupe, demo
-data/                alias table + curated relationship semantics
-```
-
-Excluded from the repository (see `.gitignore`): `.env`, `medical.json`, `neo4j/`.
-
----
 
 ## Limitations
 
-Edit distance discriminates poorly between short Chinese terms — 头疼 and 头痛 ("headache",
-two common spellings) score only 50% similar, while lowering the threshold matches 病人
-("patient") to 艾滋病人的急性阑尾炎 ("acute appendicitis in AIDS patients"). A curated
-alias table plus full-text phrase search covers frequent colloquialisms; the real fix is
-vector retrieval or a medical synonym resource such as CMeKG or ICD-10.
+- The data and local rules primarily target Chinese. English documentation does not imply validated English-language question answering.
+- Aliases, fuzzy matching, and intent rules have limited coverage. Entity ambiguity and abbreviated follow-ups can be misinterpreted.
+- Source data includes duplicate names, inconsistent formats, and questionable medical associations. Cost and medication information may be outdated.
+- Finding no shared association describes this dataset's retrieval result; it does not establish the absence of a medical association.
+- Row limits do not check completeness of every returned value. Aggregated lists or text may also be incomplete.
+- Medical-safety rules and query validation have coverage limits. Passing tests does not establish suitability for clinical or unsupervised use.
 
-Intent detection is rule-based. It covers common phrasings, but an unusual one falls
-through to the LLM. That is not a failure — the LLM is the fallback — but template
-coverage drops. The rule table is at the top of `planner.py` and is easy to extend.
+## Sources, licence, and tools
 
-The source data is noisy. The symptom list for 感冒 ("common cold") contains 情绪性感冒,
-which is actually a disease name. Hypertension and diabetes each have exactly four foods
-to avoid and they do not overlap, so the correct answer to "what should both avoid" is
-"nothing" — true but useless, which is why that template returns the union with hit
-counts instead. The source also contains two records named 胎膜早破, producing duplicate
-nodes and preventing a uniqueness constraint on `disease.name`; `--doctor` reports it and
-`scripts/dedupe.py` can merge them. More in [NOTICE.md](NOTICE.md).
+Disease data comes from [liuhuanyong/QASystemOnMedicalKG](https://github.com/liuhuanyong/QASystemOnMedicalKG). Code is released under the [MIT License](LICENSE), which does not cover third-party medical data. See [NOTICE.md](NOTICE.md) for provenance and restrictions.
 
----
-
-## Data, disclaimer, and licence
-
-Data comes from
-[liuhuanyong/QASystemOnMedicalKG](https://github.com/liuhuanyong/QASystemOnMedicalKG),
-scraped from a medical vertical portal. The upstream author asks that it not be used
-commercially and attaches no explicit licence, so this repository does not redistribute
-it. If the use made of that data here is inappropriate in any way, please open an issue.
-
-This project is a technical demonstration. It does not provide medical advice and does
-not diagnose. The safety gate in the code is an engineering measure — it can refuse
-"tell me how many milligrams", but it is not a substitute for a doctor. See a doctor
-for health concerns; in an emergency call your local emergency number.
-
-Full details in [NOTICE.md](NOTICE.md). Code is [MIT](LICENSE) licensed; the data is not.
-
-AI coding assistants (Claude, ChatGPT / Codex) were used during development.
+Claude, ChatGPT, and Codex were used during development.

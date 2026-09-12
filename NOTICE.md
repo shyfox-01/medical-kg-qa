@@ -1,140 +1,73 @@
 English | [简体中文](NOTICE.zh-CN.md)
 
-# Notice: data provenance, licensing, and limits of use
+# Data provenance, licensing, and limits of use
 
-Three things: **where the data came from**, **what licence applies to what**, and
-**what this system must not be used for**. Please read before using or forking.
+## Medical-use restrictions
 
----
+**This project is for learning, research, and technical demonstration. It does not provide diagnoses, prescriptions, or personalised treatment advice.**
 
-## 1. Medical disclaimer
+Answers are produced from retrieved records and a language model. Symptom associations are not diagnoses; medication and food associations are not recommendations for an individual. The medical data has not undergone clinical review by this project and may contain errors, omissions, or outdated information.
 
-**This is a technical demonstration, not a medical product. It does not provide
-medical advice and it does not diagnose.**
+`app/safety.py` contains rules for crisis expressions, emergency descriptions, dosage requests, and related categories. Fixed notices and generation constraints cover some expressions, but detection can miss risks or raise false alarms, and models may ignore instructions. These measures cannot replace clinicians, clinical triage, or human content review.
 
-* Every answer comes from a **publicly scraped medical encyclopedia**. That data has
-  not been clinically reviewed and contains noise (see "Known data quality issues"
-  below).
-* The system **does not diagnose**. All it does is look up which symptoms, departments,
-  medications or foods a disease is linked to in the graph, and restate what it found.
-  Symptom overlap is extremely common in medicine: "diseases associated with these
-  symptoms include X" and "you have X" are entirely different statements.
-* The system **will not give medication dosages**. A safety layer (`app/safety.py`)
-  detects requests for dosing and refuses them, because individual dosing depends on
-  body weight, liver and kidney function, concurrent medications and current condition —
-  information a knowledge graph does not and cannot contain.
-* **If you or someone near you has a health problem, see a doctor.** For chest pain
-  with sweating, sudden slurred speech or limb weakness, loss of consciousness, heavy
-  bleeding, or difficulty breathing, call emergency services immediately (**120** in
-  mainland China) or go to an emergency department. Do not rely on any software.
-* If you are having thoughts of harming yourself, please reach out to a person. In
-  mainland China: psychological assistance hotline **12356** (nationwide, 24h) or
-  **400-161-9995**. Elsewhere: [findahelpline.com](https://findahelpline.com).
-  The system short-circuits its entire pipeline when it detects this kind of message
-  and returns these resources instead of querying the graph — but please do not treat
-  software as the thing you reach out to.
+Consult a clinician about health concerns. In an emergency, contact local emergency services (**120** in mainland China). If you are thinking about harming yourself, contact someone you trust or professional support. Mainland China's national mental-health assistance number is [12356](https://www.nhc.gov.cn/yzygj/c100068/202412/49a1a65386cd4be582d4702fd0926ee8.shtml). Elsewhere, [Find A Helpline](https://findahelpline.com) lists local resources.
 
----
+## Data provenance
 
-## 2. Data provenance
+`medical.json` was not collected by this project and is not distributed with this repository.
 
-The disease data in `medical.json` **was not collected by this project and is not
-redistributed with it**.
-
-| Item | Detail |
+| Item | Source |
 |---|---|
-| Upstream project | [liuhuanyong/QASystemOnMedicalKG](https://github.com/liuhuanyong/QASystemOnMedicalKG) |
-| File | `data/medical.json` in that repository |
-| Original source | The upstream author states the data was scraped from a medical vertical portal (widely understood to be xywy.com) |
-| Size | 8,808 disease records, MongoDB export format (one JSON object per line, with `_id.$oid`) |
-| Fields | `name` `desc` `category` `prevent` `cause` `symptom` `yibao_status` `get_prob` `get_way` `acompany` `cure_department` `cure_way` `cure_lasttime` `cured_prob` `cost_money` `check` `common_drug` `recommand_drug` `drug_detail` `do_eat` `not_eat` `recommand_eat` |
+| Upstream repository | [liuhuanyong/QASystemOnMedicalKG](https://github.com/liuhuanyong/QASystemOnMedicalKG) |
+| Data file | [data/medical.json](https://github.com/liuhuanyong/QASystemOnMedicalKG/blob/master/data/medical.json) |
+| Collection script | [prepare_data/data_spider.py](https://github.com/liuhuanyong/QASystemOnMedicalKG/blob/master/prepare_data/data_spider.py), which contains disease-page URLs on `jib.xywy.com` (寻医问药网) |
+| Format | One JSON object per line, including a MongoDB identifier in `_id.$oid` |
+| Dataset used by this project | 8,808 disease records, about 45 MB |
 
-### The upstream author's terms
+The upstream collection script identifies a source website, but the data file does not preserve verifiable collection dates, permissions, or clinical-review information for each record. This project has not verified every record against its original page.
 
-The upstream README states (original Chinese):
+### Data-use conditions
 
-> 本项目的数据，如侵犯相关单位权益，请联系我删除。本数据请勿商用。
->
-> *"If this data infringes any party's rights, contact me and I will remove it.
-> Do not use this data commercially."*
+The upstream [README](https://github.com/liuhuanyong/QASystemOnMedicalKG/blob/master/README.md) states:
 
-Accordingly:
+> 本数据请勿商用
 
-* **Non-commercial use only** (study, research, technical demonstration).
-* The upstream repository carries **no explicit open-source licence**, so the rights
-  status of the data is not clear.
-* This repository therefore **does not redistribute `medical.json`**. It provides the
-  download location and the loading script only. That respects the upstream author's
-  terms and avoids propagating data whose rights status is unclear.
-* If the original site or any rights holder considers the use made here inappropriate,
-  please open an issue and I will cooperate.
+This asks users not to use the data commercially. The upstream repository does not list an explicit licence file. That restriction does not establish full permission from the original website or other rights holders to copy or redistribute the content. Check upstream terms and applicable permissions before use. This project's MIT licence does not apply to the dataset.
 
-### Getting the data
+This repository provides a loader and an upstream download location, not the raw dataset. Evaluation archives contain some model output and retrieved excerpts that may reflect upstream content; their inclusion should not be read as a separate grant of rights over that content. Rights holders may contact the maintainer through a repository issue. Do not put personal health information in public issues.
 
-```bash
-# Just the one file
-curl -L -o medical.json \
-  https://raw.githubusercontent.com/liuhuanyong/QASystemOnMedicalKG/master/data/medical.json
+### Obtaining the data
 
-# Or clone upstream and copy
-git clone https://github.com/liuhuanyong/QASystemOnMedicalKG.git
-cp QASystemOnMedicalKG/data/medical.json ./medical.json
+```powershell
+curl.exe -L -o medical.json https://raw.githubusercontent.com/liuhuanyong/QASystemOnMedicalKG/master/data/medical.json
 ```
 
-Put `medical.json` in the repository root; the loader finds it automatically. It can
-live elsewhere — pass `--data <path>` or set the `MEDICAL_JSON` environment variable.
+Place the file in the repository root, or select its location through `MEDICAL_JSON` or the loader's `--data <path>` argument.
 
-### Note on language
+### Data quality
 
-The dataset is in Chinese, so node names, relationship values and the answers the
-system produces are Chinese. The code, tests and documentation are structured so that
-this does not require reading Chinese: relationship type names are ASCII
-(`diseaseSymptomRelation` and so on), and the schema is described in English in the
-README. Example questions and answers throughout the documentation are given with
-enough context to follow without translation.
+- **Duplicate names:** 胎膜早破 has records with different `_id` values under the same name. Duplicate nodes may exist after import. `python -m app.cli --doctor` checks for duplicates; `python -m scripts.dedupe` reports them without writes by default and modifies the database only with `--apply`.
+- **Noisy field semantics:** symptom lists may include disease names or other terms unsuitable as symptoms.
+- **Inconsistent formats:** fields such as `cured_prob` may contain percentage strings or free text and cannot uniformly be parsed as numbers.
+- **Overlapping relationships:** common-medication and recommended-medication relationships should be interpreted with the descriptions in [schema_notes.json](data/schema_notes.json). These support query planning; they do not validate a medication's effectiveness or suitability.
+- **Currency:** records lack reliable individual update dates. Treatment, cost, and insurance fields should not be used as current policy or clinical guidance.
 
-### Known data quality issues
+The data, aliases, and intent rules primarily target Chinese. The two documentation languages describe the same system; they do not imply validated English-language medical question answering.
 
-The data was scraped and has not been cleaned. Before relying on it:
+## Model services and privacy
 
-* **Duplicate records under the same name.** 胎膜早破 (premature rupture of membranes)
-  appears twice with different `_id`s, producing duplicate nodes and preventing a
-  uniqueness constraint on `disease.name`. `python -m app.cli --doctor` reports this;
-  `python -m scripts.dedupe` merges them (dry run by default).
-* **Non-symptoms in the symptom field.** The symptom list for 感冒 (common cold)
-  contains 情绪性感冒, which is actually a disease name.
-* **Inconsistent attribute formats.** `cured_prob` (cure rate) is a percentage string
-  for most diseases but free text for others — for diabetes it reads
-  "manageable with medication, difficult to cure outright". A benchmark case in this
-  project once failed because it assumed the field was always a percentage.
-* **Overlapping relationship semantics.** `diseaseDrugRelation` (common medications,
-  1–2 per disease) and `diseaseRecommendDrugRelation` (recommended list, ~8 per disease)
-  are indistinguishable by name alone. `data/schema_notes.json` supplies a curated
-  semantic description that is injected into the prompt.
+Configuration and keys are read from environment variables or a local `.env` file. `.env` is excluded from version control.
 
----
+External model calls may send questions, entity names, graph schema, retrieved records, and, on some paths, conversation context to the provider. Data handling depends on the configured service's terms. This project does not provide patient-data de-identification or a healthcare privacy-compliance guarantee. Do not enter identifiable patient records.
 
-## 3. Third-party components
+Execution traces and evaluation archives may contain questions, generated queries, and answers. Check them for personal information before saving or sharing them. If using a local model endpoint, also review that service's logging and network settings.
 
-| Component | Purpose | Licence | Bundled? |
-|---|---|---|---|
-| [Neo4j Community Edition](https://neo4j.com/deployment-center/) 5.26 | Graph database | GPLv3 | **No**, download separately |
-| [neo4j Python Driver](https://github.com/neo4j/neo4j-python-driver) | Database driver | Apache-2.0 | No (pip) |
-| [openai-python](https://github.com/openai/openai-python) | OpenAI-compatible client | Apache-2.0 | No (pip) |
-| [RapidFuzz](https://github.com/rapidfuzz/RapidFuzz) | Fuzzy matching | MIT | No (pip) |
-| [python-dotenv](https://github.com/theskumar/python-dotenv) | Reads .env | BSD-3-Clause | No (pip) |
+## Code and third-party software
 
-The LLM endpoint defaults to Zhipu GLM's OpenAI-compatible API, but the project is not
-tied to any provider — three lines in `.env` switch it to SiliconFlow, DeepSeek, or a
-local Ollama. **This repository contains no API keys.**
+Code in this repository is released under the [MIT License](LICENSE). Third-party data, model services, and software retain their own licences or terms.
 
----
+Python dependencies are listed in [requirements.txt](requirements.txt), with test dependencies in [requirements-dev.txt](requirements-dev.txt). Obtain Neo4j separately from its [official distribution page](https://neo4j.com/deployment-center/). Neither its distribution nor model weights are bundled here.
 
-## 4. Development tooling
+## Development tools
 
-AI coding assistants were used during development, including Anthropic's Claude and
-OpenAI's ChatGPT / Codex.
-
-Every performance figure in the README was measured against a real Neo4j instance and a
-real LLM rather than estimated; per-question raw results are archived in `eval/runs/`
-for verification.
+Claude, ChatGPT, and Codex were used during development.
