@@ -1,0 +1,12 @@
+# 统一换行符：仓库里一律存 LF，检出时按平台自动转换
+* text=auto eol=lf
+
+# PowerShell 脚本必须保持 CRLF + UTF-8 BOM。
+# 没有 BOM 的话，Windows PowerShell 5.1 会按系统 ANSI 代码页（简体中文机器是 GBK）
+# 解码，脚本里的中文注释被误读后凭空冒出引号，整个文件连解析都过不去 ——
+# 报的还是"字符串缺少终止符"这种和真实原因毫不相干的错。这个坑踩过一次。
+*.ps1 text eol=crlf working-tree-encoding=UTF-8
+
+# 二进制 / 不做转换
+*.png binary
+*.jpg binary

@@ -1,0 +1,8 @@
+# 只锁大版本，避免几年后又出现"装上就跑不了"的情况
+neo4j>=5.20,<7          # 官方驱动，替换掉已停止维护的 py2neo
+openai>=1.30            # 只用它的 OpenAI 兼容协议，供应商可换
+python-dotenv>=1.0      # 密钥从 .env 读，不进代码
+rapidfuzz>=3.6          # 实体链接的模糊匹配
+tqdm>=4.66              # 导入进度条
+
+# 开发/测试依赖单独放在 requirements-dev.txt（pytest），运行时不需要。

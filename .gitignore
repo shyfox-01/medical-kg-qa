@@ -1,0 +1,43 @@
+# ---- 密钥：永远不要提交 ----
+.env
+.env.local
+*.key
+
+# ---- 数据集：47MB，且上游明确声明非商用，本仓库不转载 ----
+# 获取方式见 NOTICE.md
+medical.json
+data/medical.json
+
+# ---- 第三方发行版：Neo4j 社区版约 460MB，请自行下载 ----
+neo4j/
+
+# ---- Python ----
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 运行期产物 ----
+# schema 缓存由程序自省生成，机器相关，不入库
+data/schema_cache.json
+# 新的评测结果默认不入库，但 README 引用的那两份要留作存档、供人复核。
+# 注意 `runs/` 不带前导斜杠会匹配**任意层级**，连 eval/runs/ 整个目录一起排除掉，
+# 后面的 ! 例外就再也救不回来了（目录被排除后 git 根本不会进去看）。
+# 所以根目录那条必须写成 /runs/。
+/runs/
+eval/runs/*.json
+!eval/runs/baseline_llm_only.json
+!eval/runs/v2_final.json
+*.log
+
+# ---- 编辑器 / 系统 ----
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
