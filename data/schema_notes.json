@@ -1,0 +1,28 @@
+{
+  "_comment": "schema 自省能拿到结构（有哪些 label、哪些关系、指向谁），但拿不到语义。关系一多就会出现语义重叠——比如 diseaseDrugRelation 和 diseaseRecommendDrugRelation 光看名字分不出区别，模型只能瞎猜。这份说明由人工维护，注入 prompt 补上自省缺的那一半信息。",
+  "relations": {
+    "diseaseSymptomRelation": "疾病的临床症状。问「有什么症状/表现/征兆」走这条",
+    "diseaseDepartmentRelations": "疾病对应的就诊科室。问「挂什么科」走这条",
+    "diseaseCheckRelation": "确诊需要做的检查项目。问「做什么检查/化验」走这条",
+    "diseaseDrugRelation": "常用药，每种病 1-2 个，是最主流的用药。问「常用什么药」优先走这条",
+    "diseaseRecommendDrugRelation": "推荐药品清单，每种病平均 8 个，覆盖面广但不够精准。问「吃什么药」想给全一点的清单时走这条",
+    "diseaseCureWayRelation": "治疗方式（药物治疗/手术治疗/支持性治疗等）。问「怎么治」走这条",
+    "diseaseTabooFoodRelation": "忌吃的食物。问「不能吃什么/忌口」走这条",
+    "diseaseSuitableFoodRelation": "宜吃的食材。问「适合吃什么」走这条",
+    "diseaseRecommendRecipeRelation": "推荐食谱（成品菜，如「芹菜粥」）。问「吃什么菜/食谱」走这条，和 SuitableFood 的区别是这条是做好的菜、那条是食材",
+    "diseaseCrowdRelation": "易感人群。问「什么人容易得」走这条",
+    "diseaseDiseaseRelation": "并发症，指向另一个疾病。问「会引起什么病/有什么并发症」走这条",
+    "diseaseCategoryRelation": "疾病所属的分类（如「内科」「呼吸内科」「疾病百科」）。粗粒度归类，和 department 就诊科室不是一回事"
+  },
+  "properties": {
+    "disease.desc": "疾病简介",
+    "disease.cause": "病因",
+    "disease.prevent": "预防措施",
+    "disease.get_prob": "发病率",
+    "disease.get_way": "传染性",
+    "disease.cure_lasttime": "治疗周期",
+    "disease.cured_prob": "治愈概率",
+    "disease.cost_money": "大概花费",
+    "disease.yibao_status": "是否医保用药"
+  }
+}
