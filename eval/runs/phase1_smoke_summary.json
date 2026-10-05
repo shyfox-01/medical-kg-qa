@@ -1,0 +1,176 @@
+{
+  "scope": "smoke only; not the frozen 400-question benchmark",
+  "rounds": [
+    [
+      {
+        "ok": true,
+        "route": "planner",
+        "trace_id": "2a74321f0a09487e981aec37694b221f",
+        "usage": {
+          "calls": 2,
+          "prompt_tokens": 850,
+          "completion_tokens": 125,
+          "seconds": 3.3562829999991663
+        }
+      },
+      {
+        "ok": true,
+        "route": "template",
+        "trace_id": "2e1b48bc7f7f4024a1cf9572a8a114ae",
+        "usage": {
+          "calls": 1,
+          "prompt_tokens": 1659,
+          "completion_tokens": 585,
+          "seconds": 13.328513600000406
+        }
+      },
+      {
+        "ok": true,
+        "route": "template",
+        "trace_id": "4301eb1de1204906985f71e5f46f6504",
+        "usage": {
+          "calls": 1,
+          "prompt_tokens": 134,
+          "completion_tokens": 21,
+          "seconds": 1.188327400000162
+        }
+      },
+      {
+        "ok": true,
+        "route": "safety",
+        "trace_id": "d9d44aab8882447f8009a14661106b3e",
+        "usage": {
+          "calls": 0,
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "seconds": 0.0
+        }
+      },
+      {
+        "ok": true,
+        "route": "safety",
+        "trace_id": "a9c839de2e5249f78bc7f76a14f88024",
+        "usage": {
+          "calls": 0,
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "seconds": 0.0
+        }
+      }
+    ],
+    [
+      {
+        "ok": false,
+        "route": "",
+        "trace_id": "b7594daf93374c2da1adfaca00f3b409",
+        "usage": {
+          "calls": 1,
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "seconds": 30.47767010000007
+        }
+      },
+      {
+        "ok": true,
+        "route": "template",
+        "trace_id": "0684538f30684b42906db9247e50b04d",
+        "usage": {
+          "calls": 1,
+          "prompt_tokens": 1659,
+          "completion_tokens": 585,
+          "seconds": 21.912893599999734
+        }
+      },
+      {
+        "ok": true,
+        "route": "template",
+        "trace_id": "76399fc9b0bb49c696000f24f29adb70",
+        "usage": {
+          "calls": 1,
+          "prompt_tokens": 134,
+          "completion_tokens": 21,
+          "seconds": 1.1517924999998286
+        }
+      },
+      {
+        "ok": true,
+        "route": "safety",
+        "trace_id": "bebea6c94f384f45ac37e563074918fd",
+        "usage": {
+          "calls": 0,
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "seconds": 0.0
+        }
+      },
+      {
+        "ok": true,
+        "route": "safety",
+        "trace_id": "e25624828cbf4a619ae1be9eb3cc83a4",
+        "usage": {
+          "calls": 0,
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "seconds": 0.0
+        }
+      }
+    ],
+    [
+      {
+        "ok": true,
+        "route": "planner",
+        "trace_id": "e1f1e75080264270ba90b941680a26dc",
+        "usage": {
+          "calls": 2,
+          "prompt_tokens": 850,
+          "completion_tokens": 125,
+          "seconds": 3.7332995999995546
+        }
+      },
+      {
+        "ok": true,
+        "route": "template",
+        "trace_id": "ce0d9e298e524f9ca07593cd8c827642",
+        "usage": {
+          "calls": 1,
+          "prompt_tokens": 1659,
+          "completion_tokens": 585,
+          "seconds": 28.61267289999978
+        }
+      },
+      {
+        "ok": true,
+        "route": "template",
+        "trace_id": "1c0264b73f384eca930e54f1d5c2016b",
+        "usage": {
+          "calls": 1,
+          "prompt_tokens": 134,
+          "completion_tokens": 21,
+          "seconds": 1.4101205999995727
+        }
+      },
+      {
+        "ok": true,
+        "route": "safety",
+        "trace_id": "a34293af48ce474eb8bbcd74eed19921",
+        "usage": {
+          "calls": 0,
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "seconds": 0.0
+        }
+      },
+      {
+        "ok": true,
+        "route": "safety",
+        "trace_id": "39dc882ba5d0414b97e07f000692c54f",
+        "usage": {
+          "calls": 0,
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "seconds": 0.0
+        }
+      }
+    ]
+  ]
+}
