@@ -42,7 +42,10 @@ def finalize(answer: str, rows: list[dict], truncated: bool) -> str:
         if row.get('url'):
             sources.add(f"{row.get('source','')}: {row['url']} — {row.get('section','summary')}")
         if row.get('conflict'):
-            conflicts.append(f"{row.get('name',row.get('uid','Association'))}: {row.get('source')} conflicts with another recorded source.")
+            if row.get('relation') and row.get('subject') and row.get('object'):
+                conflicts.append(f"{row['subject']} {row['relation']} {row['object']} [{row.get('source','unspecified')}]")
+            elif not any(r.get('relation') and r.get('conflict') for r in rows):
+                conflicts.append(f"{row.get('name',row.get('uid','Association'))}: {row.get('source')} conflicts with another recorded source.")
     if truncated:
         answer += '\n\nOnly part of the available results is listed (retrieval limit reached).'
     if conflicts:

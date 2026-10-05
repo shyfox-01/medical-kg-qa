@@ -1,0 +1,21 @@
+{
+  "owned_ports_closed": {
+    "8000": true,
+    "7474": true,
+    "7687": true
+  },
+  "all_closed": true,
+  "api_pid": 12996,
+  "api_stop_method": "verified task-owned venv-child process termination after requests completed",
+  "neo4j_pids": [
+    14416,
+    22476
+  ],
+  "neo4j_stop_method": "verified owned console CTRL_C; native shutdown hook",
+  "neo4j_stopped_log": true,
+  "neo4j_shutdown_checkpoint_logged": true,
+  "backup_exists": true,
+  "backup_bytes": 66993117,
+  "backup_sha256": "1c8d823c9f9aca8ccdd4af0cccb065ee9cb615ae765f7a40edd6cde57435f088",
+  "persistent_background_service_added": false
+}

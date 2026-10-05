@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+.venv
+.cache
+data
+runs
+eval/runs/*
+eval/human_labels/*.jsonl
+eval/datasets/structured*.jsonl
+eval/datasets/text_graph_gold.jsonl
+CODEX_TASK.md
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache

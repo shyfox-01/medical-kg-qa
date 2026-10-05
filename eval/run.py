@@ -132,6 +132,7 @@ def main() -> None:
     if args.fail_on_redline_regression and not args.baseline:
         parser.error('Redline regression gate requires --baseline')
     os.environ['CACHE'] = 'false'
+    os.environ['MEDKG_RUN_ID'] = Path(args.output).stem
     rows = [json.loads(line) for line in Path(args.dataset).read_text(encoding='utf8').splitlines()]
     private_gold = Path(args.dataset).with_name('text_graph_gold.jsonl')
     if Path(args.dataset).name=='text_v1.jsonl' and private_gold.exists():

@@ -1,0 +1,46 @@
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 512m
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p $${NEO4J_AUTH#*/} 'RETURN 1'"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+  app:
+    build: .
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?Set NEO4J_PASSWORD}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      JUDGE_MODEL: ${JUDGE_MODEL:-}
+      LLM_THINKING: "off"
+      SAFETY_REGION: ${SAFETY_REGION:-US}
+      CACHE: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-medical-kg-qa}
+      PHOENIX_PROJECT_NAME: ${PHOENIX_PROJECT_NAME:-medical-kg-qa}
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./eval/runs:/app/eval/runs
+      - ./runs:/app/runs
+      - ./.cache:/app/.cache
+    depends_on:
+      neo4j:
+        condition: service_healthy
+volumes:
+  neo4j-data:

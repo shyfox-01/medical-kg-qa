@@ -1,0 +1,18 @@
+{
+  "checks": {
+    "health_alive": true,
+    "ready_graph_and_configuration": true,
+    "crisis_fixed_no_llm": true,
+    "sse_final_verified_contract": true,
+    "history_bound_422": true,
+    "english_only_no_llm": true,
+    "real_retrieval_response": true,
+    "real_retrieval_source_notice": true,
+    "sdk_trace_ids_match_results": true,
+    "sdk_root_route_and_tokens": true
+  },
+  "passed": true,
+  "bind": "127.0.0.1:8000",
+  "real_retrieval_checked": true,
+  "clinical_validation": false
+}

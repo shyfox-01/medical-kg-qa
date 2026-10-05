@@ -1,0 +1,8 @@
+[
+  {"uid":"synthetic:drug-a","label":"Drug","name":"Asterol","synonyms":["Fictional Aster"]},
+  {"uid":"synthetic:drug-b","label":"Drug","name":"Brinex","synonyms":[]},
+  {"uid":"synthetic:disease-a","label":"Disease","name":"Virell syndrome","synonyms":["Fictional Virell"]},
+  {"uid":"synthetic:disease-b","label":"Disease","name":"Nerith condition","synonyms":[]},
+  {"uid":"synthetic:phenotype-a","label":"Phenotype","name":"Glimmer sign","synonyms":[]},
+  {"uid":"synthetic:gene-a","label":"Gene","name":"FICTGENE1","synonyms":[]}
+]

@@ -1,0 +1,8 @@
+[
+  {"a":"synthetic:drug-a","b":"synthetic:disease-a","type":"INDICATED_FOR","source":"synthetic"},
+  {"a":"synthetic:drug-a","b":"synthetic:disease-b","type":"CONTRAINDICATED_FOR","source":"synthetic"},
+  {"a":"synthetic:drug-a","b":"synthetic:drug-b","type":"INTERACTS_WITH","source":"synthetic"},
+  {"a":"synthetic:disease-a","b":"synthetic:phenotype-a","type":"HAS_PHENOTYPE","source":"synthetic"},
+  {"a":"synthetic:disease-a","b":"synthetic:gene-a","type":"ASSOCIATED_WITH","source":"synthetic"},
+  {"a":"synthetic:drug-a","b":"synthetic:gene-a","type":"TARGETS","source":"synthetic","kind":"fictional target"}
+]

@@ -156,6 +156,12 @@ redline outcomes are a diagnostic, not a deployable fallback approval.
     if not args.final:
         print('Wrote phase-3 report from completed aggregate summaries')
         return
+    phase4 = read('eval/runs/phase4_summary.json')
+    if phase4['rounds']!=3 or phase4['evaluated_ids']!=models['v0']['evaluated_ids']:
+        raise SystemExit('Phase-4 delivery validation must repeat the identical structured sample three times')
+    engineering = read('eval/runs/api_summary.json')
+    fixture = read('eval/runs/ci_summary.json')
+    delivery = read('eval/runs/delivery_summary.json')
     summary = f'''# Final research and engineering summary
 
 The Chinese baseline was archived in local tag zh-v2 and a verified Neo4j dump.
@@ -189,6 +195,19 @@ is supported. Repeat standard deviation describes these three runs on the same
 sample, not population uncertainty. Pure-vector redline regressions remain
 explicit in its summary and must not be suppressed.
 
+## Phase 4 delivery validation
+
+{run_description('Phase 4 hybrid',phase4)}
+
+Phase-4 engineering checks: 57 unit tests plus six native Neo4j integration
+tests passed; lint passed. Real HTTP/SSE checks: {sum(engineering['checks'].values())}
+of {len(engineering['checks'])} passed. The fictional CI protocol/gate used
+{fixture['evaluated_questions']} cases for three rounds with mean pass
+{pct(fixture['pass_rate_mean'])}; its FakeLLM score is not a medical benchmark.
+Conservative settled/reserved task tokens: {delivery['conservative_charged_or_reserved_tokens']:,}
+of 15,000,000 at the final audit. Docker/Phoenix/remote-CI execution remains unverified.
+Detailed checks, score scope and final process cleanup are in phase-4.md.
+
 ## Human work remaining
 
 - Review 100 sentence claims in eval/human_labels/judge_calibration_todo.jsonl,
@@ -218,6 +237,8 @@ treatment. No upstream institution endorses it.
     overview = '| Stage/model | Structured sample | Mean pass / std |\n|---|---:|---|\n'
     overview += '\n'.join(f"| {name} | {m['evaluated_questions']}/{m['total_available']} x 3 | "
         f"{pct(m['pass_rate_mean'])} / {100*m['pass_rate_std']:.2f} pp |" for name,m in models.items())
+    overview += (f"\n| Phase 4 hybrid | {phase4['evaluated_questions']}/{phase4['total_available']} x 3 | "
+                 f"{pct(phase4['pass_rate_mean'])} / {100*phase4['pass_rate_std']:.2f} pp |")
     (ROOT/'docs/reports/overview_table.md').write_text(overview+'\n',encoding='utf8')
     print('Wrote phase-3 report, final comparison and overview table from completed summaries')
 

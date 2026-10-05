@@ -12,8 +12,21 @@ def main() -> None:
     parser.add_argument('--phase',type=int,default=3)
     parser.add_argument('--mode',choices=['hybrid','vector'],default='hybrid')
     parser.add_argument('--json',action='store_true')
+    parser.add_argument('--fake',action='store_true',help='Fictional CI fixture only; no network LLM or embedding calls')
     args = parser.parse_args()
-    pipeline = local_pipeline(args.phase,args.mode)
+    if args.fake and args.mode=='vector':
+        parser.error('FakeLLM fixture mode cannot invoke embedding retrieval')
+    if args.fake:
+        from medkg.config import Settings
+        from medkg.llm import FakeLLM
+        from medkg.qa.pipeline import Pipeline
+        settings = Settings()
+        settings.phase = args.phase
+        from medkg.config import ROOT
+        entities = json.loads((ROOT/'tests/fixtures/entities.json').read_text(encoding='utf8'))
+        pipeline = Pipeline(settings,llm=FakeLLM(),entities=entities,mode=args.mode)
+    else:
+        pipeline = local_pipeline(args.phase,args.mode)
     try:
         if args.serve_stdio:
             for line in sys.stdin:

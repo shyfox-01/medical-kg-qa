@@ -7,9 +7,10 @@ import time
 import uuid
 from contextlib import contextmanager
 
-from openai import BadRequestError, OpenAI
+from openai import OpenAI
 
 from medkg.config import ROOT, Settings
+from medkg.tracing import span
 
 
 def parse_json(raw: str) -> dict:
@@ -63,6 +64,14 @@ class LLMClient:
             stream.write(json.dumps(record)+'\n')
 
     def chat(self, messages: list[dict], max_tokens: int = 1400) -> str:
+        before = dict(self.usage)
+        with span('llm',model=self.model,**{'openinference.span.kind':'LLM'}) as attrs:
+            try:
+                return self._chat(messages,max_tokens)
+            finally:
+                attrs.update({k:self.usage[k]-before[k] for k in before})
+
+    def _chat(self, messages: list[dict], max_tokens: int = 1400) -> str:
         reserve = sum(len(m['content'].encode('utf8')) + 100 for m in messages) + max_tokens
         identifier = str(uuid.uuid4())
         lock = self.ledger.with_suffix('.lock')
@@ -74,7 +83,8 @@ class LLMClient:
             if sum(balances.values()) + reserve > self.settings.token_budget:
                 raise RuntimeError('Task token budget exhausted')
             self._record({'call_id': identifier, 'status': 'reserved', 'reserved_tokens': reserve,
-                          'model': self.model, 'timestamp': time.time()})
+                          'model': self.model, 'run_id':os.getenv('MEDKG_RUN_ID','interactive'),
+                          'timestamp': time.time()})
         started = time.perf_counter()
         tokens, status = {}, 'failed'
         try:
@@ -83,13 +93,8 @@ class LLMClient:
             # A process-shared slot bounds concurrency without SDK retry storms.
             with ledger_lock(self.ledger.with_name('llm_call.lock'),timeout=120):
                 try:
-                    try:
-                        response = self.client.chat.completions.create(**kwargs,
-                            extra_body={'thinking': {'type': 'disabled'}})
-                    except BadRequestError as exc:
-                        if 'thinking' not in str(exc).lower():
-                            raise
-                        response = self.client.chat.completions.create(**kwargs)
+                    response = self.client.chat.completions.create(**kwargs,
+                        extra_body={'thinking': {'type': 'disabled'}})
                 finally:
                     time.sleep(1)
             usage = response.usage
@@ -140,7 +145,8 @@ class FakeLLM:
         self.usage['calls'] += 1
         data = json.loads(messages[-1]['content'].split('<evidence>')[1].split('</evidence>')[0])
         rows = data['rows']
-        if rows and 'count' in rows[0]:
-            return f"Count: {rows[0]['count']}"
+        counts = [r['count'] for r in rows if 'count' in r]
+        if counts:
+            return f"Count: {counts[0]}"
         names = sorted({r['name'] for r in rows if r.get('name')})
         return '\n'.join('- '+n for n in names) or 'No supporting evidence was retrieved.'

@@ -1,0 +1,53 @@
+name: verify
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e '.[dev]'
+      - run: ruff check .
+      - run: pytest -m 'not integration'
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: neo4j/testpassword
+          NEO4J_server_memory_heap_max__size: 512m
+        ports:
+          - 7687:7687
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p testpassword 'RETURN 1'"
+          --health-interval 10s --health-timeout 10s --health-retries 20
+    env:
+      NEO4J_URI: bolt://127.0.0.1:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: testpassword
+      MEDKG_INTEGRATION: '1'
+      MEDKG_SYNTHETIC_ONLY: '1'
+      CACHE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -e '.[dev]'
+      - run: python -m scripts.load_synthetic
+      - run: pytest -m integration
+      - run: python -m eval.run --dataset tests/fixtures/questions.jsonl --vocabulary tests/fixtures/entities.json --split test --rounds 3 --phase 3 --fake --output eval/runs/ci_summary.json
+      - run: python -m eval.run --dataset tests/fixtures/questions.jsonl --vocabulary tests/fixtures/entities.json --split test --rounds 3 --phase 3 --fake --output eval/runs/ci_gate_summary.json --baseline tests/fixtures/redline_baseline.json --fail-on-redline-regression
+  container:
+    runs-on: ubuntu-latest
+    env:
+      NEO4J_PASSWORD: testpassword
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker build -t medkg-ci .

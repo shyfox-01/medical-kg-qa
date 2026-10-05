@@ -40,5 +40,16 @@ def assess(question: str, region: str = 'US') -> Assessment:
 
 
 def english(question: str) -> bool:
+    foreign = r'\b(cu[aá]les|qu[eé] medicamentos|quel(?:s|les)? m[eé]dicaments|quels sont|welche medikamente|was ist|quais medicamentos)\b'
     return bool(re.search('[A-Za-z]', question)) and not re.search(
-        r'[\u0400-\u052f\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]', question)
+        r'[\u0400-\u052f\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]', question
+    ) and not re.search(foreign,question,re.I)
+
+
+def output_violation(text: str) -> Assessment | None:
+    """Conservative final guard; this is not a clinical safety classifier."""
+    if re.search(r'\b\d+(?:\.\d+)?\s*(?:mg|mcg|micrograms?|milligrams?|tablets?|capsules?)\b',text,re.I):
+        return Assessment('dosage','I cannot provide medication doses. Consult a clinician or pharmacist.',True)
+    if re.search(r'\b(?:you (?:have|are suffering from)|your diagnosis is|i diagnose you with)\b',text,re.I):
+        return Assessment('diagnosis_request','I cannot diagnose you. A clinician must assess your symptoms and medical history.',True)
+    return None

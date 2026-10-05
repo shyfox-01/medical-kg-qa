@@ -138,3 +138,59 @@ bind loopback. OpenTelemetry uses an actual SDK trace root and local JSONL by
 default, switching to OTLP HTTP only when configured. No Phoenix installation or
 external telemetry upload is performed by this task. Docker/Phoenix execution
 remains unverified locally where the required runtime/receiver is absent.
+
+## D020 — Bounded embedding completion and archived measurements
+
+Complete the pure-vector corpus before final scoring: 42,975 entity paragraphs
+and 4,693 public-source chunks, 47,668 records total. Resume verified prefixes
+after FDA chunks arrive and flush a checkpoint after each batch. Increase only
+this CPU embedding job from two to four threads on the verified 24-logical-core
+machine; other embedding calls retain two. Alternative: measure an incomplete
+corpus or saturate all cores; rejected. Long paragraphs retain complete text
+but embedding vectors represent their 512-token prefix.
+
+Keep phase-2 and phase-3 measurements immutable. Phase 4 uses a new aggregate
+after a development smoke run, on the same seeded 54-question sample for three
+rounds. Do not tune against those test answers. Baseline-relative redline success
+does not fix the baseline's existing adversarial failure. The vector control's
+13 regressions are a recorded failed gate, not a deployable fallback.
+
+## D021 — Provenance, output bounds and optional arguments
+
+Engineering review found that a flagged single relation could produce only a
+generic conflict notice. Enrich hybrid contexts with both flagged opposite
+claims and their evidence chunks, prioritize them within the existing bound,
+and append both source-labeled statements by code. Do not enrich the pure-vector
+control with structured facts. Count queries collect actual edge sources;
+Text2Cypher examples request provenance. Alternatives: overwrite one claim or
+trust the model to reconstruct the missing claim; rejected.
+
+Fulltext Document hits use the document's own source/URL; Chunk hits use the
+parent document. Entity-node hits identify their source by uid prefix. This avoids
+losing provenance when a Document has no HAS_CHUNK parent of its own.
+
+Normalize null optional source/uids/label fields to omission, while required
+arguments stay validated. Bound API focus strings to 256 characters. Add a
+conservative final regex gate for numerical medication doses/direct personal
+diagnosis and common non-English Latin-script patterns. These are limited
+engineering controls, not comprehensive language or medical classifiers. Keep
+thinking disabled on every physical provider call; fail rather than retry
+without that setting. Add run_id to the persistent reservation ledger.
+
+## D022 — Runtime verification and termination
+
+Use temporary localhost-only uvicorn for endpoint and SDK trace checks, then stop
+only the recorded process after verifying command and venv-launcher ancestry.
+Windows venv launches a child at the existing base Python executable; this does
+not mean dependencies were installed into that base environment. Final native
+Neo4j is checkpointed and stopped after all tests, leaving the populated database
+on disk. No persistent service or autostart is created. Docker syntax is inspected
+statically; actual compose/build remain for CI, which is unrun remotely because
+no push is authorized. Alternative: install Docker/Phoenix or leave unrequested
+background services running; rejected.
+
+The owned Neo4j console supports a native Windows console CTRL_C event. Use it
+after verifying pid, launcher ancestry and installation path; logs confirm native
+shutdown checkpoints and Stopped. No forced database termination was needed.
+The temporary API was stopped only after all requests completed and its venv
+launcher/base-Python child ancestry was checked. Closed ports are socket-verified.

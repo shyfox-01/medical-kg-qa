@@ -56,13 +56,14 @@ class Pipeline:
                 del self.cache[key]
             stage = 'linking'
             try:
-                with span('linking'):
+                with span('linking') as attrs:
                     resolved,previous = session.resolve(question,history)
                     candidates = self.linker.in_question(resolved)
                     result['candidates'] = self.linker.describe(candidates)
                     result['focus'] = [c.name for c in candidates if not c.ambiguous][:2]
+                    attrs['candidates'] = len(candidates)
                 stage = 'routing'
-                with span('routing'):
+                with span('routing') as attrs:
                     intent = route(resolved,candidates,previous)
                     result['intent'] = intent
                     if self.mode=='vector':
@@ -77,6 +78,7 @@ class Pipeline:
                     else:
                         steps = planner.plan(self.llm,resolved,result['candidates'],self.settings.phase).steps
                         result['route'] = 'planner'
+                    attrs.update(route=result['route'],steps=len(steps))
                 rows,outputs = [],[]
                 stage = 'query'
                 for number,step in enumerate(steps,1):
@@ -101,13 +103,20 @@ class Pipeline:
                         outputs.append(retrieved.rows)
                         rows.extend(retrieved.rows)
                         result['truncated'] |= retrieved.truncated
+                if self.mode!='vector' and self.settings.phase>=3:
+                    with span('tool.conflict_evidence') as attrs:
+                        claims,partial = self._conflicting_claims(candidates,rows,intent)
+                        rows = claims + rows
+                        result['truncated'] |= partial
+                        attrs['rows'] = len(claims)
                 result['contexts'] = rows + [{'uid':c.uid,'name':c.name,'role':'anchor'} for c in candidates]
                 evidence_uids = sorted({uid for row in rows for uid in row.get('evidence',[]) or []})
                 if evidence_uids:
                     documents = self.store.read('MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk) '
                         'WHERE c.uid IN $uids RETURN c.uid AS uid,c.text AS text,c.section AS section, '
                         'd.url AS url,d.source AS source LIMIT 25',{'uids':evidence_uids[:25]})
-                    rows.extend(documents)
+                    rows = [r for r in rows if r.get('relation') and r.get('conflict')] + documents + [
+                        r for r in rows if not (r.get('relation') and r.get('conflict'))]
                     result['contexts'].extend(documents)
                 stage = 'generation'
                 rows, bounded = answer.bound_evidence(rows)
@@ -123,6 +132,10 @@ class Pipeline:
                         with span('verification'):
                             from medkg.qa.verify import verify_answer
                             result['answer'] = verify_answer(self.llm,question,result['answer'],result['contexts'],self.linker)
+                    with span('output_safety'):
+                        violation = safety.output_violation(result['answer'])
+                        if violation:
+                            result.update(answer=violation.message,safety=violation.category,refused=True)
                 result['answer'] = answer.finalize(result['answer'],rows,result['truncated'])
             except Exception as exc:
                 result.update(answer='The request could not be completed. Please retry or simplify the question.',
@@ -152,6 +165,22 @@ class Pipeline:
             return value
         return resolve(args)
 
+    def _conflicting_claims(self,candidates,rows,intent):
+        if intent not in {'indications','drugs_for','contraindications','contraindicated_drugs'} and not any(
+            r.get('conflict') for r in rows):
+            return [],False
+        anchors = [c.uid for c in candidates if not c.ambiguous]
+        targets = sorted({r['uid'] for r in rows if r.get('uid')})[:25]
+        if not anchors:
+            return [],False
+        claims = self.store.read('MATCH (a:Drug)-[r:INDICATED_FOR|CONTRAINDICATED_FOR]->(b:Disease) '
+            'WHERE r.conflict=true AND ((a.uid IN $anchors AND (size($targets)=0 OR b.uid IN $targets)) '
+            'OR (b.uid IN $anchors AND (size($targets)=0 OR a.uid IN $targets))) '
+            'RETURN a.uid AS subject_uid,a.name AS subject,b.uid AS object_uid,b.name AS object,'
+            'type(r) AS relation,r.source AS source,r.evidence AS evidence,true AS conflict LIMIT 26',
+            {'anchors':anchors[:25],'targets':targets})
+        return claims[:25],len(claims)>25
+
     def _hybrid_tool(self,name: str,args: dict):
         if self.settings.phase<3:
             raise ValueError('Hybrid tools disabled')
@@ -163,6 +192,11 @@ class Pipeline:
         result['latency_s'] = time.perf_counter()-start
         result['usage'] = {k:self.llm.usage[k]-before[k] for k in before}
         result['executed_statements'] = list(getattr(self.store,'executed_statements',result['cypher']))
+        with span('request.result',route=result['route'],rows=len(result['contexts']),
+                  safety_category=result['safety'],failure_stage=result['failure_stage'] or '',
+                  error_type=result.get('error_type',''),request_latency_s=result['latency_s'],
+                  **result['usage']):
+            pass
         return result
 
 

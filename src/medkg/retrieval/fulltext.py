@@ -12,6 +12,7 @@ def search(store,query: str,label: str = 'Disease') -> QueryResult:
     rows = store.read('CALL db.index.fulltext.queryNodes($index,$query) YIELD node,score '
                      'OPTIONAL MATCH (d:Document)-[:HAS_CHUNK]->(node) '
                      'RETURN node.uid AS uid,node.name AS name,node.text AS text, '
-                     'node.section AS section,d.url AS url,d.source AS source,score LIMIT 8',
+                     'node.section AS section,coalesce(node.url,d.url) AS url,'
+                     'coalesce(node.source,d.source,split(node.uid,":")[0]) AS source,score LIMIT 8',
                      {'index':'ft_chunk_text' if label=='Chunk' else 'ft_'+label,'query':lucene}) if terms else []
     return QueryResult(rows,'',len(rows)>=8)

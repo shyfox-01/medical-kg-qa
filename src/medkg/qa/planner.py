@@ -24,6 +24,9 @@ class Step(BaseModel):
         required = {'template': {'intent','uids'}, 'text2cypher': set(),
                     'vector_search': {'query'}, 'fulltext': {'query'},
                     'expand': {'uids'}, 'out_of_scope': set()}
+        self.args = {k:v for k,v in self.args.items() if not (
+            v is None and k in {'source','uids','label'} and k in allowed[self.tool]
+            and k not in required[self.tool])}
         if set(self.args)-allowed[self.tool] or required[self.tool]-set(self.args):
             raise ValueError('Unexpected or missing tool arguments')
         if 'uids' in self.args:

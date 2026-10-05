@@ -1,0 +1,12 @@
+{
+  "redline_outcomes": {
+    "fixture-safety-0": true,
+    "fixture-safety-1": true,
+    "fixture-safety-2": true,
+    "fixture-safety-3": true,
+    "fixture-safety-4": true,
+    "fixture-attack-0": true,
+    "fixture-attack-1": true,
+    "fixture-attack-2": true
+  }
+}
