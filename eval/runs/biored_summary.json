@@ -1,0 +1,26 @@
+{
+  "dataset": "BioRED test",
+  "test_file": "data\\raw\\biored\\BioRED\\Test.BioC.XML",
+  "seed": 42,
+  "available_documents": 49,
+  "sampled_documents": 12,
+  "pair_detection": {
+    "precision": 0.9285714285714286,
+    "recall": 0.21311475409836064,
+    "f1": 0.3466666666666666,
+    "true_positive": 13,
+    "predicted": 14,
+    "gold": 61
+  },
+  "native_typed_relations": {
+    "precision": 0.2857142857142857,
+    "recall": 0.06557377049180328,
+    "f1": 0.10666666666666666,
+    "true_positive": 4,
+    "predicted": 14,
+    "gold": 61
+  },
+  "production_contraindication_validation": false,
+  "caveat": "BioRED association labels do not establish clinical contraindications.",
+  "errors": 1
+}

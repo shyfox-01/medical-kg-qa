@@ -31,6 +31,8 @@ class Pipeline:
     def ask(self, question: str, history: list[dict] | None = None) -> dict:
         start, history = time.perf_counter(), history or []
         before = dict(self.llm.usage)
+        if hasattr(self.store,'executed_statements'):
+            self.store.executed_statements.clear()
         with request_trace() as trace_id:
             result = {'answer':'','contexts':[],'route':'','cypher':[],'queries':[],
                       'trace_id':trace_id,'safety':'none','focus':[],'intent':None,
@@ -100,7 +102,17 @@ class Pipeline:
                         rows.extend(retrieved.rows)
                         result['truncated'] |= retrieved.truncated
                 result['contexts'] = rows + [{'uid':c.uid,'name':c.name,'role':'anchor'} for c in candidates]
+                evidence_uids = sorted({uid for row in rows for uid in row.get('evidence',[]) or []})
+                if evidence_uids:
+                    documents = self.store.read('MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk) '
+                        'WHERE c.uid IN $uids RETURN c.uid AS uid,c.text AS text,c.section AS section, '
+                        'd.url AS url,d.source AS source LIMIT 25',{'uids':evidence_uids[:25]})
+                    rows.extend(documents)
+                    result['contexts'].extend(documents)
                 stage = 'generation'
+                rows, bounded = answer.bound_evidence(rows)
+                result['truncated'] |= bounded
+                result['contexts'] = rows + [{'uid':c.uid,'name':c.name,'role':'anchor'} for c in candidates]
                 if not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
                 else:
@@ -110,7 +122,7 @@ class Pipeline:
                         stage = 'verification'
                         with span('verification'):
                             from medkg.qa.verify import verify_answer
-                            result['answer'] = verify_answer(self.llm,question,result['answer'],rows,self.linker)
+                            result['answer'] = verify_answer(self.llm,question,result['answer'],result['contexts'],self.linker)
                 result['answer'] = answer.finalize(result['answer'],rows,result['truncated'])
             except Exception as exc:
                 result.update(answer='The request could not be completed. Please retry or simplify the question.',
@@ -125,7 +137,10 @@ class Pipeline:
         def resolve(value):
             if isinstance(value,str) and value.startswith('$step'):
                 index = int(value[5:])-1
-                return sorted({row['uid'] for row in outputs[index] if row.get('uid')})
+                ids = set()
+                for row in outputs[index]:
+                    ids.update(row.get('entity_uids') or ([row['uid']] if row.get('uid') else []))
+                return sorted(ids)[:25]
             if isinstance(value,list):
                 result = []
                 for item in value:
@@ -147,6 +162,7 @@ class Pipeline:
     def _finish(self,result: dict,start: float,before: dict) -> dict:
         result['latency_s'] = time.perf_counter()-start
         result['usage'] = {k:self.llm.usage[k]-before[k] for k in before}
+        result['executed_statements'] = list(getattr(self.store,'executed_statements',result['cypher']))
         return result
 
 

@@ -31,4 +31,8 @@ def test_csv_counts_match_database(store):
         pytest.skip('Set MEDKG_REAL_COUNTS=1 for full CSV count comparison')
     raw = ROOT/'data/raw'
     _,_,report = read_graph(raw/'kg.csv',load_obo(raw/'mondo.obo'),load_obo(raw/'hp.obo'))
-    assert store.counts()=={k:report[k] for k in ('nodes','relations')}
+    actual = store.counts()
+    assert {k:actual['nodes'][k] for k in report['nodes']}==report['nodes']
+    relations = {row['type']:row['count'] for row in store.read(
+        'MATCH ()-[r]->() WHERE r.source="primekg" RETURN type(r) AS type,count(*) AS count',timeout=60)}
+    assert relations==report['relations']

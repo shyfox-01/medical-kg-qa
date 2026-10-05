@@ -133,6 +133,11 @@ def main() -> None:
         parser.error('Redline regression gate requires --baseline')
     os.environ['CACHE'] = 'false'
     rows = [json.loads(line) for line in Path(args.dataset).read_text(encoding='utf8').splitlines()]
+    private_gold = Path(args.dataset).with_name('text_graph_gold.jsonl')
+    if Path(args.dataset).name=='text_v1.jsonl' and private_gold.exists():
+        gold = {r['id']:r for r in (json.loads(line) for line in private_gold.read_text(encoding='utf8').splitlines())}
+        for row in rows:
+            row['expected_graph'] = gold.get(row['id'],{}).get('expected_graph',[])
     cases = choose(rows,args.split,args.max_per_category)
     if not cases:
         raise SystemExit('No cases in requested split')

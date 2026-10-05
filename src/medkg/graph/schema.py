@@ -33,4 +33,6 @@ def statements() -> list[str]:
     result.append('CREATE VECTOR INDEX chunk_embedding IF NOT EXISTS FOR (n:Chunk) '
                   'ON n.embedding OPTIONS {indexConfig: {`vector.dimensions`: 384, '
                   "`vector.similarity_function`: 'cosine'}}")
+    result.append('CREATE FULLTEXT INDEX ft_chunk_text IF NOT EXISTS FOR (n:Chunk) ON EACH [n.text] '
+                  "OPTIONS {indexConfig: {`fulltext.analyzer`: 'english'}}")
     return result

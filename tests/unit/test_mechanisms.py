@@ -7,7 +7,7 @@ from medkg.graph.guard import CypherRejected, check
 from medkg.ingest.ontology import mondo_ids, parse_obo
 from medkg.ingest.primekg import canonical_edge
 from medkg.llm import parse_json
-from medkg.qa.answer import finalize, messages
+from medkg.qa.answer import bound_evidence, finalize, messages
 from medkg.qa.linker import Linker
 from medkg.qa.planner import Plan
 from medkg.qa.router import route
@@ -89,7 +89,7 @@ def test_safety(question,category):
 
 
 def test_plan_bounds_and_backward_references():
-    Plan.model_validate({'steps':[{'tool':'template','args':{}},{'tool':'expand','args':{'uids':'$step1'}}]})
+    Plan.model_validate({'steps':[{'tool':'template','args':{'intent':'targets','uids':['test:a']}},{'tool':'expand','args':{'uids':'$step1'}}]})
     with pytest.raises(ValidationError):
         Plan.model_validate({'steps':[{'tool':'expand','args':{'uids':'$step1'}}]})
     with pytest.raises(ValidationError):
@@ -109,3 +109,19 @@ def test_history_and_json_parser():
     assert resolve('What about X?',[{'focus':['Y'],'intent':'phenotypes'}])[1]=='phenotypes'
     assert resolve('What is it used for?',[{'focus':['Y']}])[0]=='What is Y used for?'
     assert parse_json('```json\n{"steps":[]}\n```')=={'steps':[]}
+
+
+def test_evidence_bound_preserves_provenance_and_reports_partial():
+    rows,partial = bound_evidence([{'uid':'a','text':'x'*9000,'url':'https://example.invalid'},
+        {'uid':'b','text':'y'*4000}],max_chars=6000)
+    assert partial and len(rows)==1 and rows[0]['url']=='https://example.invalid'
+    assert rows[0]['text_truncated'] and len(rows[0]['text'])==5000
+
+
+def test_hybrid_enum_normalization_and_qpp_guard():
+    plan = Plan.model_validate({'steps':[{'tool':'vector_search','args':{'query':'topic','source':'MedlinePlus'}}]})
+    assert plan.steps[0].args['source']=='medlineplus'
+    with pytest.raises(ValidationError):
+        Plan.model_validate({'steps':[{'tool':'vector_search','args':{'query':'topic','source':'other'}}]})
+    with pytest.raises(CypherRejected):
+        check('MATCH ((a:Disease)-[:SUBTYPE_OF]->(b:Disease)){1,9} RETURN b')

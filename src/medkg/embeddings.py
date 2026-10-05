@@ -8,7 +8,10 @@ from medkg.config import ROOT
 
 
 class Embeddings:
-    def __init__(self):
+    def __init__(self, threads: int = 2):
+        if not 1<=threads<=4:
+            raise ValueError('CPU embedding threads must be between one and four')
+        self.threads = threads
         self.model = None
 
     def encode(self, texts: list[str]) -> np.ndarray:
@@ -16,6 +19,6 @@ class Embeddings:
             os.environ.setdefault('HF_HOME', str(ROOT/'.cache/huggingface'))
             from fastembed import TextEmbedding
             self.model = TextEmbedding('BAAI/bge-small-en-v1.5',
-                                       cache_dir=str(ROOT/'.cache/fastembed'), threads=2)
+                                       cache_dir=str(ROOT/'.cache/fastembed'), threads=self.threads)
         vectors = np.asarray(list(self.model.embed(texts, batch_size=64)), dtype=np.float32)
         return vectors / np.maximum(np.linalg.norm(vectors, axis=1, keepdims=True), 1e-12)

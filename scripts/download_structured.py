@@ -25,7 +25,7 @@ def download(url: str, path: Path) -> dict:
     path.parent.mkdir(parents=True, exist_ok=True)
     meta = path.with_suffix(path.suffix + '.meta.json')
     if path.exists() and meta.exists():
-        record = json.loads(meta.read_text())
+        record = json.loads(meta.read_text(encoding='utf8'))
         if record['sha256'] != sha256(path):
             raise ValueError(f'Cached checksum mismatch: {path.name}')
         return record

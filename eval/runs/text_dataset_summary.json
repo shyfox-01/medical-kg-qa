@@ -1,0 +1,19 @@
+{
+  "text_only": 40,
+  "graph_text": 40,
+  "dev": 32,
+  "test": 48,
+  "review_status": "draft",
+  "llm_grounding_checked": 19,
+  "human_validated": false,
+  "text_scoring": "strict quote-phrase coverage; exploratory only",
+  "structural_repairs": [
+    "text-041",
+    "text-049",
+    "text-050",
+    "text-060",
+    "text-061",
+    "text-072",
+    "text-074"
+  ]
+}

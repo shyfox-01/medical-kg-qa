@@ -71,6 +71,8 @@ def check(cypher: str, max_limit: int = 200, default_limit: int = 25,
         raise CypherRejected('Write/admin operation prohibited')
     if re.search(r'\b(apoc|db|dbms|gds|genai|internal|vector|spatial|algo)\s*\.', code, re.I):
         raise CypherRejected('Namespaced procedure/function prohibited')
+    if re.search(r'\)\s*(?:\+|\*|\{\s*\d)',code):
+        raise CypherRejected('Quantified path patterns are unsupported; use bounded classical paths')
     for m in re.finditer(r'\bCALL\b', code, re.I):
         if not code[m.end():].lstrip().startswith('{'):
             raise CypherRejected('Stored procedures prohibited')

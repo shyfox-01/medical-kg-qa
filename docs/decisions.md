@@ -37,3 +37,104 @@ Put canonical CSV/OBO transforms in independent medkg_data; ingestion re-exports
 ## D009 — Bounded live measurement
 
 Live v0 smoke encountered a 30-second provider timeout, and a 25-item answer took 28.6 seconds. Use a seeded per-category cap for live repetitions and record evaluated ids, available count, coverage and cap in every summary. Never cap safety/adversarial cases. Keep the complete 400-case frozen corpus. Natural paraphrasing is initially limited to 24 cases with two attempts; retain original templates on bounded failure. Alternative: repeated full-corpus calls; rejected for this run because the task explicitly permits shrinking samples when runtime is excessive. These are sampled research results, not full benchmark or clinical claims.
+
+## D010 — Text ingestion and request recovery
+
+MedlinePlus imports NLM-authored full summaries only; it does not fetch linked third-party pages. openFDA uses newest effective_time, phrase search on generic/substance names, then the prescribed exact/fuzzy entity link. The initial 17 exact-field queries returned no matches; their requests remain charged to the 500-request cap. Successful downloads are cached; only failed old-query entries are eligible for one corrected-query attempt within the original cap. The final coverage report distinguishes selected drugs, requests, returned labels and linked documents.
+
+## D011 — BioRED relation semantics
+
+| BioRED label | Production mapping | Reason |
+|---|---|---|
+| Drug_Interaction, Chemical–Chemical | INTERACTS_WITH | Explicit interaction concept |
+| Association, Positive_Correlation, Negative_Correlation, Bind | No automatic production mapping | Association or correlation does not establish a contraindication or drug interaction |
+| Cotreatment, Comparison, Conversion | No automatic production mapping | These labels are different biomedical assertions |
+| Chemical–Disease labels | Native BioRED evaluation only | BioRED has no clinical contraindication gold label |
+
+Run the same JSON extraction implementation in BioRED mode and report pair-detection and native-type F1. Production mode permits only explicit CONTRAINDICATED_FOR and INTERACTS_WITH. Alternative: interpret positive correlation as contraindication; rejected as medically unsupported. This benchmark is an extraction diagnostic, not contraindication or clinical safety validation.
+
+## D012 — Public text drafts and private graph gold
+
+Keep MedlinePlus questions, verbatim supported text phrases, chunk URLs and draft review status in text_v1.jsonl. Put graph-derived draft answers and graph facts in ignored text_graph_gold.jsonl. Mixed public questions name the public health topic and ask for graph associations plus the summary; the precise private gold remains local. Alternatives: commit PrimeKG-derived relationship lists inside text drafts, or call unreviewed drafts verified; both rejected. Strict quote coverage is exploratory until human review.
+## D013 — Development repairs and exact coverage
+
+Before text test measurement, structural validation found seven mixed drafts
+without phenotype/gene gold because the original selector allowed any disease
+relation. Replace only those drafts with unused eligible MedlinePlus chunks using
+seed 43, preserving ids/splits and logging ids in text_dataset_summary.json.
+Selection does not depend on system test answers. Keep all 80 rows marked draft.
+Use strict source/label enum validation and one bounded plan-schema repair after
+invalid development plans. Alternatives: score unanswerable mixed drafts, accept
+arbitrary tool arguments, or discard low-scoring tests; rejected.
+
+## D014 — Provider concurrency and interrupted measurements
+
+The existing endpoint returned HTTP 429 during concurrent evaluation/extraction.
+Serialize task LLM calls with a process-shared slot, a 120-second wait bound and
+one-second cooldown; do not change model, provider or keys. Preserve conservative
+charges for failed attempts. Restart interrupted preliminary v1 runs after the
+development-discovered source-argument and synthetic-test expansion fixes; only
+completed final three-round summaries count as measurements. Raw failed attempts
+remain ignored local artifacts/ledger entries. Alternative: concurrent automatic
+retry storms or attributing provider errors to clinical accuracy; rejected.
+
+## D015 — Retrieval work and evidence bounds
+
+Expose at most 25 expansion rows from a 26-row streaming query after bounding
+anchors to 25; avoid sorting an entire two-hop neighborhood, which timed out in
+the fictional integration test on the populated local database. Reject quantified
+path syntax that bypasses the classical variable-path guard. Bound actual answer
+and verification evidence to 24,000 JSON characters and 5,000 characters per text
+field, with explicit partial-result notices. Store complete entity paragraphs for
+the vector control but acknowledge the embedding model's 512-token prefix limit.
+Reuse unchanged alias vectors when FDA adds brands. Alternatives: unbounded
+neighborhood sorting, oversized LLM prompts, or claiming complete vector coverage
+of long paragraphs; rejected.
+
+## D016 — Source rights and calibration unit
+
+Official openFDA terms include private-party copyright exceptions, so NOTICE
+qualifies the task's public-domain shorthand; FDA text stays local and committed
+text drafts use only public-domain MedlinePlus summaries. HPO uses its own
+attribution/integrity terms; local ontology version is 2026-09-01. Government
+hosting is not blanket permission for linked or manufacturer-authored content.
+
+The 100-item judge queue samples unique actual sentence claims from the 80 text
+question drafts, graph-plus-text draft answers and available system responses.
+Multiple sentences may concern the same question; claim_origin distinguishes
+drafts from system outputs and only real system outputs have trace ids. All
+scores remain uncalibrated pending human review. Alternative: fabricate 100
+unique questions or report automatic labels as human-calibrated; rejected.
+
+## D017 — Extraction sample and failure recovery
+
+BioRED diagnostics use 12 seeded test abstracts. FDA extraction initially sampled
+60 chunks, with 30 call/parse failures. One bounded recovery of legacy empty
+cache entries plus additional sampled chunks produced enough assertions; finalize
+80 of 592 eligible chunks and a random 30-assertion review queue. New cache entries
+record failure type and recovery status. Local extraction logs include unrelated
+failed diagnostic mentions; report the actual total rather than claim all were
+unlinked labels from one pass. A confidence value or PrimeKG agreement does not
+approve the extracted relation. Alternatives: process all chunks despite runtime
+or manufacture review assertions; rejected.
+
+## D018 — Installed layout and fictional CI isolation
+
+MEDKG_HOME overrides the data/cache/log root for an installed wheel; Docker sets
+/app. Default editable development retains the existing E-drive repository.
+Synthetic fixture imports require an empty/fictional-only database by default;
+local mixed validation requires an explicit allow-mixed flag and deletes only
+the synthetic: namespace afterward. FakeLLM bypasses real provider and embedding
+calls and uses only fictional fixture aliases. CI needs no real data or LLM keys.
+Alternative: overwrite the populated research graph or load real upstream data
+in CI; rejected.
+
+## D019 — Service streaming and observability
+
+SSE emits processing status and streams the verified final answer, followed by
+the complete public result, so unsupported model tokens are not exposed. The
+service serializes asks per process; history is explicitly bounded. Local ports
+bind loopback. OpenTelemetry uses an actual SDK trace root and local JSONL by
+default, switching to OTLP HTTP only when configured. No Phoenix installation or
+external telemetry upload is performed by this task. Docker/Phoenix execution
+remains unverified locally where the required runtime/receiver is absent.

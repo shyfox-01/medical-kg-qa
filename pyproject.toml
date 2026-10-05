@@ -26,6 +26,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = ["integration: requires a running Neo4j instance"]
 addopts = "-q --tb=short"
 

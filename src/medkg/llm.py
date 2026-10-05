@@ -30,9 +30,9 @@ def parse_json(raw: str) -> dict:
 
 
 @contextmanager
-def ledger_lock(path):
+def ledger_lock(path, timeout: float = 5):
     path.parent.mkdir(parents=True, exist_ok=True)
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + timeout
     while True:
         try:
             fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -79,13 +79,19 @@ class LLMClient:
         tokens, status = {}, 'failed'
         try:
             kwargs = dict(model=self.model, messages=messages, temperature=0, max_tokens=max_tokens)
-            try:
-                response = self.client.chat.completions.create(**kwargs,
-                    extra_body={'thinking': {'type': 'disabled'}})
-            except BadRequestError as exc:
-                if 'thinking' not in str(exc).lower():
-                    raise
-                response = self.client.chat.completions.create(**kwargs)
+            # The existing free endpoint rejects concurrent requests (HTTP 429).
+            # A process-shared slot bounds concurrency without SDK retry storms.
+            with ledger_lock(self.ledger.with_name('llm_call.lock'),timeout=120):
+                try:
+                    try:
+                        response = self.client.chat.completions.create(**kwargs,
+                            extra_body={'thinking': {'type': 'disabled'}})
+                    except BadRequestError as exc:
+                        if 'thinking' not in str(exc).lower():
+                            raise
+                        response = self.client.chat.completions.create(**kwargs)
+                finally:
+                    time.sleep(1)
             usage = response.usage
             tokens = {'prompt_tokens': usage.prompt_tokens, 'completion_tokens': usage.completion_tokens} if usage else {}
             content = (response.choices[0].message.content or '').strip()
@@ -116,6 +122,18 @@ class FakeLLM:
 
     def chat_json(self, messages: list[dict], max_tokens: int = 1400) -> dict:
         self.usage['calls'] += 1
+        payload = json.loads(messages[1]['content'])
+        question = payload.get('question','').casefold()
+        if 'two hops from asterol' in question:
+            if '"cypher"' in messages[0]['content']:
+                return {'cypher':'MATCH (a:Drug {uid:$uid})-[r1:INDICATED_FOR]->(:Disease)'
+                    '-[r2:HAS_PHENOTYPE]->(p:Phenotype) RETURN DISTINCT p.uid AS uid,p.name AS name,'
+                    '[r1.source,r2.source] AS sources,false AS conflict,[] AS evidence LIMIT 25',
+                    'params':{'uid':'synthetic:drug-a'}}
+            return {'steps':[{'tool':'text2cypher','args':{'question':payload['question']}}]}
+        if 'find virell syndrome by fulltext' in question:
+            return {'steps':[{'tool':'fulltext','args':{'query':'Virell','label':'Disease'}},
+                {'tool':'template','args':{'intent':'genes','uids':'$step1'}}]}
         return {'steps': [{'tool': 'out_of_scope', 'args': {}}]}
 
     def chat(self, messages: list[dict], max_tokens: int = 1400) -> str:

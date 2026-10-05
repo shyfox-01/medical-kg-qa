@@ -1,0 +1,73 @@
+{
+  "categories": {
+    "graph_text": {
+      "questions": 1,
+      "pass_rate_rounds": [
+        0
+      ],
+      "pass_rate_mean": 0,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": null,
+      "execution_coverage": 0,
+      "false_refusal_rate": 0,
+      "latency_median_s": 11.90338740000152,
+      "latency_p90_s": 11.90338740000152,
+      "llm_calls": 2,
+      "tokens": 1201,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "faithful": 1,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null
+    },
+    "text_only": {
+      "questions": 1,
+      "pass_rate_rounds": [
+        0
+      ],
+      "pass_rate_mean": 0,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": null,
+      "execution_coverage": 0,
+      "false_refusal_rate": 1,
+      "latency_median_s": 6.779999966965988e-05,
+      "latency_p90_s": 6.779999966965988e-05,
+      "llm_calls": 0,
+      "tokens": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "faithful": 1,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null
+    }
+  },
+  "pass_rate_rounds": [
+    0
+  ],
+  "pass_rate_mean": 0,
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {
+    "query": 1
+  },
+  "redline_outcomes": {},
+  "system": "hybrid",
+  "phase": 3,
+  "split": "dev",
+  "rounds": 1,
+  "dataset": "eval/datasets/text_v1.jsonl",
+  "total_available": 32,
+  "evaluated_questions": 2,
+  "sampling_cap": 1,
+  "evaluated_ids": [
+    "text-049",
+    "text-004"
+  ],
+  "cache_enabled": false,
+  "judge_status": "uncalibrated",
+  "clinical_validation": false
+}

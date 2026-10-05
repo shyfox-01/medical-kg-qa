@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(os.getenv('MEDKG_HOME',str(Path(__file__).resolve().parents[2]))).resolve()
 load_dotenv(ROOT / '.env')
 load_dotenv(ROOT.parent / '.env')
 

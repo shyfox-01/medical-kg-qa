@@ -1,0 +1,20 @@
+{
+  "eligible_chunks": 592,
+  "processed_chunks": 80,
+  "errors": 0,
+  "error_types": {},
+  "legacy_cache_recoveries": 0,
+  "cached_failed_chunks": 9,
+  "relations": {
+    "INTERACTS_WITH": 39,
+    "CONTRAINDICATED_FOR": 6
+  },
+  "unique_assertions": 45,
+  "primekg_agreement_rate": 0.7555555555555555,
+  "conflicts": 1,
+  "unlinked_mentions": 273,
+  "human_review_items": 30,
+  "extractor_version": "openfda-json-1.0",
+  "confidence_calibrated": false,
+  "clinical_validation": false
+}

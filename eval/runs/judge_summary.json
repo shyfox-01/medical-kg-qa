@@ -1,0 +1,12 @@
+{
+  "status": "uncalibrated",
+  "human_items": 100,
+  "sampling_unit": "sentence claim",
+  "unique_questions": 56,
+  "system_claims": 32,
+  "draft_claims": 68,
+  "judge_labelled": 100,
+  "judge_batch_errors": 0,
+  "human_labelled": 0,
+  "clinical_validation": false
+}

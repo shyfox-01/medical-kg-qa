@@ -12,6 +12,7 @@ __pycache__/
 data/raw/
 data/processed/
 eval/datasets/structured*.jsonl
+eval/datasets/text_graph_gold.jsonl
 eval/runs/*
 !eval/runs/*_summary.json
 eval/human_labels/*.jsonl

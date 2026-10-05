@@ -22,6 +22,7 @@ class GraphStore:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or Settings()
         self.settings.require()
+        self.executed_statements = []
         self.driver = GraphDatabase.driver(self.settings.neo4j_uri,
             auth=(self.settings.neo4j_user, self.settings.neo4j_password))
 
@@ -32,6 +33,7 @@ class GraphStore:
         self.driver.verify_connectivity()
 
     def read(self, statement: str, params: dict | None = None, timeout: float | None = None) -> list[dict]:
+        self.executed_statements.append(statement)
         with self.driver.session(database=self.settings.neo4j_database,
                                  default_access_mode=READ_ACCESS) as session:
             with session.begin_transaction(timeout=timeout or self.settings.query_timeout) as tx:
@@ -55,6 +57,7 @@ class GraphStore:
                            ('UnknownLabel', 'UnknownRelationshipType')):
                         raise CypherRejected('EXPLAIN reports an unknown schema element')
                 rows = tx.run(verdict.stmt, params or {}).data()
+                self.executed_statements.append(verdict.stmt)
                 tx.commit()
         return QueryResult(rows, verdict.stmt, len(rows) >= verdict.limit, perf_counter()-started)
 
