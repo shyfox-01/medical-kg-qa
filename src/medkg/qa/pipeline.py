@@ -99,7 +99,7 @@ class Pipeline:
                         outputs.append(retrieved.rows)
                         rows.extend(retrieved.rows)
                         result['truncated'] |= retrieved.truncated
-                result['contexts'] = rows
+                result['contexts'] = rows + [{'uid':c.uid,'name':c.name,'role':'anchor'} for c in candidates]
                 stage = 'generation'
                 if not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
@@ -155,7 +155,7 @@ def local_pipeline(phase: int | None = None,mode: str = 'hybrid') -> Pipeline:
     if phase is not None:
         settings.phase = phase
     path = ROOT/'data/processed/entities.json'
-    entities = json.loads(path.read_text()) if path.exists() else None
+    entities = json.loads(path.read_text(encoding='utf8')) if path.exists() else None
     pipeline = Pipeline(settings,entities=entities,mode=mode)
     vectors = path.parent/'alias_vectors.npy'
     aliases = path.parent/'vector_aliases.json'
@@ -164,5 +164,5 @@ def local_pipeline(phase: int | None = None,mode: str = 'hybrid') -> Pipeline:
 
         from medkg.embeddings import Embeddings
         pipeline.linker = Linker(entities or pipeline.store.entities(), Embeddings(),
-                                np.load(vectors,mmap_mode='r'),json.loads(aliases.read_text()))
+                                np.load(vectors,mmap_mode='r'),json.loads(aliases.read_text(encoding='utf8')))
     return pipeline

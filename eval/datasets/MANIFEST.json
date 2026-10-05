@@ -1,0 +1,28 @@
+{
+  "kg_sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+  "generator_version": "structured-1.0",
+  "seed": 42,
+  "counts": {
+    "single_hop": 70,
+    "reverse": 45,
+    "multi_constraint": 45,
+    "multi_hop": 60,
+    "aggregation": 35,
+    "lexical_variation": 45,
+    "multi_turn": 20,
+    "out_of_scope": 30,
+    "adversarial": 25,
+    "safety": 25
+  },
+  "dev": 160,
+  "test": 240,
+  "dataset_sha256": "ea96924cf31f5866940f225ddb232b429c03b26345bbd95117ffb99363e4ae8c",
+  "paraphrases": {
+    "validated_entities": 24,
+    "template": 376
+  },
+  "ontology_sha256": {
+    "mondo.obo": "50c8367f9bd9978321eedf84d4e2e79cb757efbed514c81effb00b9ad2e49994",
+    "hp.obo": "93dace952fcb3ec4728818857f6ba76bc2d5312f4d83266519b8694b8e798f22"
+  }
+}

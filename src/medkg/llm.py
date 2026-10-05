@@ -67,7 +67,7 @@ class LLMClient:
         identifier = str(uuid.uuid4())
         lock = self.ledger.with_suffix('.lock')
         with ledger_lock(lock):
-            records = [json.loads(line) for line in self.ledger.read_text().splitlines()] if self.ledger.exists() else []
+            records = [json.loads(line) for line in self.ledger.read_text(encoding='utf8').splitlines()] if self.ledger.exists() else []
             balances = {}
             for r in records:
                 balances[r['call_id']] = r.get('charged_tokens', r.get('reserved_tokens', 0))
