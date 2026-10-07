@@ -212,6 +212,8 @@ command; labels and medical validation still require independent human review.
 | HPO | HPO attribution/integrity terms; version-specific conditions in NOTICE |
 | MedlinePlus | NLM-authored summaries are public domain; linked third-party material excluded |
 | openFDA | Government/CC0 terms include private-party copyright exceptions; labels stay local |
+| MeSH (NLM) | Free with attribution; drug brand/synonym and lay disease aliases, not distributed |
+| DrugBank Vocabulary | Optional CC0 synonyms, manual download only |
 | BioRED | Research benchmark; original abstract rights remain; local diagnostic only |
 | bge-small-en-v1.5 | MIT model license; weights not distributed |
 

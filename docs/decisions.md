@@ -598,3 +598,34 @@ Alternatives: ask the user to choose Disease or Phenotype (rejected: the relatio
 already determines it), or always answer "symptoms" questions from text (rejected:
 graph phenotype edges are structured and cited when they exist). Fictional-entity
 tests are in `tests/unit/test_label_resolution.py`; no test answers were used.
+
+## D049 — Drug brand names and lay disease names from MeSH (2026-10-08)
+
+Everyday names did not link: "aspirin" (catalog: Acetylsalicylic acid), Tylenol,
+Lipitor, "high blood pressure". 11 of 40 common drug, brand and lay disease probes
+linked before enrichment; 39 of 40 after (Tamiflu is absent from MeSH).
+
+- Source: MeSH 2026 descriptors (NLM, free with attribution), downloaded by
+  `scripts.download_structured`. Drugs (tree D) take preferred and narrower (NRW)
+  concepts, which hold brand names and salts; related (REL) concepts are often
+  combination products and are skipped. A descriptor is used only when its terms
+  match exactly one catalog Drug, retrying without a salt suffix ("Sildenafil
+  Citrate" -> Sildenafil, which brings Viagra). Diseases take preferred-concept
+  terms only, joined through MONDO xrefs annotated `MONDO:equivalentTo`.
+- The optional DrugBank vocabulary (CC0) is joined by DrugBank id when a manually
+  downloaded file is present; its site refuses scripted downloads.
+- Merge rules (`medkg_data.synonyms.merge_synonyms`): never add an alias owned by
+  another entity of the same label or proposed for several; never let a new alias
+  join an unrelated entity of another label ("DIC" for dacarbazine, "Seizures" for
+  visual epilepsy); skip inverted forms, long chemical names and common words.
+  17,522 aliases were added to 3,699 entities (12,516 Drug, 5,006 Disease); 391
+  same-label and 154 unrelated cross-label proposals were skipped.
+- `scripts.enrich_synonyms --apply` backs up the catalog and alias vectors, then
+  updates entities.json, Neo4j synonyms, chunk MENTIONS edges and alias vectors.
+  MENTIONS now use the exact alias pass only, which also removes earlier
+  common-word links (55,536 -> 45,616 edges).
+
+The entity catalog is also the scorer's vocabulary, so evaluations after D049 have
+a new `vocabulary_sha256` and are not directly comparable with earlier summaries.
+Alternatives: RxNorm prescribable content (deferred: US prescription focus, 75 MB,
+needs a UNII bridge) or hand-written brand tables (rejected: unmaintainable).

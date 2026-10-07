@@ -10,8 +10,8 @@ def mentions(chunks: list[dict],linker: Linker,unlinked_path: Path) -> list[dict
     # Structured ABOUT anchors are always linked; lexical mentions add other known entities.
     for chunk in chunks:
         ids = set(chunk.get('about',[]))
-        ids.update(c.uid for c in linker.in_question(chunk['text']) if c.method=='exact' and not c.ambiguous
-                   and c.label in ('Disease','Drug','Phenotype'))
+        found,_ = linker.question_mentions(chunk['text'],exact_only=True)
+        ids.update(c.uid for c in found if not c.ambiguous and c.label in ('Disease','Drug','Phenotype'))
         edges.extend({'a':chunk['uid'],'b':uid} for uid in sorted(ids))
     if not unlinked_path.exists():
         unlinked_path.write_text('',encoding='utf8')

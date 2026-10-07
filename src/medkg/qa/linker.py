@@ -6,13 +6,9 @@ from dataclasses import asdict, dataclass
 import numpy as np
 from rapidfuzz import fuzz, process
 
-from medkg_data.lexicon import COMMON_WORDS, GENERIC_ANCHORS, ambiguous_word
+from medkg_data.lexicon import COMMON_WORDS, GENERIC_ANCHORS, ambiguous_word, normalize
 
-
-def normalize(text: str) -> str:
-    words = re.sub(r'[^\w\s]', ' ', text.casefold()).split()
-    return ' '.join(w[:-1] if len(w)>4 and w.endswith('s') and not w.endswith(('ss','is','us'))
-                    else w for w in words)
+__all__ = ['Candidate', 'Linker', 'label_choices', 'normalize']
 
 
 @dataclass
@@ -81,8 +77,11 @@ class Linker:
     def in_question(self, question: str) -> list[Candidate]:
         return self.question_mentions(question)[0]
 
-    def question_mentions(self, question: str) -> tuple[list[Candidate],list[str]]:
-        """Link explicit mention spans independently, retaining unresolved anchors."""
+    def question_mentions(self, question: str, exact_only: bool = False) -> tuple[list[Candidate],list[str]]:
+        """Link explicit mention spans independently, retaining unresolved anchors.
+
+        exact_only stops after the exact alias pass (document text: no fuzzy spans).
+        """
         words = normalize(question).split()
         original = re.findall(r'\w+',question)
         candidates, occupied = {}, set()
@@ -103,6 +102,8 @@ class Linker:
                         candidates[uid].mention = ' '.join(original[start:start+size])
                         candidates[uid].span = (start,start+size)
                     occupied |= positions
+        if exact_only:
+            return list(candidates.values()),[]
         cues = {'of','for','about','with','does','and','between','versus','vs','is','are'}
         stops = cues | {'interact','interacts','target','targets','treat','treats','is',
                         'are','has','have','associated','recorded','indicated','cause','causes',

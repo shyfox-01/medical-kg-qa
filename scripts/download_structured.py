@@ -13,6 +13,8 @@ URLS = {
     'kg.csv': 'https://dataverse.harvard.edu/api/access/datafile/6180620',
     'mondo.obo': 'https://purl.obolibrary.org/obo/mondo.obo',
     'hp.obo': 'https://purl.obolibrary.org/obo/hp.obo',
+    # MeSH descriptors (NLM; free with attribution): drug brand/synonym and lay disease terms.
+    'desc2026.gz': 'https://nlmpubs.nlm.nih.gov/projects/mesh/MESH_FILES/xmlmesh/desc2026.gz',
 }
 
 

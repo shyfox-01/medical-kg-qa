@@ -6,6 +6,8 @@ entity mention only when it is written as an acronym, i.e. in upper case. Both
 the QA linker/verifier and the independent scorer apply this rule.
 """
 
+import re
+
 GENERIC_ANCHORS = frozenset({
     'disease', 'diseases', 'condition', 'conditions', 'disorder', 'disorders',
     'medical condition', 'disease or disorder', 'diseases and disorders', 'other disease',
@@ -58,6 +60,13 @@ world area areas case cases group groups problem problems question questions fac
 
 # 'cold' is listed because the bare word is far more often the adjective; the
 # common cold is still matched by its multi-word aliases ("common cold").
+
+
+def normalize(text: str) -> str:
+    """Alias key: case-folded words without punctuation, with a crude plural strip."""
+    words = re.sub(r'[^\w\s]', ' ', text.casefold()).split()
+    return ' '.join(w[:-1] if len(w) > 4 and w.endswith('s') and not w.endswith(('ss', 'is', 'us'))
+                    else w for w in words)
 
 
 def ambiguous_word(key: str, span: str) -> bool:
