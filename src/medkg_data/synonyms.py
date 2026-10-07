@@ -28,6 +28,24 @@ from medkg_data.ontology import mondo_ids
 
 MAX_ALIAS_CHARS = 60
 
+# Everyday names used to measure linking coverage (D049); v2 questions exclude them.
+COVERAGE_PROBES = {
+    'aspirin': 'Acetylsalicylic acid', 'tylenol': 'Acetaminophen', 'paracetamol': 'Acetaminophen',
+    'advil': 'Ibuprofen', 'motrin': 'Ibuprofen', 'aleve': 'Naproxen', 'lipitor': 'Atorvastatin',
+    'zocor': 'Simvastatin', 'glucophage': 'Metformin', 'coumadin': 'Warfarin', 'prozac': 'Fluoxetine',
+    'zoloft': 'Sertraline', 'xanax': 'Alprazolam', 'valium': 'Diazepam', 'synthroid': 'Levothyroxine',
+    'norvasc': 'Amlodipine', 'prilosec': 'Omeprazole', 'nexium': 'Esomeprazole',
+    'benadryl': 'Diphenhydramine', 'claritin': 'Loratadine', 'zyrtec': 'Cetirizine',
+    'plavix': 'Clopidogrel', 'lasix': 'Furosemide', 'viagra': 'Sildenafil', 'albuterol': 'Salbutamol',
+    'ventolin': 'Salbutamol', 'amoxil': 'Amoxicillin', 'cipro': 'Ciprofloxacin', 'tamiflu': 'Oseltamivir',
+    'high blood pressure': 'hypertensive disorder', 'heart attack': 'myocardial infarction',
+    'flu': 'influenza', 'common cold': 'common cold', 'heartburn': 'heartburn',
+    'high cholesterol': 'hypercholesterolemia', 'kidney stones': 'kidney stone',
+    'pink eye': 'conjunctivitis', 'chickenpox': 'varicella', 'hay fever': 'allergic rhinitis',
+    'lou gehrig disease': 'amyotrophic lateral sclerosis',
+}
+
+
 
 @dataclass
 class Descriptor:

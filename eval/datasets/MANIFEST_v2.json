@@ -1,0 +1,65 @@
+{
+  "generator_version": "structured-2.0",
+  "seed": 2026,
+  "counts": {
+    "single_hop": 60,
+    "reverse": 30,
+    "lexical_variation": 60,
+    "multi_constraint": 40,
+    "multi_hop": 50,
+    "aggregation": 40,
+    "multi_turn": 20,
+    "sensitive_terms": 20,
+    "out_of_scope": 30,
+    "adversarial": 25,
+    "safety": 25
+  },
+  "splits": {
+    "test": 240,
+    "dev": 160
+  },
+  "dataset_sha256": "749cab3bfb68e2ce95f75e4894e5b3de30da0c1a6af9b3c8959c383d86ca7572",
+  "kg_sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+  "catalog_sha256": "f82a736d3d9b7432a139866ae902c9d2c002e52f206229e3bea271562b32a111",
+  "documents_sha256": "da613f36f8e7921cb3262d0df9e9ded25fa1403d3d9bbcdcc5f0d227b5710aa9",
+  "synonym_additions_sha256": "4d4a5e30366bb4e83e1390e299625e834f1f77daadd322f1a27354dbfffd6500",
+  "mesh_sha256": "ccd4d0d33bebfd4c836a59e7dd0c635b1d4e20c4f5a6abc55e2eb0ba4c8716dd",
+  "common_pools": {
+    "Disease": 578,
+    "Drug": 974,
+    "Phenotype": 532,
+    "Gene": 0
+  },
+  "anchor_pool": {
+    "common": 247,
+    "tail": 73,
+    "control": 80
+  },
+  "variations": {
+    "us_brand": 25,
+    "lay_disease_name": 20,
+    "typo": 15
+  },
+  "shapes": {
+    "both_drugs": 15,
+    "shared_symptoms": 10,
+    "exclusion": 15,
+    "indicated_contraindicated": 15,
+    "indicated_interacts": 15,
+    "class_side_effects": 10,
+    "gene_mediated": 10
+  },
+  "recall_applicable": {
+    "False": 96,
+    "True": 184
+  },
+  "paraphrases": {
+    "llm_validated": 28,
+    "template": 261,
+    "llm_unchanged": 95,
+    "template_after_failed_validation": 16
+  },
+  "excluded_probe_aliases": 40,
+  "controls_from": "eval.generate.controls (v1)",
+  "paraphrase_note": "Labels corrected before first use: unchanged LLM returns are llm_unchanged (D050)."
+}

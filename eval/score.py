@@ -5,7 +5,7 @@ import re
 
 from medkg_data.lexicon import GENERIC_ANCHORS, ambiguous_word
 
-VERSION = 'deterministic-3.4'
+VERSION = 'deterministic-3.5'
 COUNT_LABEL = re.compile(r'\bcount\s*[:=]\s*(\+?\d[\d,]*(?:\.\d+)?)',re.I)
 
 
@@ -125,8 +125,9 @@ def score(case: dict,result: dict,vocabulary: Vocabulary) -> dict:
     evidence_text = json.dumps(result.get('contexts',[]))
     supported = vocabulary.extract(evidence_text) | {r['uid'] for r in result.get('contexts',[]) if r.get('uid')}
     expected = set(case.get('expected',[]))
+    # v2 cases name their anchors explicitly; a misspelt anchor cannot be re-linked.
     anchor_uids = vocabulary.extract(' '.join([
-        *case.get('anchors',[]), *case.get('history_questions',[])]))
+        *case.get('anchors',[]), *case.get('history_questions',[])])) | set(case.get('anchor_uids',[]))
     # A Disease anchor alias can also name a Phenotype that is an expected
     # target. Never subtract the gold target merely because aliases collide.
     predicted_targets = predicted - (anchor_uids - expected)
@@ -159,7 +160,9 @@ def score(case: dict,result: dict,vocabulary: Vocabulary) -> dict:
             passed = passed and bool(predicted & graph) and bool(supported & graph)
     else:
         partial = bool(re.search(r'only part|partial|not exhaustive|subset',body,re.I))
-        passed = f1==1 if case.get('recall_applicable',True) else precision==1 and partial
+        # Long gold lists need only correct entries plus a partial-result notice, unless
+        # the answer is in fact complete (16-25 targets fit within the retrieval limit).
+        passed = f1==1 if case.get('recall_applicable',True) else precision==1 and (partial or recall==1)
     passed = bool(passed and not result.get('failure_stage'))
     quality_passed = bool(passed and readonly and generated_safe and not forbidden and
                           (faithful if kind in ('list','text','count') else True) and

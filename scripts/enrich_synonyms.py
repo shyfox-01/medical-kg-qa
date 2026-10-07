@@ -22,22 +22,7 @@ from medkg_data import synonyms
 
 RAW, PROCESSED = ROOT/'data/raw', ROOT/'data/processed'
 
-# Everyday names that should link (expected catalog name, label).
-PROBES = {
-    'aspirin': 'Acetylsalicylic acid', 'tylenol': 'Acetaminophen', 'paracetamol': 'Acetaminophen',
-    'advil': 'Ibuprofen', 'motrin': 'Ibuprofen', 'aleve': 'Naproxen', 'lipitor': 'Atorvastatin',
-    'zocor': 'Simvastatin', 'glucophage': 'Metformin', 'coumadin': 'Warfarin', 'prozac': 'Fluoxetine',
-    'zoloft': 'Sertraline', 'xanax': 'Alprazolam', 'valium': 'Diazepam', 'synthroid': 'Levothyroxine',
-    'norvasc': 'Amlodipine', 'prilosec': 'Omeprazole', 'nexium': 'Esomeprazole',
-    'benadryl': 'Diphenhydramine', 'claritin': 'Loratadine', 'zyrtec': 'Cetirizine',
-    'plavix': 'Clopidogrel', 'lasix': 'Furosemide', 'viagra': 'Sildenafil', 'albuterol': 'Salbutamol',
-    'ventolin': 'Salbutamol', 'amoxil': 'Amoxicillin', 'cipro': 'Ciprofloxacin', 'tamiflu': 'Oseltamivir',
-    'high blood pressure': 'hypertensive disorder', 'heart attack': 'myocardial infarction',
-    'flu': 'influenza', 'common cold': 'common cold', 'heartburn': 'heartburn',
-    'high cholesterol': 'hypercholesterolemia', 'kidney stones': 'kidney stone',
-    'pink eye': 'conjunctivitis', 'chickenpox': 'varicella', 'hay fever': 'allergic rhinitis',
-    'lou gehrig disease': 'amyotrophic lateral sclerosis',
-}
+PROBES = synonyms.COVERAGE_PROBES
 
 
 def coverage(entities: list[dict]) -> dict:

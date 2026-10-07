@@ -629,3 +629,39 @@ The entity catalog is also the scorer's vocabulary, so evaluations after D049 ha
 a new `vocabulary_sha256` and are not directly comparable with earlier summaries.
 Alternatives: RxNorm prescribable content (deferred: US prescription focus, 75 MB,
 needs a UNII bridge) or hand-written brand tables (rejected: unmaintainable).
+
+## D050 — Structured benchmark v2 (2026-10-08)
+
+v1 (frozen) samples only anchors with 1-15 neighbours, uses ontology names and
+template wording, and has one multi-hop shape, so it says little about common
+questions. v2 (`eval/generate_v2.py`, `structured_v2.jsonl`, `MANIFEST_v2.json`)
+keeps the CSV-only gold rule and the v1 control questions and changes the rest.
+
+- Anchors: 75% from common pools (diseases with a MedlinePlus topic, drugs with an
+  FDA label or 3+ indications, the most frequent side-effect/disease phenotypes),
+  25% from the long tail. HPO qualifier terms (onset, inheritance, frequency) and
+  obsolete entities never anchor a question. 247 common / 73 tail / 80 controls.
+- Wording: 2-4 natural templates per relation, phenotype names lower-cased. Half of
+  the eligible questions went to the configured LLM for rewording with validation
+  (anchors verbatim, both/not/interact/how-many cues kept). It mostly returned the
+  question unchanged: 28 reworded, 95 `llm_unchanged` (labels corrected before
+  first use), 16 kept the template after failed validation.
+- Lexical variation from real usage: 25 US brand names of single-ingredient
+  prescription products (cached openFDA labels), 20 MedlinePlus consumer names and
+  also-called names ("lazy eye", "grippe", HCV), 15 adjacent-letter typos. The 40
+  D049 coverage probes are excluded. `alias_in_catalog` records whether the system
+  can link the form; unlinked forms are kept as coverage tests.
+- Clinical multi-hop and constraint shapes: drugs for A that interact with drug D,
+  drugs for A contraindicated in B, drugs for A not contraindicated in B, drugs for
+  both A and B, shared symptoms, side effects of a disease's drugs, gene-mediated.
+- `sensitive_terms` (20): third-person knowledge questions with words the pre-D047
+  safety rules refused (chest pain, suicidal ideation, pregnancy, seizure, newborn);
+  they must be answered.
+- Lists longer than 15 are scored on precision plus a partial notice; scoring
+  `deterministic-3.5` also accepts a complete 16-25 item list without the notice,
+  and subtracts explicit `anchor_uids` (a misspelt anchor cannot be re-linked).
+
+All 320 gold queries were executed read-only against Neo4j and returned exactly the
+CSV-computed sets/counts. Split: 160 dev / 240 test (seed 2026). Question texts
+were reviewed while the generator was developed; no system answers on v2 have been
+inspected. Only test-split summaries should be reported; tune on dev.

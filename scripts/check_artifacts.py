@@ -19,6 +19,16 @@ def lines(path):
     return [json.loads(line) for line in path.read_text(encoding='utf8').splitlines()]
 
 
+def frozen_v2(root):
+    """The v2 benchmark is optional; once generated it must match its manifest."""
+    manifest = root/'eval/datasets/MANIFEST_v2.json'
+    if not manifest.exists():
+        return True
+    expected = json.loads(manifest.read_text(encoding='utf8'))['dataset_sha256']
+    dataset = root/'eval/datasets/structured_v2.jsonl'
+    return dataset.exists() and digest(dataset)==expected
+
+
 def verify(root=ROOT):
     processed = root/'data/processed'
     entities = {e['uid']:e for e in json.loads((processed/'entities.json').read_text(encoding='utf8'))}
@@ -33,6 +43,7 @@ def verify(root=ROOT):
     try:
         checks = {
             'frozen_dataset':digest(root/'eval/datasets/structured_v1.jsonl')==manifest['dataset_sha256'],
+            'frozen_dataset_v2':frozen_v2(root),
             'corpus_hash':digest(processed/'vector_corpus.jsonl')==progress['sha256'],
             'alias_shape':alias_vectors.shape==(len(aliases),384),
             'alias_identities':all(a['uid'] in entities and a['text'] in
