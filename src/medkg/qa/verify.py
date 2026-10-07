@@ -2,7 +2,8 @@ import json
 import re
 
 from medkg.qa.answer import messages
-from medkg.qa.linker import COMMON_SYMBOLS, GENERIC_ANCHORS, normalize
+from medkg.qa.linker import normalize
+from medkg_data.lexicon import GENERIC_ANCHORS, ambiguous_word
 
 
 def entities_in_text(text: str,linker) -> set[str]:
@@ -17,8 +18,7 @@ def entities_in_text(text: str,linker) -> set[str]:
             if occupied & positions:
                 continue
             alias = ' '.join(words[start:start+size])
-            if alias in GENERIC_ANCHORS or (alias in COMMON_SYMBOLS and not ' '.join(
-                    original[start:start+size]).isupper()):
+            if alias in GENERIC_ANCHORS or ambiguous_word(alias,' '.join(original[start:start+size])):
                 continue
             if len(alias)>=3 and alias in linker.aliases:
                 found.update(linker.aliases[alias])

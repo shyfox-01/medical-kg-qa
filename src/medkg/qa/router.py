@@ -30,7 +30,7 @@ def route(question: str, candidates: list[Candidate], previous: str | None = Non
     families = (
         r'interact', r'side effect|adverse effect|phenotype|symptom|feature',
         r'contraindicat|should.*avoid|must.*avoid', r'target|protein|gene',
-        r'indicat|used for|treat',
+        r'(?<!contra)indicat|used for|treat',
     )
     if sum(bool(re.search(pattern,q)) for pattern in families)>1:
         return None

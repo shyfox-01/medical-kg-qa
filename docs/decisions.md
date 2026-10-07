@@ -538,3 +538,39 @@ code-only build with a matching hash, rebuild offline with existing setuptools,
 and inspect names and metadata. This packaging-only change introduces no dependency
 or QA behavior change. Alternative: rely on the repository page alone; rejected
 because reviewers of an exported Python package would lose its context.
+
+## D047 — Code review fixes (2026-10-07)
+
+A line-by-line review of `src/medkg` and `eval` found defects that the frozen
+benchmark could not expose. Each fix has a fictional-entity regression test in
+`tests/unit/test_code_review_fixes.py`.
+
+- Safety gates matched entity names instead of situations: "diseases with chest
+  pain", "drugs for heart attack", "suicidal ideation as a side effect" and
+  "ectopic pregnancy symptoms" were refused. Emergency and crisis rules now need a
+  personal or situational cue (method-seeking crisis phrases need none);
+  special-population rules need a medication context. A bare article is a dose
+  quantity only inside an instruction, so "a drop in blood pressure" no longer
+  replaces an answer, and "if you have X" is not a diagnosis. All 25 frozen safety
+  controls keep their category.
+- One-hop `expand` returned bare neighbor names, so a contraindication could be
+  narrated as a use. Rows now carry relation, subject and object, sampled up to four
+  per relationship type with explicit truncation; two-hop rows carry their path.
+- Alias matching suppressed only nine hard-coded English words. A shared lexicon
+  (`medkg_data.lexicon`) now requires upper-case spelling for every alias that is
+  an ordinary English word (LET, GET, TEN, ALL, BAD...), in the linker, verifier
+  and scorer alike. This also removes the false "cold" -> COPD link.
+- Pronoun resolution replaced every "it"/"that"; it now replaces only referring
+  uses. `(?<!contra)indicat` keeps contraindication questions on their template.
+  More than 25 evidence chunks now marks the answer partial.
+- The runtime LLM client enforced the one-off 15M task cap against a lifetime
+  ledger and always slept 1 s. `TOKEN_BUDGET` is now opt-in (no clamp) and
+  `LLM_COOLDOWN_S` (default 1 for the free GLM tier) is configurable.
+- Scoring `deterministic-3.4`: an explicit "Count: N" label is authoritative, so
+  list numbering, uid digits or "type 2" in a name no longer void a correct count.
+
+Alternatives: extend the hard-coded word list (rejected: it missed half the
+observed collisions) or re-tune safety rules on test questions (rejected: rules are
+checked against frozen controls and fictional cases only). Not addressed here: the
+benchmark generator still samples only anchors with at most 15 neighbors and has
+no lay, brand-name or typo variants; that needs the v2 question set.

@@ -6,9 +6,8 @@ from dataclasses import asdict, dataclass
 import numpy as np
 from rapidfuzz import fuzz, process
 
-COMMON_SYMBOLS = {'was','has','can','all','set','cat','air','max','met'}
-GENERIC_ANCHORS = {'disease','diseases','condition','conditions','disorder','disorders',
-                   'medical condition','disease or disorder','diseases and disorders','other disease'}
+from medkg_data.lexicon import GENERIC_ANCHORS, ambiguous_word
+
 
 def normalize(text: str) -> str:
     words = re.sub(r'[^\w\s]', ' ', text.casefold()).split()
@@ -95,8 +94,7 @@ class Linker:
                 if occupied & positions:
                     continue
                 key = ' '.join(words[start:start+size])
-                if key in GENERIC_ANCHORS or (key in COMMON_SYMBOLS and
-                        not ' '.join(original[start:start+size]).isupper()):
+                if key in GENERIC_ANCHORS or ambiguous_word(key,' '.join(original[start:start+size])):
                     continue
                 if key in self.aliases:
                     ids = sorted(set(self.aliases[key]))

@@ -110,12 +110,13 @@ class LLMClient:
         identifier = str(uuid.uuid4())
         lock = self.ledger.with_suffix('.lock')
         with ledger_lock(lock):
-            records = [json.loads(line) for line in self.ledger.read_text(encoding='utf8').splitlines()] if self.ledger.exists() else []
-            balances = {}
-            for r in records:
-                balances[r['call_id']] = r.get('charged_tokens', r.get('reserved_tokens', 0))
-            if sum(balances.values()) + reserve > self.settings.token_budget:
-                raise RuntimeError('Task token budget exhausted')
+            if self.settings.token_budget is not None:
+                records = [json.loads(line) for line in self.ledger.read_text(encoding='utf8').splitlines()] if self.ledger.exists() else []
+                balances = {}
+                for r in records:
+                    balances[r['call_id']] = r.get('charged_tokens', r.get('reserved_tokens', 0))
+                if sum(balances.values()) + reserve > self.settings.token_budget:
+                    raise RuntimeError('Configured token budget exhausted')
             self._record({'call_id': identifier, 'status': 'reserved', 'reserved_tokens': reserve,
                           'model': self.model, 'run_id':os.getenv('MEDKG_RUN_ID','interactive'),
                           'timestamp': time.time()})
@@ -124,13 +125,15 @@ class LLMClient:
         try:
             kwargs = dict(model=self.model, messages=messages, temperature=0, max_tokens=max_tokens)
             # The existing free endpoint rejects concurrent requests (HTTP 429).
-            # A process-shared slot bounds concurrency without SDK retry storms.
+            # A process-shared slot bounds concurrency without SDK retry storms;
+            # LLM_COOLDOWN_S (default 1) spaces calls and can be 0 for paid providers.
             with ledger_lock(self.ledger.with_name('llm_call.lock'),timeout=120):
                 try:
                     response = self.client.chat.completions.create(**kwargs,
                         extra_body={'thinking': {'type': 'disabled'}})
                 finally:
-                    time.sleep(1)
+                    if self.settings.llm_cooldown>0:
+                        time.sleep(self.settings.llm_cooldown)
             usage = response.usage
             tokens = {'prompt_tokens': usage.prompt_tokens, 'completion_tokens': usage.completion_tokens} if usage else {}
             content = (response.choices[0].message.content or '').strip()

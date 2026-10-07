@@ -130,6 +130,8 @@ class Pipeline:
                         attrs['rows'] = len(claims)
                 result['contexts'] = rows + [{'uid':c.uid,'name':c.name,'role':'anchor'} for c in candidates]
                 evidence_uids = sorted({uid for row in rows for uid in row.get('evidence',[]) or []})
+                # Only 25 supporting chunks are attached; say so instead of implying completeness.
+                result['truncated'] |= len(evidence_uids)>25
                 if evidence_uids:
                     documents = self.store.read('MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk) '
                         'WHERE c.uid IN $uids RETURN c.uid AS uid,c.text AS text,c.section AS section, '

@@ -26,7 +26,10 @@ class Settings:
     llm_model: str = field(default_factory=lambda: env('LLM_MODEL'))
     judge_model: str = field(default_factory=lambda: env('JUDGE_MODEL') or env('LLM_MODEL'))
     llm_timeout: float = field(default_factory=lambda: float(env('LLM_TIMEOUT', '30')))
-    token_budget: int = field(default_factory=lambda: min(15000000, int(env('TOKEN_BUDGET', '15000000'))))
+    # Optional cumulative cap over the usage ledger (evaluation runs set it); unset = no cap.
+    token_budget: int | None = field(default_factory=lambda: int(env('TOKEN_BUDGET')) if env('TOKEN_BUDGET') else None)
+    # Pause after each provider call; the free GLM endpoint returns HTTP 429 without it.
+    llm_cooldown: float = field(default_factory=lambda: float(env('LLM_COOLDOWN_S', '1')))
     query_timeout: float = field(default_factory=lambda: float(env('QUERY_TIMEOUT_S', '10')))
     max_limit: int = field(default_factory=lambda: min(200, int(env('MAX_LIMIT', '200'))))
     max_hops: int = field(default_factory=lambda: min(2, int(env('MAX_PATH_HOPS', '2'))))
