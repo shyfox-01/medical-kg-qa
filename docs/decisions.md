@@ -574,3 +574,27 @@ observed collisions) or re-tune safety rules on test questions (rejected: rules 
 checked against frozen controls and fictional cases only). Not addressed here: the
 benchmark generator still samples only anchors with at most 15 neighbors and has
 no lay, brand-name or typo variants; that needs the v2 question set.
+
+## D048 — Same-name readings, reverse side effects and text fallback (2026-10-07)
+
+Real-provider probes after D047 found three gaps the frozen benchmark cannot show.
+
+- PrimeKG often has a Disease and a Phenotype with one name (gout, migraine, type 2
+  diabetes). Both readings were marked ambiguous, so the router refused templates and
+  the planner refused its guarded fallback; malformed plans then ended in errors. A
+  mention whose readings differ only by label is now resolved by the requested
+  relation: each reading is routed, and if several match, the requested target type
+  ("which diseases ...", "what are the symptoms ...") decides. Several readings of one
+  label remain ambiguous. Leading common words no longer form unresolved mentions
+  ("let me know which drug"), which had blocked routing.
+- "Which drugs have X as a side effect" had no template and relied on generated
+  Cypher. `drugs_with_side_effect` (Phenotype <- HAS_SIDE_EFFECT - Drug) now covers it.
+- 9,030 of 15,774 diseases have no HAS_PHENOTYPE edge, gout included, so a single
+  template could answer "no evidence" while a MedlinePlus summary about the entity
+  exists. In hybrid phase 3, an empty single-template result now falls back to
+  vector search over documents ABOUT the anchors (`retrieval_fallback`).
+
+Alternatives: ask the user to choose Disease or Phenotype (rejected: the relation
+already determines it), or always answer "symptoms" questions from text (rejected:
+graph phenotype edges are structured and cited when they exist). Fictional-entity
+tests are in `tests/unit/test_label_resolution.py`; no test answers were used.

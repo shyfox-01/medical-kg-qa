@@ -80,6 +80,8 @@ class Pipeline:
                         result['route'] = 'vector'
                     elif intent:
                         label = templates.SPECS[intent][0]
+                        # The route may have chosen one label of a same-name pair.
+                        result['focus'] = [c.name for c in candidates if c.label==label][:2]
                         steps = [planner.Step(tool='template',args={'intent':intent,
                                   'uids':[c.uid for c in candidates if c.label==label],
                                   'count':is_count(resolved)})]
@@ -122,6 +124,14 @@ class Pipeline:
                         outputs.append(retrieved.rows)
                         rows.extend(retrieved.rows)
                         result['truncated'] |= retrieved.truncated
+                        if (step.tool=='template' and not retrieved.rows and len(steps)==1
+                                and self.mode=='hybrid' and self.settings.phase>=3):
+                            # Graph first, text second: most diseases have no phenotype
+                            # edges (e.g. gout) but do have documents about them.
+                            text = self._hybrid_tool('vector_search',{'query':resolved,'uids':args['uids']})
+                            rows.extend(text.rows)
+                            result['retrieval_fallback'] = 'vector_search'
+                            attrs['fallback_rows'] = len(text.rows)
                 if self.mode!='vector' and self.settings.phase>=3:
                     with span('tool.conflict_evidence') as attrs:
                         claims,partial = self._conflicting_claims(candidates,rows,intent)

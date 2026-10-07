@@ -1,10 +1,49 @@
 import re
+from dataclasses import replace
 
-from medkg.qa.linker import Candidate, normalize
+from medkg.qa.linker import Candidate, label_choices, normalize
 from medkg.retrieval.templates import SPECS
+
+DRUG_WORDS = r'\b(?:drugs?|medications?|medicines?)\b'
+TARGET_WORDS = (('Drug', r'drugs?|medications?|medicines?'),
+                ('Disease', r'diseases?|conditions?|disorders?'),
+                ('Phenotype', r'symptoms?|phenotypes?|features?|signs?|side'),
+                ('Gene', r'genes?|proteins?'))
+
+
+def requested_target(question: str) -> str | None:
+    """Label of the entity type the question asks for ("Which diseases ...")."""
+    match = re.search(r'\b(?:which|what)\b((?:\s+\w+){1,4})', question, re.I)
+    for word in (match[1].split() if match else []):
+        for label, pattern in TARGET_WORDS:
+            if re.fullmatch(pattern, word, re.I):
+                return label
+    return None
 
 
 def route(question: str, candidates: list[Candidate], previous: str | None = None) -> str | None:
+    """Deterministic template intent, resolving same-name Disease/Phenotype readings."""
+    if not candidates:
+        return None
+    choices = label_choices(candidates)
+    if choices is None or len(choices)>1:
+        return None
+    if not choices:
+        return _route(question,candidates,previous)
+    group = choices[0]
+    others = [c for c in candidates if c not in group]
+    options = {}
+    for chosen in group:
+        intent = _route(question,[*others,replace(chosen,ambiguous=False)],previous)
+        if intent:
+            options.setdefault(intent,chosen.label)
+    if len(options)>1:
+        target = requested_target(question)
+        options = {intent:label for intent,label in options.items() if SPECS[intent][1]==target}
+    return next(iter(options)) if len(options)==1 else None
+
+
+def _route(question: str, candidates: list[Candidate], previous: str | None = None) -> str | None:
     if not candidates or any(c.ambiguous for c in candidates):
         return None
     labels = {c.label for c in candidates}
@@ -34,6 +73,10 @@ def route(question: str, candidates: list[Candidate], previous: str | None = Non
     )
     if sum(bool(re.search(pattern,q)) for pattern in families)>1:
         return None
+    # Reverse side-effect lookup: one phenotype anchor, drugs requested.
+    if (labels=={'Phenotype'} and len(candidates)==1 and re.search(DRUG_WORDS,q)
+            and re.search(r'side effect|adverse (?:effect|reaction)|\bcause',q)):
+        return 'drugs_with_side_effect'
     if re.search(r'side effect|adverse effect|phenotype|symptom|feature',q) and re.search(r'\bdrugs?|medications?|medicines?\b',q):
         return None
     if re.search(r'\b(?:genes?|proteins?)\b',q) and re.search(

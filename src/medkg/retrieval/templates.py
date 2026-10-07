@@ -4,6 +4,7 @@ SPECS = {
     'indications': ('Drug', 'Disease', 'INDICATED_FOR', False),
     'drugs_for': ('Disease', 'Drug', 'INDICATED_FOR', True),
     'side_effects': ('Drug', 'Phenotype', 'HAS_SIDE_EFFECT', False),
+    'drugs_with_side_effect': ('Phenotype', 'Drug', 'HAS_SIDE_EFFECT', True),
     'phenotypes': ('Disease', 'Phenotype', 'HAS_PHENOTYPE', False),
     'contraindications': ('Drug', 'Disease', 'CONTRAINDICATED_FOR', False),
     'contraindicated_drugs': ('Disease', 'Drug', 'CONTRAINDICATED_FOR', True),

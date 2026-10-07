@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 import numpy as np
 from rapidfuzz import fuzz, process
 
-from medkg_data.lexicon import GENERIC_ANCHORS, ambiguous_word
+from medkg_data.lexicon import COMMON_WORDS, GENERIC_ANCHORS, ambiguous_word
 
 
 def normalize(text: str) -> str:
@@ -127,21 +127,52 @@ class Linker:
             end = start
             while end<len(words) and end-start<12 and words[end] not in stops and end not in occupied:
                 end += 1
-            if end==start:
+            # A span such as "let me know which drug" is phrasing, not an entity:
+            # drop leading generic/common words before treating it as a mention.
+            first = start
+            while first<end and (words[first] in generic or words[first] in COMMON_WORDS):
+                first += 1
+            if first==end:
                 continue
-            mention = ' '.join(words[start:end])
+            mention = ' '.join(words[first:end])
             linked = self.link(mention,hint)
             if linked:
                 # Non-winning fuzzy/vector neighbors are alternatives, not extra
                 # explicit anchors in a question. Preserve all ambiguous choices.
                 for candidate in linked if linked[0].ambiguous else linked[:1]:
-                    candidate.mention = ' '.join(original[start:end])
-                    candidate.span = (start,end)
+                    candidate.mention = ' '.join(original[first:end])
+                    candidate.span = (first,end)
                     candidates.setdefault(candidate.uid,candidate)
-                occupied.update(range(start,end))
+                occupied.update(range(first,end))
             else:
                 unresolved.append(mention)
         return list(candidates.values()),unresolved
 
     def describe(self, candidates: list[Candidate]) -> list[dict]:
         return [asdict(c) for c in candidates]
+
+
+def label_choices(candidates: list) -> list[list] | None:
+    """Group ambiguous mentions whose readings differ only by label.
+
+    PrimeKG often has a Disease and a Phenotype with the same name ("gout"). Such
+    a mention is resolvable from the requested relation. Returns the groups (empty
+    when nothing is ambiguous), or None when a mention has several readings of one
+    label, or lacks a span, which only a clarification can resolve. Accepts
+    Candidate objects or their describe() dictionaries.
+    """
+    def field(candidate,key):
+        return candidate.get(key) if isinstance(candidate,dict) else getattr(candidate,key,None)
+    groups: dict[tuple,list] = {}
+    for candidate in candidates:
+        if not field(candidate,'ambiguous'):
+            continue
+        span = field(candidate,'span')
+        if not span:
+            return None
+        groups.setdefault(tuple(span),[]).append(candidate)
+    for group in groups.values():
+        labels = [field(c,'label') for c in group]
+        if len(group)<2 or None in labels or len(set(labels))<len(labels):
+            return None
+    return list(groups.values())
