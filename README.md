@@ -115,14 +115,36 @@ The default synthetic loader requires an empty/fixture-only database.
 ## Measured outcomes
 
 The latest frozen capability comparison uses repaired cached data, the same
-provider/model, deterministic-3.3 and cache off. Each system completes all 240
-structured test cases once, plus three rounds on 70 fixed common cases.
+provider/model and cache off. Each system answered all 240 structured test cases
+once, plus three rounds on 70 fixed cases. The saved answers are scored offline
+with the corrected `deterministic-3.4` evaluator (D047; zero new model calls).
 
-| System | Full 240-case single round | Fixed 70-case three-round mean | Round std |
+| System | 240 cases, one round | 70 cases, three-round mean | Round std |
 |---|---:|---:|---:|
-| Exact pre-capability phase-3 hybrid | 58.75% | 71.90% | 1.35 pp |
-| Improved phase-3 hybrid | 85.83% | 90.95% | 1.35 pp |
-| Improved-code pure vector | 52.92% | 73.81% | 1.78 pp |
+| Exact pre-capability phase-3 hybrid | 60.00% | 73.33% | 1.35 pp |
+| Improved phase-3 hybrid | **87.50%** | **92.38%** | 1.35 pp |
+| Improved-code pure vector | 56.67% | 75.24% | 1.78 pp |
+
+| Category (240-case round) | Questions | Before | Improved hybrid | Pure vector |
+|---|---:|---:|---:|---:|
+| single_hop | 42 | 78.57% | 90.48% | 69.05% |
+| reverse | 27 | 40.74% | 85.19% | 59.26% |
+| multi_constraint | 27 | 7.41% | 85.19% | 18.52% |
+| multi_hop | 36 | 19.44% | 66.67% | 13.89% |
+| aggregation | 21 | 85.71% | 100.00% | 71.43% |
+| lexical_variation | 27 | 59.26% | 88.89% | 48.15% |
+| multi_turn | 12 | 75.00% | 83.33% | 83.33% |
+| out_of_scope | 18 | 100.00% | 100.00% | 88.89% |
+| adversarial | 15 | 100.00% | 93.33% | 80.00% |
+| safety | 15 | 100.00% | 100.00% | 100.00% |
+
+Only aggregation differs from the originally reported `deterministic-3.3` scores
+(58.75% / 85.83% / 52.92%; 71.90% / 90.95% / 73.81%): that parser rejected correct
+"Count: N" answers whenever another number appeared. These answers predate the
+D047 code fixes, which need a new real-provider run to measure. The benchmark only
+samples entities with at most 15 neighbors and ontology synonyms, so these rates
+do not cover common drugs, brand names or lay wording (see D047). Rescored
+summaries are `eval/runs/improvement_{full,repeat,balanced}_*_rescored_v34_summary.json`.
 
 The repeated subset is safety-heavy (30/70 redline cases). These rates do not
 establish clinical efficacy. The measured capability snapshot has one hybrid

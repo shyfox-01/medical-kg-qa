@@ -8,6 +8,25 @@ from eval.run import summarize
 from eval.score import VERSION, Vocabulary, score
 
 
+def read_round(summary: Path,index: int) -> list[dict]:
+    detail = summary.with_name(summary.stem.replace('_summary','')+f'_round{index}.jsonl')
+    return [json.loads(line) for line in detail.read_text(encoding='utf8').splitlines()]
+
+
+def saved_rounds(source: Path,prior: dict) -> list[list[dict]]:
+    """Saved records per round; balanced summaries combine a full first round
+    (restricted to the repeated ids) with the repeated subset rounds."""
+    if 'source_summaries' not in prior:
+        return [read_round(source,i) for i in range(1,prior['rounds']+1)]
+    full,repeat = (Path(p.replace('\\','/')) for p in prior['source_summaries'])
+    first = {r['id']:r for r in read_round(full,1)}
+    rounds = [[first[uid] for uid in prior['evaluated_ids']]]
+    rounds += [read_round(repeat,i) for i in range(1,prior['rounds'])]
+    if any([r['id'] for r in rows]!=prior['evaluated_ids'] for rows in rounds):
+        raise SystemExit('Saved rounds do not match the evaluated ids')
+    return rounds
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--source',required=True,help='Historical summary file')
@@ -29,9 +48,7 @@ def main() -> None:
     vocabulary = Vocabulary(json.loads(Path(args.vocabulary).read_text(encoding='utf8')))
     rounds = []
     complete_accounting = True
-    for index in range(1,prior['rounds']+1):
-        detail = source.with_name(source.stem.replace('_summary','')+f'_round{index}.jsonl')
-        records = [json.loads(line) for line in detail.read_text(encoding='utf8').splitlines()]
+    for records in saved_rounds(source,prior):
         for record in records:
             scoring_result = {**record['result'],'failure_stage':record.get('failure_stage')}
             if 'turns' in record:

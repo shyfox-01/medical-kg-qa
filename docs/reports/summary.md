@@ -140,3 +140,15 @@ Post-measurement native mutex and scope changes pass 213 unit tests, 15 native
 integration tests, fictional CI and three fresh hybrid redline rounds. Vector
 still has one refusal regression. Human labels and deployment validation remain
 pending; the report records provenance, budgets, packaging and owned-process cleanup.
+
+## Code review fixes and offline rescoring — 2026-10-07
+
+A code review fixed safety false positives, relation-blind expansion, common-word
+alias links, pronoun substitution, the contraindication route, silent evidence
+truncation, the runtime token cap and count scoring (decision D047; 60 new
+fictional regression tests, 273 unit tests pass). Saved answers from the comparison
+above were rescored offline with `deterministic-3.4` (zero model calls): 240 cases
+60.00% / 87.50% / 56.67% and 70 cases over three rounds 73.33% / 92.38% / 75.24%
+(before / improved / vector). Only aggregation changed, because the previous parser
+rejected correct "Count: N" answers that also contained other numbers. The rescored
+answers predate the D047 code fixes; measuring those requires a new real-provider run.
