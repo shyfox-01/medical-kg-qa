@@ -1,0 +1,56 @@
+{
+  "unit_tests_passed": 213,
+  "native_tests_passed": 15,
+  "ruff_passed": true,
+  "fake_cases": 13,
+  "fake_rounds": 3,
+  "dev_maintenance_cases": 22,
+  "dev_maintenance_passed": 22,
+  "final_hybrid_redline_cases": 30,
+  "final_hybrid_redline_rounds": 3,
+  "final_hybrid_redline_regressions": [],
+  "final_vector_redline_regressions": [
+    "structured-0373"
+  ],
+  "final_code_sha256": "a2e42a7a54957b2bb389b4ba3b15cc964a25a5c6a427272f41a29d514fae2f30",
+  "comparison_complete": true,
+  "comparison_wall_seconds": 12168.519981861115,
+  "comparison_additional_charged_tokens": 2480504,
+  "task_charged_or_reserved_tokens": 4719544,
+  "task_token_cap": 15000000,
+  "implementation_start_charged_tokens": 2002504,
+  "implementation_additional_charged_tokens": 2717040,
+  "expected_post_measurement_source_drift": [
+    "src/medkg/llm.py",
+    "src/medkg/qa/pipeline.py"
+  ],
+  "all_other_frozen_inputs_unchanged": true,
+  "packaging_only_readme_declaration_added": true,
+  "human_queue_hashes_unchanged": true,
+  "human_labels_created_by_agent": 0,
+  "wheel": {
+    "path": ".cache\\improvement-2026-10-06\\wheel-delivery\\medkg-0.1.0-py3-none-any.whl",
+    "bytes": 60676,
+    "sha256": "ca6208202a2f998c24c2d1524c8fc4c5ae1c3f2a6c06b070fc50c1d8872df189",
+    "entries": 43,
+    "package_and_metadata_only": true,
+    "current_readme_verified": true
+  },
+  "docker_runtime_verified": false,
+  "remote_ci_verified": false,
+  "phoenix_verified": false,
+  "clinical_validation": false,
+  "owned_process_cleanup": {
+    "local_listeners_remaining": [],
+    "owned_neo4j_processes_remaining": [],
+    "verified_owned_pids": [
+      3564,
+      36744
+    ],
+    "passed": true,
+    "evaluation_workers_remaining": []
+  },
+  "idle_native_mutexes_acquirable": true,
+  "git_push_performed": false,
+  "dependencies_changed": false
+}

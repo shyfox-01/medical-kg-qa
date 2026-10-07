@@ -1,0 +1,49 @@
+{
+  "repair_version": "cached-text-1.0",
+  "applied": true,
+  "downloads": 0,
+  "llm_calls": 0,
+  "changed_drug_alias_sets": 149,
+  "fda_documents": 247,
+  "fda_parse": {
+    "labels": 382,
+    "unlinked_labels": 123,
+    "ambiguous_labels": 30,
+    "quarantined_aliases": 393
+  },
+  "unlinked_fda_documents": 0,
+  "retained_assertions": 27,
+  "quarantined_assertions": 18,
+  "chunk_texts_changed": 0,
+  "chunk_embeddings_recomputed": 0,
+  "mentions": 55536,
+  "graph_counts": {
+    "nodes": {
+      "Disease": 15774,
+      "Drug": 7957,
+      "Phenotype": 9433,
+      "Gene": 9811,
+      "Document": 1264,
+      "Chunk": 4693
+    },
+    "relations": {
+      "INDICATED_FOR": 9388,
+      "CONTRAINDICATED_FOR": 30677,
+      "OFF_LABEL_FOR": 2568,
+      "INTERACTS_WITH": 1336339,
+      "HAS_SIDE_EFFECT": 64784,
+      "HAS_PHENOTYPE": 150317,
+      "ASSOCIATED_WITH": 80411,
+      "TARGETS": 25653,
+      "SUBTYPE_OF": 20626,
+      "ABOUT": 1003,
+      "MENTIONS": 55536,
+      "HAS_CHUNK": 4693
+    }
+  },
+  "alias_vectors": 121277,
+  "corpus_rows": 47668,
+  "corpus_sha256": "07f93732003f03b0393a7af0970ef2f125ee526fb4d4699c8062533094af571e",
+  "backup_directory": "E:\\medical project\\medical-kg-qa\\.cache\\fix-2026-10-05\\artifact-repair\\before",
+  "quarantined_review_file": "E:\\medical project\\medical-kg-qa\\eval\\human_labels\\extraction_repair_review_todo.jsonl"
+}

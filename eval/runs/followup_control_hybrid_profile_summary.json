@@ -1,0 +1,91 @@
+{
+  "requested_traces": 234,
+  "matched_traces": 234,
+  "stages": {
+    "ask": {
+      "count": 234,
+      "total_seconds": 797.1693144,
+      "median_seconds": 1.6661356999999999,
+      "p90_seconds": 11.9426951
+    },
+    "generation": {
+      "count": 40,
+      "total_seconds": 344.565938,
+      "median_seconds": 7.7712181000000005,
+      "p90_seconds": 15.385495
+    },
+    "linking": {
+      "count": 138,
+      "total_seconds": 4.9678049,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0547775
+    },
+    "llm": {
+      "count": 185,
+      "total_seconds": 791.1187819,
+      "median_seconds": 2.210124,
+      "p90_seconds": 9.2463546
+    },
+    "output_safety": {
+      "count": 40,
+      "total_seconds": 0.0010325,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0
+    },
+    "request.result": {
+      "count": 234,
+      "total_seconds": 0.0010024,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0
+    },
+    "routing": {
+      "count": 138,
+      "total_seconds": 343.8887964,
+      "median_seconds": 1.7175615,
+      "p90_seconds": 4.1745704
+    },
+    "safety": {
+      "count": 234,
+      "total_seconds": 0.0596185,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0010023
+    },
+    "tool.conflict_evidence": {
+      "count": 21,
+      "total_seconds": 0.0649615,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0
+    },
+    "tool.expand": {
+      "count": 9,
+      "total_seconds": 0.049750499999999996,
+      "median_seconds": 0.0030315,
+      "p90_seconds": 0.0073794
+    },
+    "tool.out_of_scope": {
+      "count": 90,
+      "total_seconds": 0.013269699999999999,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0009994
+    },
+    "tool.template": {
+      "count": 18,
+      "total_seconds": 0.2607318,
+      "median_seconds": 0.0100803,
+      "p90_seconds": 0.0335312
+    },
+    "tool.text2cypher": {
+      "count": 13,
+      "total_seconds": 83.0724324,
+      "median_seconds": 5.2203799,
+      "p90_seconds": 7.5656475
+    },
+    "verification": {
+      "count": 21,
+      "total_seconds": 19.9144847,
+      "median_seconds": 0.0020059,
+      "p90_seconds": 0.006697
+    }
+  },
+  "interpretation": "Nested span totals overlap. Medians are observed local/provider timings; no standalone capacity or concurrency claim is supported."
+}

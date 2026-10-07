@@ -1,10 +1,12 @@
 """External, stratified, repeated evaluation with per-id redline comparison."""
 
 import argparse
+import hashlib
 import json
 import os
 import random
 import statistics
+import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -12,7 +14,7 @@ from dotenv import load_dotenv
 from neo4j import READ_ACCESS, GraphDatabase
 
 from eval.client import SystemClient
-from eval.score import Vocabulary, query_safe, score
+from eval.score import VERSION, Vocabulary, query_safe, score
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -96,8 +98,10 @@ def summarize(rounds: list[list[dict]],cases: list[dict]) -> dict:
                   'latency_p90_s':sorted(r['latency_s'] for r in rows)[max(0,int(len(rows)*0.9)-1)],
                   'llm_calls':sum(r['usage'].get('calls',0) for r in rows),
                   'tokens':sum(r['usage'].get('prompt_tokens',0)+r['usage'].get('completion_tokens',0) for r in rows)}
-        for name in ('precision','recall','f1','faithful','query_safe','forbidden_content','count_exact'):
-            measured = [r['score'][name] for r in rows if r['score'][name] is not None]
+        if all('final_turn_latency_s' in r for r in rows):
+            values['final_turn_latency_median_s'] = statistics.median(r['final_turn_latency_s'] for r in rows)
+        for name in ('precision','recall','f1','faithful','query_safe','forbidden_content','count_exact','quality_passed'):
+            measured = [r['score'][name] for r in rows if r['score'].get(name) is not None]
             values[name] = statistics.mean(measured) if measured else None
         if category not in ('safety','adversarial','out_of_scope'):
             values['false_refusal_rate'] = statistics.mean(r['score']['refused'] for r in rows)
@@ -105,12 +109,39 @@ def summarize(rounds: list[list[dict]],cases: list[dict]) -> dict:
             values['correct_refusal_rate'] = statistics.mean(r['score']['passed'] for r in rows)
         categories[category] = values
     rates = [statistics.mean(r['score']['passed'] for r in rows) for rows in rounds]
+    quality = [statistics.mean(r['score'].get('quality_passed',r['score']['passed']) for r in rows) for rows in rounds]
     return {'categories':categories,'pass_rate_rounds':rates,'pass_rate_mean':statistics.mean(rates),
+            'quality_pass_rate_rounds':quality,'quality_pass_rate_mean':statistics.mean(quality),
+            'response_status_counts':dict(Counter(r['score'].get('response_status','legacy_unspecified')
+                for rows in rounds for r in rows)),
             'pass_rate_std':statistics.pstdev(rates),
             'inconsistent_ids':[key for key,values in by_id.items() if len(set(values))>1],
             'failure_stages':dict(failure_stages),
             'redline_outcomes':{case['id']:all(by_id[case['id']]) for case in cases
                                 if case['category'] in ('safety','adversarial')}}
+
+
+def evaluate_case(client,case: dict,vocabulary: Vocabulary,execution) -> dict:
+    """Score the final answer, but account for and retain every conversation turn."""
+    history,turns = [],[]
+    started = time.perf_counter()
+    for question in [*case.get('history_questions',[]),case['question']]:
+        result = client.ask(question,history)
+        turns.append({'question':question,'result':result})
+        history.append({'question':question,'focus':result.get('focus',[]),'intent':result.get('intent')})
+    wall_latency = time.perf_counter()-started
+    usage = {}
+    for turn in turns:
+        for key,value in turn['result'].get('usage',{}).items():
+            usage[key] = usage.get(key,0)+value
+    failure = next((t['result'].get('failure_stage') for t in turns if t['result'].get('failure_stage')),None)
+    scoring_result = {**result,'failure_stage':failure,'executed_statements':[
+        stmt for t in turns for stmt in t['result'].get('executed_statements',t['result'].get('cypher',[]))]}
+    return {'id':case['id'],'category':case['category'],'score':score(case,scoring_result,vocabulary),
+            'execution_exact':execution.compare(case,result),'trace_id':result['trace_id'],
+            'failure_stage':failure,'latency_s':sum(t['result']['latency_s'] for t in turns),
+            'final_turn_latency_s':result['latency_s'],'conversation_wall_latency_s':wall_latency,
+            'usage':usage,'turns':turns,'result':result}
 
 
 def main() -> None:
@@ -126,7 +157,13 @@ def main() -> None:
     parser.add_argument('--baseline')
     parser.add_argument('--fail-on-redline-regression',action='store_true')
     parser.add_argument('--fake',action='store_true')
+    parser.add_argument('--system-source',help='Isolated source directory containing medkg for a frozen control')
+    parser.add_argument('--case-ids',help='Frozen JSON list of IDs for a predeclared comparison')
+    parser.add_argument('--resume',action='store_true',help='Resume a matching incomplete checkpoint')
     args = parser.parse_args()
+    source = Path(args.system_source).resolve() if args.system_source else ROOT/'src'
+    if not all((source/relative).is_file() for relative in ('medkg/config.py','medkg/qa/pipeline.py')):
+        parser.error('System source must contain medkg configuration and pipeline modules')
     if args.rounds<1 or (args.max_per_category is not None and args.max_per_category<1):
         parser.error('Rounds and category cap must be positive')
     if args.fail_on_redline_regression and not args.baseline:
@@ -140,39 +177,63 @@ def main() -> None:
         for row in rows:
             row['expected_graph'] = gold.get(row['id'],{}).get('expected_graph',[])
     cases = choose(rows,args.split,args.max_per_category)
+    if args.case_ids:
+        selected_ids = json.loads(Path(args.case_ids).read_text(encoding='utf8'))
+        by_id = {c['id']:c for c in cases}
+        if len(set(selected_ids))!=len(selected_ids) or any(uid not in by_id for uid in selected_ids):
+            parser.error('Case IDs must be unique and present in the requested split')
+        cases = [by_id[uid] for uid in selected_ids]
     if not cases:
         raise SystemExit('No cases in requested split')
     vocabulary = Vocabulary(json.loads(Path(args.vocabulary).read_text(encoding='utf8')))
+    output = Path(args.output)
+    output.parent.mkdir(parents=True,exist_ok=True)
+    if output.exists():
+        parser.error('Completed evaluation output is immutable; choose a new path')
+    checkpoint = output.with_name(output.stem.replace('_summary','')+'_checkpoint.json')
+    fingerprint = {'evaluator_version':VERSION,'phase':args.phase,'mode':args.mode,'fake':args.fake,
+        'rounds':args.rounds,'case_ids':[c['id'] for c in cases],
+        'dataset_sha256':hashlib.sha256(Path(args.dataset).read_bytes()).hexdigest(),
+        'vocabulary_sha256':hashlib.sha256(Path(args.vocabulary).read_bytes()).hexdigest(),
+        'system_source':str(source),
+        'code_sha256':hashlib.sha256(b''.join(p.read_bytes() for p in sorted([
+            *source.glob('medkg/**/*.py'),*source.glob('medkg_data/**/*.py'),
+            ROOT/'eval/client.py',ROOT/'eval/score.py',ROOT/'eval/run.py']))).hexdigest()}
+    if checkpoint.exists():
+        if not args.resume or json.loads(checkpoint.read_text(encoding='utf8'))!=fingerprint:
+            parser.error('Existing checkpoint requires --resume and identical code/data/configuration')
+    else:
+        checkpoint.write_text(json.dumps(fingerprint,indent=2),encoding='utf8')
     execution = ExecutionScorer()
     rounds = []
     try:
         for repetition in range(args.rounds):
-            client = SystemClient(args.phase,args.mode,args.fake)
-            records = []
+            detail = output.with_name(output.stem.replace('_summary','')+f'_round{repetition+1}.jsonl')
+            records = [json.loads(line) for line in detail.read_text(encoding='utf8').splitlines()] if detail.exists() else []
+            if [r['id'] for r in records]!=[c['id'] for c in cases[:len(records)]]:
+                raise RuntimeError('Checkpoint records are not a prefix of the frozen case list')
+            client = SystemClient(args.phase,args.mode,args.fake,source if args.system_source else None)
             try:
-                for index,case in enumerate(cases):
-                    history = []
-                    for q in case.get('history_questions',[]):
-                        previous = client.ask(q,history)
-                        history.append({'question':q,'focus':previous.get('focus',[]),'intent':previous.get('intent')})
-                    result = client.ask(case['question'],history)
-                    measured = score(case,result,vocabulary)
-                    records.append({'id':case['id'],'category':case['category'],'score':measured,
-                                    'execution_exact':execution.compare(case,result),'trace_id':result['trace_id'],
-                                    'failure_stage':result.get('failure_stage'),'latency_s':result['latency_s'],
-                                    'usage':result['usage'],'result':result})
+                for index,case in enumerate(cases[len(records):],len(records)):
+                    record = evaluate_case(client,case,vocabulary,execution)
+                    records.append(record)
+                    with detail.open('a',encoding='utf8') as stream:
+                        stream.write(json.dumps(record)+'\n')
+                        stream.flush()
                     print(json.dumps({'round':repetition+1,'completed':index+1,'total':len(cases),
-                                      'id':case['id'],'passed':measured['passed']}),flush=True)
+                                      'id':case['id'],'passed':record['score']['passed']}),flush=True)
             finally:
                 client.close()
             rounds.append(records)
-            detail = Path(args.output).with_name(Path(args.output).stem.replace('_summary','')+f'_round{repetition+1}.jsonl')
-            detail.parent.mkdir(parents=True,exist_ok=True)
-            detail.write_text(''.join(json.dumps(r)+'\n' for r in records),encoding='utf8')
     finally:
         execution.close()
     summary = summarize(rounds,cases)
-    summary.update(system='FakeLLM synthetic CI' if args.fake else args.mode,phase=args.phase,
+    summary.update(evaluator_version=VERSION,accounting='all_conversation_turns',
+                   dataset_sha256=hashlib.sha256(Path(args.dataset).read_bytes()).hexdigest(),
+                   code_sha256=fingerprint['code_sha256'],
+                   vocabulary_sha256=hashlib.sha256(Path(args.vocabulary).read_bytes()).hexdigest(),
+                   system='FakeLLM synthetic CI' if args.fake else args.mode,phase=args.phase,
+                   system_source=str(source.relative_to(ROOT)) if source.is_relative_to(ROOT) else str(source),
                    split=args.split,rounds=args.rounds,dataset=args.dataset,
                    total_available=sum(r.get('split')==args.split for r in rows),
                    evaluated_questions=len(cases),sampling_cap=args.max_per_category,

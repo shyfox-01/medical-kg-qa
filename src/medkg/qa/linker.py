@@ -6,6 +6,9 @@ from dataclasses import asdict, dataclass
 import numpy as np
 from rapidfuzz import fuzz, process
 
+COMMON_SYMBOLS = {'was','has','can','all','set','cat','air','max','met'}
+GENERIC_ANCHORS = {'disease','diseases','condition','conditions','disorder','disorders',
+                   'medical condition','disease or disorder','diseases and disorders','other disease'}
 
 def normalize(text: str) -> str:
     words = re.sub(r'[^\w\s]', ' ', text.casefold()).split()
@@ -21,6 +24,8 @@ class Candidate:
     score: float
     method: str
     ambiguous: bool = False
+    mention: str | None = None
+    span: tuple[int,int] | None = None
 
 
 class Linker:
@@ -35,6 +40,7 @@ class Linker:
                     self.aliases.setdefault(key, []).append(e['uid'])
                     self.by_label.setdefault(e['label'], {}).setdefault(key, []).append(e['uid'])
         self.embedder, self.vectors, self.vector_aliases = embedder, vectors, vector_aliases
+        self.alias_sizes = sorted({len(key.split()) for key in self.aliases},reverse=True)
 
     def link(self, mention: str, label: str | None = None) -> list[Candidate]:
         aliases = self.by_label.get(label, {}) if label else self.aliases
@@ -74,25 +80,70 @@ class Linker:
         return Candidate(uid, entity['name'], entity['label'], score, method, ambiguous)
 
     def in_question(self, question: str) -> list[Candidate]:
+        return self.question_mentions(question)[0]
+
+    def question_mentions(self, question: str) -> tuple[list[Candidate],list[str]]:
+        """Link explicit mention spans independently, retaining unresolved anchors."""
         words = normalize(question).split()
+        original = re.findall(r'\w+',question)
         candidates, occupied = {}, set()
-        for size in range(min(12, len(words)), 0, -1):
+        for size in self.alias_sizes:
+            if size>len(words):
+                continue
             for start in range(len(words)-size+1):
                 positions = set(range(start, start+size))
                 if occupied & positions:
                     continue
                 key = ' '.join(words[start:start+size])
+                if key in GENERIC_ANCHORS or (key in COMMON_SYMBOLS and
+                        not ' '.join(original[start:start+size]).isupper()):
+                    continue
                 if key in self.aliases:
                     ids = sorted(set(self.aliases[key]))
                     for uid in ids:
                         candidates[uid] = self._candidate(uid, 100, 'exact', len(ids)>1)
+                        candidates[uid].mention = ' '.join(original[start:start+size])
+                        candidates[uid].span = (start,start+size)
                     occupied |= positions
-        if not candidates:
-            # Extract explicit noun anchors rather than fuzz-matching the whole question.
-            match = re.search(r'\b(?:of|for|about|with|does)\s+(.+?)(?:\?|$)', question, re.I)
-            if match:
-                candidates = {c.uid: c for c in self.link(match[1].strip())}
-        return list(candidates.values())
+        cues = {'of','for','about','with','does','and','between','versus','vs','is','are'}
+        stops = cues | {'interact','interacts','target','targets','treat','treats','is',
+                        'are','has','have','associated','recorded','indicated','cause','causes',
+                        'side','effects','phenotypes','symptoms','contraindicated','indications'}
+        generic = {'the','a','an','what','which','it','its','their','that','drug','drugs',
+                   'disease','diseases','condition','conditions','gene','genes','protein',
+                   'proteins','symptom','symptoms','phenotype','phenotypes','other','both',
+                   'relationship','relationships','relation','relations','shared','common',
+                   'how','can','could','should','i','you','we','explain','tell','list','find',
+                   'information','data','evidence','these','those','some','any','warnings','warning',
+                   'treatment','treatments','used','use','why','entities','anything','something',
+                   'nothing','all','known','available','recorded'}
+        unresolved = []
+        interaction = bool(re.search(r'\binteract',question,re.I))
+        labels = {c.label for c in candidates.values()}
+        hint = 'Drug' if interaction else next(iter(labels)) if len(labels)==1 else None
+        if hint is None and re.search(r'side effects?|targets?|indicated|contraindicated',question,re.I):
+            hint = 'Drug'
+        for start in range(len(words)):
+            if (start and words[start-1] not in cues) or start in occupied or words[start] in generic:
+                continue
+            end = start
+            while end<len(words) and end-start<12 and words[end] not in stops and end not in occupied:
+                end += 1
+            if end==start:
+                continue
+            mention = ' '.join(words[start:end])
+            linked = self.link(mention,hint)
+            if linked:
+                # Non-winning fuzzy/vector neighbors are alternatives, not extra
+                # explicit anchors in a question. Preserve all ambiguous choices.
+                for candidate in linked if linked[0].ambiguous else linked[:1]:
+                    candidate.mention = ' '.join(original[start:end])
+                    candidate.span = (start,end)
+                    candidates.setdefault(candidate.uid,candidate)
+                occupied.update(range(start,end))
+            else:
+                unresolved.append(mention)
+        return list(candidates.values()),unresolved
 
     def describe(self, candidates: list[Candidate]) -> list[dict]:
         return [asdict(c) for c in candidates]

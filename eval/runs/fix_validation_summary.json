@@ -1,0 +1,48 @@
+{
+  "source_revision_before": "b7670bf2b7767c6e091bac9ee0f63e24032ab848",
+  "unit": {
+    "tests": 99,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "integration": {
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "ruff_passed": true,
+  "fake_round_pass_rates": [
+    1,
+    1,
+    1
+  ],
+  "redline_regressions": [],
+  "cached_data_checks": {
+    "backup_hashes_verified": true,
+    "alias_vectors_match_cached_text_vectors": true,
+    "corpus_digest_matches_checkpoint": true,
+    "frozen_dataset_unchanged": true,
+    "drug_aliases_match_database": true,
+    "synthetic_fixture_removed": true
+  },
+  "real_llm_calls": 0,
+  "downloads": 0,
+  "fixes": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "R5",
+    "R6",
+    "R7",
+    "R8"
+  ],
+  "historical_evaluations_preserved": true,
+  "committed": false,
+  "pushed": false,
+  "background_processes_left": false,
+  "docker_remote_ci_phoenix_verified": false,
+  "quarantined_assertions_pending_human_review": 18
+}

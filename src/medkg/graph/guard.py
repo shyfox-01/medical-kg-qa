@@ -64,6 +64,8 @@ def check(cypher: str, max_limit: int = 200, default_limit: int = 25,
     code = lex_skeleton(stmt)
     if ';' in code:
         raise CypherRejected('Multiple statements are prohibited')
+    if re.search(r'\bUNION\b',code,re.I):
+        raise CypherRejected('UNION is unsupported: branch limits do not bound the total result')
     if not re.match(r'^(MATCH|OPTIONAL\s+MATCH|WITH|RETURN|CALL\s*\{)\b', code, re.I):
         raise CypherRejected('Expected a read query')
     forbidden = r'\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP|FOREACH|LOAD|SHOW|TERMINATE|ALTER|GRANT|DENY|REVOKE|USE|PROFILE|EXPLAIN|INSERT|FINISH)\b'

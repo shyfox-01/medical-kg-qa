@@ -1,0 +1,64 @@
+{
+  "checks": {
+    "private_data_not_tracked": true,
+    "tracked_files_no_env_secret_values": true,
+    "tracked_files_no_chinese_content": true,
+    "eval_no_internal_qa_imports": true,
+    "frozen_400_structured_80_drafts": true,
+    "human_100_claims_30_assertions": true,
+    "split_160_240": true,
+    "vector_corpus_complete": true,
+    "compose_two_services_loopback": true,
+    "neo4j_image_version": true,
+    "task_budget_below_15m": true,
+    "temporary_fixture_removed": true
+  },
+  "passed": true,
+  "violating_paths": {
+    "private": [],
+    "secrets": [],
+    "non_english": []
+  },
+  "conservative_charged_or_reserved_tokens": 4719544,
+  "token_cap": 15000000,
+  "python": "3.12.10",
+  "environment_prefix": "E:\\medical project\\medical-kg-qa\\.venv",
+  "versions": {
+    "neo4j": "5.28.6",
+    "openai": "2.54.0",
+    "fastapi": "0.142.2",
+    "opentelemetry-sdk": "1.45.0",
+    "fastembed": "0.8.1",
+    "pytest": "9.1.1",
+    "ruff": "0.16.10"
+  },
+  "graph_counts": {
+    "nodes": {
+      "Disease": 15774,
+      "Drug": 7957,
+      "Phenotype": 9433,
+      "Gene": 9811,
+      "Document": 1264,
+      "Chunk": 4693
+    },
+    "relations": {
+      "INDICATED_FOR": 9388,
+      "CONTRAINDICATED_FOR": 30677,
+      "OFF_LABEL_FOR": 2568,
+      "INTERACTS_WITH": 1336339,
+      "HAS_SIDE_EFFECT": 64784,
+      "HAS_PHENOTYPE": 150317,
+      "ASSOCIATED_WITH": 80411,
+      "TARGETS": 25653,
+      "SUBTYPE_OF": 20626,
+      "ABOUT": 1003,
+      "MENTIONS": 55536,
+      "HAS_CHUNK": 4693
+    }
+  },
+  "checkpoint_procedures": [],
+  "structured_sha256": "ea96924cf31f5866940f225ddb232b429c03b26345bbd95117ffb99363e4ae8c",
+  "docker_runtime_verified": false,
+  "remote_ci_verified": false,
+  "phoenix_verified": false
+}

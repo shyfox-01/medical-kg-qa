@@ -114,6 +114,28 @@ The default synthetic loader requires an empty/fixture-only database.
 
 ## Measured outcomes
 
+The latest frozen capability comparison uses repaired cached data, the same
+provider/model, deterministic-3.3 and cache off. Each system completes all 240
+structured test cases once, plus three rounds on 70 fixed common cases.
+
+| System | Full 240-case single round | Fixed 70-case three-round mean | Round std |
+|---|---:|---:|---:|
+| Exact pre-capability phase-3 hybrid | 58.75% | 71.90% | 1.35 pp |
+| Improved phase-3 hybrid | 85.83% | 90.95% | 1.35 pp |
+| Improved-code pure vector | 52.92% | 73.81% | 1.78 pp |
+
+The repeated subset is safety-heavy (30/70 redline cases). These rates do not
+establish clinical efficacy. The measured capability snapshot has one hybrid
+timeout regression and three vector refusal regressions. Later scope/mutex
+maintenance receives separate final-code checks: 213 unit tests, 15 native
+integration tests, FakeLLM 13 cases in three rounds, and 30 safety/adversarial
+cases in three fresh hybrid rounds with no regression. Some refusals still depend
+on the provider. Final vector revalidation retains one refusal regression.
+See the [implementation report](docs/reports/improvement-2026-10-06.md) for exact
+source fingerprints, failed historical gates, recovery and interpretation limits.
+
+The following tables archive the original staged implementation.
+
 These are sampled results, not full-test estimates. All models use the same 54/240
 structured test questions, three rounds and cache off. The sample overweights
 safety/adversarial cases: all 30 such cases, three per other category.
@@ -125,7 +147,7 @@ safety/adversarial cases: all 30 such cases, three per other category.
 | Phase 3: pure vector | 38.89% | 0.00 pp | 13; gate exit 1 |
 | Phase 4: hybrid delivery | 70.99% | 0.87 pp | 0 against v1 |
 
-**v1 did not improve the overall sampled structured score over v0.** The vector
+**Archived v1 did not improve the overall sampled structured score over v0.** The vector
 control fails the redline gate and is not an approved fallback. The baseline already
 has one failing adversarial case; a no-regression gate does not mean every attack
 passes. Engineering changes are measured separately in [phase 4](docs/reports/phase-4.md).
@@ -136,6 +158,28 @@ correct paraphrases. These unreviewed, small-sample scores are exploratory.
 BioRED uses 12 sampled test abstracts: pair F1 0.3467, native typed F1 0.1067.
 FDA extraction produced 45 assertions from 80/592 eligible chunks, with 75.56%
 PrimeKG agreement; agreement is not medical truth.
+
+The [corrective review report](docs/reports/fix-2026-10-05.md) records subsequent
+repairs and validation. Historical scores above remain archived measurements.
+Versioned `*_rescored_v2_summary.json` files rejudge saved answers using corrected
+scoring/catalog data; they are not new runs of the repaired QA system. Legacy
+multi-turn costs remain incomplete. The cached repair retains 27 extracted
+assertions and quarantines 18 for human review, without new model calls or downloads.
+
+The [ordered follow-up report](docs/reports/followup-2026-10-06.md) records the next
+eight correctness fixes, 143 passing unit tests, 13 passing native integration
+tests and a new real-provider pilot (38 fixed test IDs, three rounds per system).
+Composite quality means are 92.98% for current-code phase-1 control, 94.74% for
+hybrid and 80.70% for vector. Hybrid has no redline regression; vector has four.
+The pilot is safety-heavy, uses a newer evaluator and does not establish overall
+improvement over historical v0. Human review remains pending.
+
+The [capability implementation report](docs/reports/improvement-2026-10-06.md)
+records the subsequent planning, routing, lexical and conversation improvements,
+213 passing unit tests, 15 passing native integration tests and the frozen
+before/after/vector experiment (240 cases once; 70 common cases in three rounds).
+Human blind decisions now have a validated import
+command; labels and medical validation still require independent human review.
 
 ## Data licensing
 
@@ -163,6 +207,9 @@ Review 100 sentence claims in `eval/human_labels/judge_calibration_todo.jsonl`,
 30 assertions in `eval/human_labels/extraction_review_todo.jsonl`, and all 80 text
 drafts. The [review guide](eval/human_labels/README.md) explains annotation and
 agreement calculation. Judge labels remain **uncalibrated** until human comparison.
+Also review the 18 quarantined legacy assertions in
+`eval/human_labels/extraction_repair_review_todo.jsonl`; these are absent from the
+current graph. Original queues remain historical review artifacts.
 
 Known-entity verification does not prove sentence truth. Language and output-safety
 gates are conservative regex rules, not complete classifiers. ANN filtering,

@@ -5,7 +5,8 @@ from collections import Counter
 
 from medkg.config import ROOT
 from medkg.graph.store import GraphStore
-from medkg.ingest.extract import extract, link_relations
+from medkg.ingest.extract import VERSION, cached_edge_supported, extract, link_relations
+from medkg.ingest.publication import publish_assertions
 from medkg.llm import LLMClient
 from medkg.qa.linker import Linker
 
@@ -28,6 +29,7 @@ def main() -> None:
     chosen = eligible[:args.limit]
     entities = json.loads((processed/'entities.json').read_text(encoding='utf8'))
     linker,llm,store = Linker(entities),LLMClient(),GraphStore()
+    by_entity = {e['uid']:e for e in entities}
     cache = processed/'extractions.jsonl'
     prior = {r['chunk_uid']:r for r in (json.loads(line) for line in cache.read_text(encoding='utf8').splitlines())} if cache.exists() else {}
     all_edges,errors,error_types,recovered = [],0,Counter(),0
@@ -37,7 +39,11 @@ def main() -> None:
             retry = bool(args.retry_empty_once and previous and not previous['edges']
                          and 'error_type' not in previous and not previous.get('recovery_attempted'))
             if previous and not retry:
-                edges = prior[chunk['uid']]['edges']
+                edges = [e for e in previous['edges'] if cached_edge_supported(e,chunk,by_entity)]
+                if previous.get('cache_validation_version')!=VERSION or edges!=previous['edges']:
+                    updated = {**previous,'edges':edges,'cache_validation_version':VERSION}
+                    with cache.open('a',encoding='utf8') as stream:
+                        stream.write(json.dumps(updated)+'\n')
             else:
                 error_type = None
                 try:
@@ -76,10 +82,9 @@ def main() -> None:
                 if opposite:
                     edge['conflict'] = True
                     conflicts += 1
-                    store.write('MATCH (a:Drug {uid:$a})-[r:INDICATED_FOR]->(b:Disease {uid:$b}) '
-                                'WHERE r.source="primekg" SET r.conflict=true',edge)
-        store.load([], [{k:v for k,v in e.items() if k!='quote'} for e in edges])
-        (processed/'extracted_edges.jsonl').write_text(''.join(json.dumps(e)+'\n' for e in edges),encoding='utf8')
+        selected = {c['uid'] for c in chosen}
+        exported = processed/'extracted_edges.jsonl'
+        publication = publish_assertions(store,selected,edges,exported,ROOT/'.cache/assertion-publication')
         labels = ROOT/'eval/human_labels'
         labels.mkdir(parents=True,exist_ok=True)
         sampled = rng.sample(edges,min(30,len(edges)))
@@ -87,7 +92,11 @@ def main() -> None:
         todo = [{'id':f'extraction-{i+1:03d}',**edge,'review_status':'todo',
                  'contexts':[by_chunk[uid] for uid in edge['evidence']],
                  'human_supported':None,'human_linking_correct':None} for i,edge in enumerate(sampled)]
-        (labels/'extraction_review_todo.jsonl').write_text(''.join(json.dumps(e)+'\n' for e in todo),encoding='utf8')
+        review = labels/'extraction_review_todo.jsonl'
+        if review.exists():
+            review = labels/('extraction_review_'+publication['operation_sha256'][:12]+'_todo.jsonl')
+        if not review.exists():
+            review.write_text(''.join(json.dumps(e)+'\n' for e in todo),encoding='utf8')
         unlinked = processed/'unlinked_mentions.jsonl'
         summary = {'eligible_chunks':len(eligible),'processed_chunks':len(chosen),'errors':errors,
                    'error_types':dict(error_types),'legacy_cache_recoveries':recovered,
@@ -95,8 +104,9 @@ def main() -> None:
                    'relations':dict(Counter(e['type'] for e in edges)),'unique_assertions':len(edges),
                    'primekg_agreement_rate':agree/len(edges) if edges else None,
                    'conflicts':conflicts,'unlinked_mentions':len(unlinked.read_text(encoding='utf8').splitlines()),
-                   'human_review_items':len(todo),'extractor_version':'openfda-json-1.0',
+                    'human_review_items':len(todo),'extractor_version':VERSION,
                    'confidence_calibrated':False,'clinical_validation':False}
+        summary.update(publication=publication,human_review_file=str(review))
         (ROOT/'eval/runs/extraction_summary.json').write_text(json.dumps(summary,indent=2),encoding='utf8')
         print(json.dumps(summary,indent=2))
     finally:

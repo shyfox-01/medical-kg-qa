@@ -11,13 +11,15 @@ def main() -> None:
     entities = json.loads((processed/'entities.json').read_text(encoding='utf8'))
     aliases = [{'uid':e['uid'],'text':alias} for e in entities
                for alias in sorted({e['name'],*(e.get('synonyms') or [])})]
-    old_index, old_vectors = {}, None
+    old_index, old_text_index, old_vectors = {}, {}, None
     if (processed/'alias_vectors.npy').exists() and (processed/'vector_aliases.json').exists():
         old = json.loads((processed/'vector_aliases.json').read_text(encoding='utf8'))
         if old==aliases:
             print(f'Cached {len(aliases)} alias embeddings')
             return
         old_index = {(a['uid'],a['text']):i for i,a in enumerate(old)}
+        # Name embeddings depend on text, not on the formerly assigned UID.
+        old_text_index = {a['text']:i for i,a in enumerate(old)}
         old_vectors = np.load(processed/'alias_vectors.npy',mmap_mode='r')
     embedder = Embeddings()
     result = np.empty((len(aliases),384),dtype=np.float32)
@@ -26,6 +28,8 @@ def main() -> None:
         key = (alias['uid'],alias['text'])
         if key in old_index:
             result[i] = old_vectors[old_index[key]]
+        elif alias['text'] in old_text_index:
+            result[i] = old_vectors[old_text_index[alias['text']]]
         else:
             missing.append(i)
     for start in range(0,len(missing),512):

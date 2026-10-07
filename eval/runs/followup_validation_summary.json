@@ -1,0 +1,149 @@
+{
+  "unit_tests": {
+    "tests": 143,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "native_integration_tests": {
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fictional_cases_per_round": 13,
+  "fictional_rounds": 3,
+  "fictional_quality_pass_rate": 1,
+  "redline_regressions_against_current_phase1_control": {
+    "hybrid": [],
+    "vector": [
+      "structured-0351",
+      "structured-0356",
+      "structured-0373",
+      "structured-0375"
+    ]
+  },
+  "real_measurement": {
+    "systems": [
+      {
+        "system": "phase1_control",
+        "status": "completed",
+        "exit_code": 0
+      },
+      {
+        "system": "hybrid",
+        "status": "completed",
+        "exit_code": 0
+      },
+      {
+        "system": "vector",
+        "status": "completed",
+        "exit_code": 0
+      }
+    ],
+    "charged_tokens_after": 2002504,
+    "additional_charged_tokens": 310444,
+    "wall_seconds": 1313.125,
+    "complete": true,
+    "phase1_control": {
+      "evaluated_questions": 38,
+      "pass_rate_mean": 0.956140350877193,
+      "quality_pass_rate_mean": 0.9298245614035088,
+      "pass_rate_rounds": [
+        0.9736842105263158,
+        0.9473684210526315,
+        0.9473684210526315
+      ],
+      "quality_pass_rate_rounds": [
+        0.9473684210526315,
+        0.9210526315789473,
+        0.9210526315789473
+      ]
+    },
+    "hybrid": {
+      "evaluated_questions": 38,
+      "pass_rate_mean": 0.9473684210526315,
+      "quality_pass_rate_mean": 0.9473684210526315,
+      "pass_rate_rounds": [
+        0.9473684210526315,
+        0.9473684210526315,
+        0.9473684210526315
+      ],
+      "quality_pass_rate_rounds": [
+        0.9473684210526315,
+        0.9473684210526315,
+        0.9473684210526315
+      ]
+    },
+    "vector": {
+      "evaluated_questions": 38,
+      "pass_rate_mean": 0.8070175438596491,
+      "quality_pass_rate_mean": 0.8070175438596491,
+      "pass_rate_rounds": [
+        0.8157894736842105,
+        0.8157894736842105,
+        0.7894736842105263
+      ],
+      "quality_pass_rate_rounds": [
+        0.8157894736842105,
+        0.8157894736842105,
+        0.7894736842105263
+      ]
+    }
+  },
+  "artifact_check": {
+    "passed": true,
+    "checks": {
+      "frozen_dataset": true,
+      "corpus_hash": true,
+      "alias_shape": true,
+      "alias_identities": true,
+      "corpus_shape": true,
+      "corpus_complete": true,
+      "chunk_associations": true,
+      "assertion_evidence": true
+    },
+    "retained_assertions": 27,
+    "alias_rows": 121277,
+    "corpus_rows": 47668,
+    "graph_checked": false,
+    "clinical_validation": false,
+    "downloads": 0,
+    "llm_calls": 0
+  },
+  "graph_consistency": {
+    "drug_aliases_match": true,
+    "extracted_graph_export_pairs_and_evidence_match": true,
+    "synthetic_nodes_remaining": 0
+  },
+  "delivery_check_passed": true,
+  "cleanup": {
+    "clean": true,
+    "evaluation_workers_remaining": [],
+    "owned_neo4j_pids_remaining": [],
+    "neo4j_listeners_remaining": []
+  },
+  "post_measurement_changed_frozen_files": [
+    "src/medkg/ingest/publication.py"
+  ],
+  "measured_source_snapshot": ".cache/followup-2026-10-06/measured-source",
+  "wheel": {
+    "path": ".cache\\followup-2026-10-06\\wheel-final\\medkg-0.1.0-py3-none-any.whl",
+    "bytes": 50636,
+    "sha256": "16d2d03b23f3c54d1ce1b9ff3b47f5fddc2ccc8434e741ccaddbca0fe5fbce9a",
+    "files": 42,
+    "package_only": true
+  },
+  "installed_dependency": "setuptools 84.0.0 in repository .venv only",
+  "ruff_passed": true,
+  "diff_check_passed": true,
+  "judge_status": "uncalibrated",
+  "clinical_validation": false,
+  "docker_runtime_verified": false,
+  "remote_ci_verified": false,
+  "phoenix_verified": false,
+  "offline_redline_gate_exit_codes": {
+    "vector": 1,
+    "hybrid": 0
+  }
+}

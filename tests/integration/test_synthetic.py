@@ -2,6 +2,7 @@ import os
 
 import pytest
 
+from medkg.graph.guard import CypherRejected
 from medkg.graph.store import GraphStore
 from medkg.llm import FakeLLM
 from medkg.qa.pipeline import Pipeline
@@ -70,3 +71,157 @@ def test_conflicting_claims_preserve_both_sources_and_evidence(fictional):
             '(:Disease {uid:"synthetic:disease-a"}) SET r.conflict=false')
         fictional.write('MATCH (:Drug {uid:"synthetic:drug-a"})-[r:CONTRAINDICATED_FOR]->'
             '(:Disease {uid:"synthetic:disease-a"}) DELETE r')
+
+
+@pytest.mark.parametrize('question,anchor,relation,other,expected',[
+    ('Which drugs target genes associated with Virell syndrome?',
+     'synthetic:disease-a','ASSOCIATED_WITH','TARGETS','Asterol'),
+    ('Which diseases are associated with genes targeted by Asterol?',
+     'synthetic:drug-a','TARGETS','ASSOCIATED_WITH','Virell syndrome'),
+])
+def test_multi_hop_questions_reach_planner_and_traverse_both_relations(
+        fictional,question,anchor,relation,other,expected):
+    class PlannedModel(FakeLLM):
+        def chat_json(self,messages,max_tokens=1400):
+            self.usage['calls'] += 1
+            if '"cypher"' not in messages[0]['content']:
+                return {'steps':[{'tool':'text2cypher','args':{'question':question}}]}
+            start,end = ('Disease','Drug') if relation=='ASSOCIATED_WITH' else ('Drug','Disease')
+            return {'cypher':f'MATCH (a:{start} {{uid:$uid}})-[r1:{relation}]->(:Gene)'
+                f'<-[r2:{other}]-(b:{end}) RETURN DISTINCT b.uid AS uid,b.name AS name,'
+                '[r1.source,r2.source] AS sources LIMIT 25','params':{'uid':anchor}}
+    entities = [r for r in fictional.entities() if r['uid'].startswith('synthetic:')]
+    result = Pipeline(store=fictional,llm=PlannedModel(),entities=entities).ask(question)
+    assert result['failure_stage'] is None and result['route']=='planner'
+    assert expected in result['answer'] and result['refused'] is False
+    assert relation in result['cypher'][0] and other in result['cypher'][0]
+
+
+def test_template_collection_union_and_count_are_order_independent(fictional):
+    anchors = ['synthetic:disease-a','synthetic:disease-b']
+    for uids in (anchors,anchors[::-1]):
+        q,p = templates.query('genes',uids)
+        rows = fictional.run_generated(q,p).rows
+        assert {r['uid'] for r in rows}=={'synthetic:gene-a'}
+        assert rows[0]['anchor_uid']=='synthetic:disease-a'
+        q,p = templates.query('genes',uids,count=True)
+        assert fictional.run_generated(q,p).rows[0]['count']==1
+
+
+def test_global_generated_row_bound_and_union_rejection(fictional):
+    statement = 'WITH 1 AS seed UNWIND range(1,400) AS n RETURN n AS uid LIMIT 999'
+    result = fictional.run_generated(statement)
+    assert len(result.rows)==200 and result.truncated
+    before = len(fictional.executed_statements)
+    with pytest.raises(CypherRejected,match='UNION'):
+        fictional.run_generated(statement+' UNION ALL '+statement)
+    assert len(fictional.executed_statements)==before
+
+
+def test_non_gene_multi_hop_traversal(fictional):
+    class PlannedModel(FakeLLM):
+        def chat_json(self,messages,max_tokens=1400):
+            self.usage['calls'] += 1
+            if '"cypher"' not in messages[0]['content']:
+                return {'steps':[{'tool':'text2cypher','args':{'question':'Fictional symptoms'}}]}
+            return {'cypher':'MATCH (a:Drug {uid:$uid})-[r1:INDICATED_FOR]->(:Disease)'
+                '-[r2:HAS_PHENOTYPE]->(p:Phenotype) RETURN DISTINCT p.uid AS uid,p.name AS name,'
+                '[r1.source,r2.source] AS sources LIMIT 25','params':{'uid':'synthetic:drug-a'}}
+    entities = [e for e in fictional.entities() if e['uid'].startswith('synthetic:')]
+    result = Pipeline(store=fictional,llm=PlannedModel(),entities=entities).ask(
+        'What symptoms are associated with diseases treated by Asterol?')
+    assert result['route']=='planner' and result['failure_stage'] is None
+    assert 'Glimmer sign' in result['answer'] and result['response_status']=='answered'
+    assert 'INDICATED_FOR' in result['cypher'][0] and 'HAS_PHENOTYPE' in result['cypher'][0]
+
+
+def test_reverse_non_gene_multi_hop_traversal(fictional):
+    class PlannedModel(FakeLLM):
+        def chat_json(self,messages,max_tokens=1400):
+            self.usage['calls'] += 1
+            if '"cypher"' not in messages[0]['content']:
+                return {'steps':[{'tool':'text2cypher','args':{'question':'Fictional effects'}}]}
+            return {'cypher':'MATCH (a:Disease {uid:$uid})<-[r1:INDICATED_FOR]-(d:Drug)'
+                '-[r2:HAS_SIDE_EFFECT]->(p:Phenotype) RETURN DISTINCT p.uid AS uid,p.name AS name,'
+                '[r1.source,r2.source] AS sources LIMIT 25','params':{'uid':'synthetic:disease-a'}}
+    fictional.write('MATCH (d:Drug {uid:"synthetic:drug-a"}),(p:Phenotype '
+        '{uid:"synthetic:phenotype-a"}) MERGE (d)-[r:HAS_SIDE_EFFECT]->(p) SET r.source="synthetic"')
+    try:
+        entities = [e for e in fictional.entities() if e['uid'].startswith('synthetic:')]
+        result = Pipeline(store=fictional,llm=PlannedModel(),entities=entities).ask(
+            'What side effects are associated with drugs treating Virell syndrome?')
+        assert result['route']=='planner' and result['failure_stage'] is None
+        assert 'Glimmer sign' in result['answer'] and result['response_status']=='answered'
+        assert 'INDICATED_FOR' in result['cypher'][0] and 'HAS_SIDE_EFFECT' in result['cypher'][0]
+    finally:
+        fictional.write('MATCH (:Drug {uid:"synthetic:drug-a"})-[r:HAS_SIDE_EFFECT]->'
+            '(:Phenotype {uid:"synthetic:phenotype-a"}) WHERE r.source="synthetic" DELETE r')
+
+
+def test_invalid_plan_recovers_through_guarded_path_and_records_actual_constraint(fictional):
+    class RecoveringModel(FakeLLM):
+        def chat_json(self,messages,max_tokens=1400):
+            self.usage['calls'] += 1
+            if '"cypher"' not in messages[0]['content']:
+                return {'steps':[{'tool':'text2cypher','args':{'relation':'unsupported argument'}}]}
+            return {'cypher':'MATCH (a:Disease {uid:$uid})-[r1:ASSOCIATED_WITH]->(:Gene)'
+                '<-[r2:TARGETS]-(d:Drug) RETURN DISTINCT d.uid AS uid,d.name AS name,'
+                '[r1.source,r2.source] AS sources LIMIT 25','params':{'uid':'synthetic:disease-a'}}
+    entities = [e for e in fictional.entities() if e['uid'].startswith('synthetic:')]
+    result = Pipeline(store=fictional,llm=RecoveringModel(),entities=entities).ask(
+        'Which drugs target genes associated with Virell syndrome?')
+    assert result['failure_stage'] is None and result['planning_fallback']=='invalid_plan_schema'
+    assert 'Asterol' in result['answer']
+    context = next(c for c in result['contexts'] if c.get('role')=='executed_graph_queries')
+    assert context['queries']==result['queries'] and 'ASSOCIATED_WITH' in context['queries'][0]['cypher']
+
+
+def test_shared_target_query_excludes_a_single_anchor_only_neighbor(fictional):
+    fictional.write('MATCH (d:Disease {uid:"synthetic:disease-b"}),(g:Gene '
+        '{uid:"synthetic:gene-a"}) MERGE (d)-[r:ASSOCIATED_WITH]->(g) SET r.source="synthetic"')
+    try:
+        result = fictional.run_generated('MATCH (a:Disease {uid:$a})-[r1:ASSOCIATED_WITH]->(g:Gene)'
+            '<-[r2:ASSOCIATED_WITH]-(b:Disease {uid:$b}) RETURN DISTINCT g.uid AS uid,'
+            'g.name AS name,[r1.source,r2.source] AS sources LIMIT 25',
+            {'a':'synthetic:disease-a','b':'synthetic:disease-b'})
+        assert {r['uid'] for r in result.rows}=={'synthetic:gene-a'}
+        # Phenotypes present on just one anchor must not enter an intersection.
+        empty = fictional.run_generated('MATCH (a:Disease {uid:$a})-[:HAS_PHENOTYPE]->(p:Phenotype)'
+            '<-[:HAS_PHENOTYPE]-(b:Disease {uid:$b}) RETURN DISTINCT p.uid AS uid LIMIT 25',
+            {'a':'synthetic:disease-a','b':'synthetic:disease-b'})
+        assert empty.rows==[]
+    finally:
+        fictional.write('MATCH (:Disease {uid:"synthetic:disease-b"})-[r:ASSOCIATED_WITH]->'
+            '(:Gene {uid:"synthetic:gene-a"}) WHERE r.source="synthetic" DELETE r')
+
+
+def test_scoped_assertion_reconciliation_and_conflict_flags(fictional):
+    a,b = 'synthetic:drug-a','synthetic:disease-a'
+    edge = {'a':a,'b':b,'type':'CONTRAINDICATED_FOR','source':'openfda_extracted',
+            'evidence':['synthetic:selected'],'confidence':0.9,'extractor_version':'fictional'}
+    def read():
+        return fictional.read('MATCH (:Drug {uid:$a})-[r:CONTRAINDICATED_FOR]->'
+            '(:Disease {uid:$b}) WHERE r.source="openfda_extracted" '
+            'RETURN r.evidence AS evidence,r.conflict AS conflict',{'a':a,'b':b})
+    def flag():
+        return fictional.read('MATCH (:Drug {uid:$a})-[r:INDICATED_FOR]->(:Disease {uid:$b}) '
+            'RETURN r.conflict AS conflict',{'a':a,'b':b})[0]['conflict']
+    try:
+        # Use an isolated source value for this temporary PrimeKG-compatible edge.
+        fictional.write('MATCH (:Drug {uid:$a})-[r:INDICATED_FOR]->(:Disease {uid:$b}) '
+            'SET r.source="primekg"',{'a':a,'b':b})
+        fictional.reconcile_extracted({'synthetic:outside'},[{**edge,'evidence':['synthetic:outside']}])
+        fictional.reconcile_extracted({'synthetic:selected'},[edge])
+        assert read()[0]['evidence']==['synthetic:outside','synthetic:selected']
+        assert read()[0]['conflict'] and flag()
+        fictional.reconcile_extracted({'synthetic:selected'},[])
+        assert read()[0]['evidence']==['synthetic:outside'] and flag()
+        fictional.reconcile_extracted({'synthetic:selected'},[])
+        assert read()[0]['evidence']==['synthetic:outside']
+        fictional.reconcile_extracted({'synthetic:outside'},[])
+        assert read()==[] and not flag()
+    finally:
+        fictional.write('MATCH (:Drug {uid:$a})-[r:CONTRAINDICATED_FOR]->(:Disease {uid:$b}) '
+            'WHERE r.source="openfda_extracted" DELETE r',{'a':a,'b':b})
+        fictional.write('MATCH (:Drug {uid:$a})-[r:INDICATED_FOR]->(:Disease {uid:$b}) '
+            'SET r.source="synthetic",r.conflict=false',{'a':a,'b':b})

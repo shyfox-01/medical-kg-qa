@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "checks": {
+    "frozen_dataset": true,
+    "corpus_hash": true,
+    "alias_shape": true,
+    "alias_identities": true,
+    "corpus_shape": true,
+    "corpus_complete": true,
+    "chunk_associations": true,
+    "assertion_evidence": true
+  },
+  "retained_assertions": 27,
+  "alias_rows": 121277,
+  "corpus_rows": 47668,
+  "graph_checked": false,
+  "clinical_validation": false,
+  "downloads": 0,
+  "llm_calls": 0
+}

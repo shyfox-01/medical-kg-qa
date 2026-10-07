@@ -8,7 +8,7 @@ from collections import OrderedDict
 from medkg.config import ROOT, Settings
 from medkg.graph.store import GraphStore
 from medkg.llm import LLMClient
-from medkg.qa import answer, planner, safety, session
+from medkg.qa import answer, planner, safety, scope, session
 from medkg.qa.linker import Linker
 from medkg.qa.router import is_count, route
 from medkg.retrieval import templates, text2cypher
@@ -46,6 +46,10 @@ class Pipeline:
                 if not safety.english(question):
                     result.update(answer='This demo supports English questions only.',route='language',refused=True)
                     return self._finish(result,start,before)
+            with span('scope'):
+                if scope.blocked(question):
+                    result.update(answer=scope.MESSAGE,route='scope',refused=True)
+                    return self._finish(result,start,before)
             key = json.dumps([question,history,self.mode,self.settings.phase],sort_keys=True)
             if self.settings.cache and key in self.cache:
                 expires,cached = self.cache[key]
@@ -58,13 +62,18 @@ class Pipeline:
             try:
                 with span('linking') as attrs:
                     resolved,previous = session.resolve(question,history)
-                    candidates = self.linker.in_question(resolved)
+                    candidates,unresolved = self.linker.question_mentions(resolved)
                     result['candidates'] = self.linker.describe(candidates)
+                    result['unresolved_mentions'] = unresolved
                     result['focus'] = [c.name for c in candidates if not c.ambiguous][:2]
                     attrs['candidates'] = len(candidates)
                 stage = 'routing'
                 with span('routing') as attrs:
-                    intent = route(resolved,candidates,previous)
+                    intent = None if unresolved else route(resolved,candidates,previous)
+                    if unresolved and 'interact' in resolved.casefold():
+                        result.update(answer='Please clarify the unresolved drug names before checking interactions.',
+                                      route='linking',refused=True)
+                        return self._finish(result,start,before)
                     result['intent'] = intent
                     if self.mode=='vector':
                         steps = [planner.Step(tool='vector_search',args={'query':resolved})]
@@ -76,14 +85,24 @@ class Pipeline:
                                   'count':is_count(resolved)})]
                         result['route'] = 'template'
                     else:
-                        steps = planner.plan(self.llm,resolved,result['candidates'],self.settings.phase).steps
+                        planned = planner.plan(self.llm,resolved,result['candidates'],self.settings.phase)
+                        steps = planned.steps
+                        if planned._fallback_reason:
+                            result['planning_fallback'] = planned._fallback_reason
                         result['route'] = 'planner'
                     attrs.update(route=result['route'],steps=len(steps))
                 rows,outputs = [],[]
                 stage = 'query'
                 for number,step in enumerate(steps,1):
                     with span('tool.'+step.tool,step=number) as attrs:
-                        args = self._resolve_args(step.args,outputs)
+                        partial_references = []
+                        args = self._resolve_args(step.args,outputs,partial_references)
+                        result['truncated'] |= bool(partial_references)
+                        if args.get('count') and result['truncated']:
+                            result.update(answer=answer.finalize(
+                                'An exact count is unavailable because an earlier retrieval was incomplete.',
+                                rows,True),refused=True)
+                            return self._finish(result,start,before)
                         params = {}
                         if step.tool=='out_of_scope':
                             result.update(answer='I cannot answer this from the supported medical knowledge base. Please clarify ambiguous entities if applicable.',refused=True)
@@ -121,17 +140,22 @@ class Pipeline:
                 stage = 'generation'
                 rows, bounded = answer.bound_evidence(rows)
                 result['truncated'] |= bounded
+                query_evidence,partial_queries = answer.bound_queries(result['queries'])
+                result['truncated'] |= partial_queries
                 result['contexts'] = rows + [{'uid':c.uid,'name':c.name,'role':'anchor'} for c in candidates]
+                if query_evidence:
+                    result['contexts'].append({'role':'executed_graph_queries','queries':query_evidence})
                 if not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
                 else:
                     with span('generation'):
-                        result['answer'] = self.llm.chat(answer.messages(question,rows))
+                        result['answer'] = self.llm.chat(answer.messages(resolved,rows,queries=query_evidence))
                     if self.settings.phase>=3:
                         stage = 'verification'
                         with span('verification'):
                             from medkg.qa.verify import verify_answer
-                            result['answer'] = verify_answer(self.llm,question,result['answer'],result['contexts'],self.linker)
+                            result['answer'] = verify_answer(self.llm,resolved,result['answer'],result['contexts'],self.linker,
+                                                             query_evidence)
                     with span('output_safety'):
                         violation = safety.output_violation(result['answer'])
                         if violation:
@@ -146,13 +170,15 @@ class Pipeline:
                     self.cache.popitem(last=False)
             return self._finish(result,start,before)
 
-    def _resolve_args(self,args: dict,outputs: list[list[dict]]) -> dict:
+    def _resolve_args(self,args: dict,outputs: list[list[dict]],partial: list | None = None) -> dict:
         def resolve(value):
             if isinstance(value,str) and value.startswith('$step'):
                 index = int(value[5:])-1
                 ids = set()
                 for row in outputs[index]:
                     ids.update(row.get('entity_uids') or ([row['uid']] if row.get('uid') else []))
+                if len(ids)>25 and partial is not None:
+                    partial.append(index)
                 return sorted(ids)[:25]
             if isinstance(value,list):
                 result = []
@@ -189,6 +215,14 @@ class Pipeline:
             self.store,**args,**({'mode':self.mode} if name=='vector_search' else {}))
 
     def _finish(self,result: dict,start: float,before: dict) -> dict:
+        if result['failure_stage']:
+            result['response_status'] = 'error'
+        elif result['route'] in ('safety','language','scope') or result['safety']!='none':
+            result['response_status'] = 'refused'
+        elif result['refused'] or answer.unsupported_response(result['answer']):
+            result.update(response_status='unsupported',refused=True)
+        else:
+            result['response_status'] = 'answered'
         result['latency_s'] = time.perf_counter()-start
         result['usage'] = {k:self.llm.usage[k]-before[k] for k in before}
         result['executed_statements'] = list(getattr(self.store,'executed_statements',result['cypher']))

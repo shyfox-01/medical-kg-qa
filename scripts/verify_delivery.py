@@ -1,5 +1,6 @@
 """Read-only delivery audit: private-artifact boundaries, frozen counts and runtime."""
 
+import argparse
 import hashlib
 import json
 import re
@@ -19,7 +20,11 @@ def lines(path):
 
 
 def main():
-    tracked = subprocess.check_output(['git','ls-files'],cwd=ROOT,text=True).splitlines()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--output',default='eval/runs/delivery_summary.json')
+    args = parser.parse_args()
+    tracked = subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard'],
+                                      cwd=ROOT,text=True).splitlines()
     forbidden = [p for p in tracked if p.startswith(('data/raw/','data/processed/','.cache/','runs/'))
         or p.endswith('.env') or p=='CODEX_TASK.md'
         or p=='eval/datasets/text_graph_gold.jsonl'
@@ -79,7 +84,7 @@ def main():
         'graph_counts':graph,'checkpoint_procedures':[r['name'] for r in checkpoint],
         'structured_sha256':hashlib.sha256((ROOT/'eval/datasets/structured_v1.jsonl').read_bytes()).hexdigest(),
         'docker_runtime_verified':False,'remote_ci_verified':False,'phoenix_verified':False}
-    (ROOT/'eval/runs/delivery_summary.json').write_text(json.dumps(summary,indent=2),encoding='utf8')
+    (ROOT/args.output).write_text(json.dumps(summary,indent=2),encoding='utf8')
     print(json.dumps(summary,indent=2))
     if not summary['passed']:
         raise SystemExit(1)

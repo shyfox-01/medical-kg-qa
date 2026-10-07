@@ -1,18 +1,25 @@
 import json
+import re
 
 from medkg.qa.answer import messages
-from medkg.qa.linker import normalize
+from medkg.qa.linker import COMMON_SYMBOLS, GENERIC_ANCHORS, normalize
 
 
 def entities_in_text(text: str,linker) -> set[str]:
     words = normalize(text).split()
+    original = re.findall(r'\w+',text)
     found,occupied = set(),set()
-    for size in range(min(12,len(words)),0,-1):
+    for size in linker.alias_sizes:
+        if size>len(words):
+            continue
         for start in range(len(words)-size+1):
             positions = set(range(start,start+size))
             if occupied & positions:
                 continue
             alias = ' '.join(words[start:start+size])
+            if alias in GENERIC_ANCHORS or (alias in COMMON_SYMBOLS and not ' '.join(
+                    original[start:start+size]).isupper()):
+                continue
             if len(alias)>=3 and alias in linker.aliases:
                 found.update(linker.aliases[alias])
                 occupied |= positions
@@ -24,12 +31,12 @@ def unsupported(answer: str,rows: list[dict],linker) -> set[str]:
     return entities_in_text(answer,linker)-supported
 
 
-def verify_answer(llm,question: str,answer: str,rows: list[dict],linker) -> str:
+def verify_answer(llm,question: str,answer: str,rows: list[dict],linker,queries: list[dict] | None = None) -> str:
     missing = unsupported(answer,rows,linker)
     if not missing:
         return answer
     names = [linker.entities[uid]['name'] for uid in sorted(missing)]
-    revised = llm.chat(messages(question,rows,'Remove unsupported entities: '+json.dumps(names)))
+    revised = llm.chat(messages(question,rows,'Remove unsupported entities: '+json.dumps(names),queries))
     missing = unsupported(revised,rows,linker)
     if not missing:
         return revised

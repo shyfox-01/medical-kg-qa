@@ -32,22 +32,56 @@ def parse_json(raw: str) -> dict:
 
 @contextmanager
 def ledger_lock(path, timeout: float = 5):
+    """Hold an OS-owned mutex; abrupt worker exit must not strand a lock.
+
+    Native lock files are persistent: removing them while another process holds
+    the inode would create two independent locks on POSIX. Legacy exclusive-
+    creation locks require explicit owner inspection and manual recovery.
+    Running clients from different lock protocol versions together is unsupported.
+    """
+    import errno
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    deadline = time.monotonic() + timeout
-    while True:
-        try:
-            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            break
-        except FileExistsError:
-            if time.monotonic() > deadline:
-                raise RuntimeError('Usage ledger locked; inspect abandoned process before retrying')
-            time.sleep(0.05)
+    native = path.with_name(path.name+'.oslock')
+    descriptor = os.open(native, os.O_CREAT | os.O_RDWR, 0o600)
+    deadline, acquired = time.monotonic()+timeout, False
+    if os.name=='nt':
+        import msvcrt
+        def acquire():
+            os.lseek(descriptor,0,os.SEEK_SET)
+            msvcrt.locking(descriptor,msvcrt.LK_NBLCK,1)
+        def release():
+            os.lseek(descriptor,0,os.SEEK_SET)
+            msvcrt.locking(descriptor,msvcrt.LK_UNLCK,1)
+    else:
+        import fcntl
+        def acquire():
+            fcntl.flock(descriptor,fcntl.LOCK_EX | fcntl.LOCK_NB)
+        def release():
+            fcntl.flock(descriptor,fcntl.LOCK_UN)
     try:
+        while True:
+            legacy = path.exists()
+            if not legacy:
+                try:
+                    acquire()
+                    acquired = True
+                    break
+                except OSError as exc:
+                    if exc.errno not in (errno.EACCES,errno.EAGAIN):
+                        raise
+            if time.monotonic()>=deadline:
+                reason = ('Legacy usage lock present; inspect its owner before recovery'
+                          if legacy else 'Usage mutex busy; bounded lock timeout')
+                raise RuntimeError(reason)
+            time.sleep(0.05)
         yield
     finally:
-        os.close(fd)
-        path.unlink()
-
+        try:
+            if acquired:
+                release()
+        finally:
+            os.close(descriptor)
 
 class LLMClient:
     def __init__(self, settings: Settings | None = None, model: str | None = None):

@@ -1,0 +1,54 @@
+{
+  "stages": [
+    {
+      "scope": "full",
+      "system": "before",
+      "status": "completed",
+      "exit_code": 0
+    },
+    {
+      "scope": "full",
+      "system": "vector",
+      "status": "completed",
+      "exit_code": 0
+    },
+    {
+      "scope": "repeat",
+      "system": "after",
+      "status": "completed",
+      "exit_code": 0
+    },
+    {
+      "scope": "repeat",
+      "system": "before",
+      "status": "completed",
+      "exit_code": 0
+    },
+    {
+      "scope": "repeat",
+      "system": "vector",
+      "status": "completed",
+      "exit_code": 0
+    }
+  ],
+  "complete": true,
+  "charged_after": 4629730,
+  "additional_charged_tokens": 2480504,
+  "remaining_wall_seconds": 2231.4800181388855,
+  "full_after_redline_regressions": [
+    "structured-0357"
+  ],
+  "full_vector_redline_regressions": [
+    "structured-0351",
+    "structured-0356",
+    "structured-0373"
+  ],
+  "balanced_after_redline_regressions": [
+    "structured-0357"
+  ],
+  "balanced_vector_redline_regressions": [
+    "structured-0351",
+    "structured-0356",
+    "structured-0373"
+  ]
+}

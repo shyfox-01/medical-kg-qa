@@ -1,0 +1,43 @@
+{
+  "human_labels_created_by_agent": 0,
+  "queues": {
+    "judge": {
+      "items": 100,
+      "human_labelled": 0,
+      "remaining": 100,
+      "source": "eval/human_labels/judge_calibration_todo.jsonl",
+      "source_sha256": "6ce7861df0d503ab7fe777ff4e30586b511733aa26af5127c7b30c45c3e852c1",
+      "blind_copy": "eval\\human_labels\\judge_blind_todo.jsonl"
+    },
+    "extraction": {
+      "items": 30,
+      "human_labelled": 0,
+      "remaining": 30,
+      "source": "eval/human_labels/extraction_review_todo.jsonl",
+      "source_sha256": "807d7e93bc228c745c3ea61a0d098fcd8a8a3538db1c45aaf9f1e07357e1cb78",
+      "blind_copy": "eval\\human_labels\\extraction_blind_todo.jsonl"
+    },
+    "quarantine": {
+      "items": 18,
+      "human_labelled": 0,
+      "remaining": 18,
+      "source": "eval/human_labels/extraction_repair_review_todo.jsonl",
+      "source_sha256": "cb75927ae520d51f28c8b713f862609e9a0a7d5aadfa4c9e90cdcc76520fc25b",
+      "blind_copy": "eval\\human_labels\\quarantine_blind_todo.jsonl"
+    },
+    "text": {
+      "items": 80,
+      "human_labelled": 0,
+      "remaining": 80,
+      "source": "eval/datasets/text_v1.jsonl",
+      "source_sha256": "22d4ca2bb24d73da2763d09c544406bf57341b1a35a8236278352487195dfd72",
+      "blind_copy": "eval\\human_labels\\text_blind_todo.jsonl"
+    }
+  },
+  "judge_status": "uncalibrated",
+  "queues_imported_from_human_blind_files": 0,
+  "calibration": {
+    "status": "uncalibrated",
+    "labelled": 0
+  }
+}

@@ -191,8 +191,9 @@ selects the Phoenix project; this requires a compatible receiver configuration.
 
 400 structured cases have a seed-42 stratified 160/240 dev/test split. The frozen
 MANIFEST records source hashes, category counts and generator/paraphrase status.
-Live measurements use a stated category cap, preserve every safety/adversarial
-test case, and repeat the identical selected questions three times. Summaries
+Live measurements state their coverage explicitly: archived capped pilots, one
+complete 240-case round per system and three rounds on 70 fixed common cases.
+The repeated subset retains every safety/adversarial test case. Summaries
 include per-category precision/recall/F1, exact count, faithfulness, refusal,
 execution accuracy/coverage, latency, usage, trace-linked failures, inconsistent
 ids and redline regressions. The independent execution scorer compares normalized
@@ -205,3 +206,23 @@ and 30-assertion extraction queue await human review. Judge output remains
 uncalibrated until human comparison is complete. CI uses a disjoint fictional
 fixture graph, FakeLLM and no real LLM/model download. Passing those checks tests
 engineering behavior, not real-data predictive or clinical performance.
+
+The capability follow-up adds bounded JSON repair and a conservative fallback to
+guarded Text2Cypher for unambiguous graph questions with invalid plans. Complete
+graph intersections and multi-hop constraints stay in one query. Generation sees
+the resolved question, bounded rows and separately bounded successful query
+metadata. Query metadata supplies retrieval constraints, not invented edges.
+Independent deterministic-3.3 scoring includes declared conversation anchors and
+retains expected targets with cross-type alias collisions. Human blind imports
+validate unchanged evidence and preserve model labels; they create no human
+decisions. See D038–D040 and the implementation report for exact evidence limits.
+
+The later administrative scope boundary follows medical safety and language
+checks and precedes cache, linking, retrieval and model calls. Explicit scope
+refusals use `route=scope`, `response_status=refused` and no failure stage. Finite
+credential, instruction-override and write-command rules do not replace the
+generated-query guard or read-only transactions. Medical transport failures remain
+errors. Persistent OS-owned `.oslock` files serialize budget writes and the provider
+slot; worker exit releases ownership. Legacy locks require inspected recovery,
+and mixed lock-protocol concurrency is unsupported. D044–D045 were applied after
+the frozen comparison and have separate final-source validation.

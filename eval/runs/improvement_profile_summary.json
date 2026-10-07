@@ -1,0 +1,103 @@
+{
+  "requested_traces": 1206,
+  "matched_traces": 1206,
+  "stages": {
+    "ask": {
+      "count": 1206,
+      "total_seconds": 11258.236181,
+      "median_seconds": 5.77978905,
+      "p90_seconds": 23.6733498
+    },
+    "generation": {
+      "count": 869,
+      "total_seconds": 6831.3971817,
+      "median_seconds": 5.5058485,
+      "p90_seconds": 16.1181725
+    },
+    "linking": {
+      "count": 1062,
+      "total_seconds": 17.0609416,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.053814
+    },
+    "llm": {
+      "count": 1608,
+      "total_seconds": 11207.3428662,
+      "median_seconds": 5.07014765,
+      "p90_seconds": 14.284414
+    },
+    "output_safety": {
+      "count": 841,
+      "total_seconds": 0.0576432,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0
+    },
+    "request.result": {
+      "count": 1206,
+      "total_seconds": 0.0183027,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0
+    },
+    "routing": {
+      "count": 1062,
+      "total_seconds": 3029.3022196,
+      "median_seconds": 0.0,
+      "p90_seconds": 8.7933335
+    },
+    "safety": {
+      "count": 1206,
+      "total_seconds": 0.1604542,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0
+    },
+    "tool.conflict_evidence": {
+      "count": 519,
+      "total_seconds": 0.2118217,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0
+    },
+    "tool.expand": {
+      "count": 181,
+      "total_seconds": 1.3810516,
+      "median_seconds": 0.0058191,
+      "p90_seconds": 0.0117305
+    },
+    "tool.fulltext": {
+      "count": 4,
+      "total_seconds": 0.060404299999999994,
+      "median_seconds": 0.0106921,
+      "p90_seconds": 0.0157555
+    },
+    "tool.out_of_scope": {
+      "count": 143,
+      "total_seconds": 0.0506538,
+      "median_seconds": 0.0,
+      "p90_seconds": 0.0011142
+    },
+    "tool.template": {
+      "count": 241,
+      "total_seconds": 1.5534066,
+      "median_seconds": 0.0039101,
+      "p90_seconds": 0.0158194
+    },
+    "tool.text2cypher": {
+      "count": 119,
+      "total_seconds": 902.4464048,
+      "median_seconds": 5.8092343,
+      "p90_seconds": 12.2698737
+    },
+    "tool.vector_search": {
+      "count": 376,
+      "total_seconds": 9.352507600000001,
+      "median_seconds": 0.01239465,
+      "p90_seconds": 0.0220519
+    },
+    "verification": {
+      "count": 842,
+      "total_seconds": 460.7543826,
+      "median_seconds": 0.0052239999999999995,
+      "p90_seconds": 0.069925
+    }
+  },
+  "interpretation": "Nested span totals overlap. Medians are observed local/provider timings; no standalone capacity or concurrency claim is supported."
+}

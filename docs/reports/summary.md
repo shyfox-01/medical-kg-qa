@@ -117,3 +117,26 @@ requires an existing receiver and was not tested against Phoenix. The phase-4
 report distinguishes endpoint/tracing/fixture checks from research accuracy.
 This system is not clinically validated and must not guide diagnosis, dosage or
 treatment. No upstream institution endorses it.
+
+## Subsequent local work
+
+The numbers above are the original phase-delivery snapshots. Later correctness
+repairs and the 38-case pilot are documented in
+[the ordered follow-up](followup-2026-10-06.md). Subsequent capability changes,
+final engineering verification and the bounded frozen 240-case comparison are
+documented in [the implementation report](improvement-2026-10-06.md). Preserve
+these scopes and evaluator versions when comparing results. The additional
+18 quarantined assertions also await human review. The updated human review guide
+provides blind copies, validated imports and calibration auditing; it supplies no
+human decisions.
+
+## Completed capability comparison and maintenance — 2026-10-06 to 2026-10-07
+
+The [capability implementation report](improvement-2026-10-06.md) now distinguishes
+the complete 240-case single-round comparison (before 58.75%, improved 85.83%,
+vector 52.92%) from 70 fixed questions in three rounds (71.90%, 90.95%, 73.81%).
+The initial hybrid timeout and vector refusal regressions remain archived.
+Post-measurement native mutex and scope changes pass 213 unit tests, 15 native
+integration tests, fictional CI and three fresh hybrid redline rounds. Vector
+still has one refusal regression. Human labels and deployment validation remain
+pending; the report records provenance, budgets, packaging and owned-process cleanup.

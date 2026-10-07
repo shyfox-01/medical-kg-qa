@@ -1,0 +1,10 @@
+{
+  "systems": [],
+  "wall_seconds": 3032.407000000003,
+  "charged_after": 2603323,
+  "additional_charged_tokens": 454097,
+  "complete": false,
+  "adapted_to": "eval\\runs\\improvement_balanced_plan_summary.json",
+  "adaptation_reason": "Measured first-round latency projects the nine full rounds beyond the original four-hour ceiling. Follow the task timeout sampling instruction: preserve one full round per system and three rounds of 70 fixed cases, including every safety/adversarial case. Reuse the completed first round; make two additional subset rounds. No test-answer tuning.",
+  "preserved_partial_details": true
+}

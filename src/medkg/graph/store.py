@@ -1,6 +1,7 @@
 """Read-only QA transactions; trusted ingestion has a distinct write boundary."""
 
 from dataclasses import dataclass
+from itertools import islice
 from time import perf_counter
 
 from neo4j import READ_ACCESS, GraphDatabase
@@ -56,10 +57,13 @@ class GraphStore:
                     if any(x in note.get('code', '') for x in
                            ('UnknownLabel', 'UnknownRelationshipType')):
                         raise CypherRejected('EXPLAIN reports an unknown schema element')
-                rows = tx.run(verdict.stmt, params or {}).data()
+                cursor = tx.run(verdict.stmt, params or {})
+                rows = [record.data() for record in islice(cursor,verdict.limit)]
+                overflow = cursor.peek() is not None
                 self.executed_statements.append(verdict.stmt)
                 tx.commit()
-        return QueryResult(rows, verdict.stmt, len(rows) >= verdict.limit, perf_counter()-started)
+        return QueryResult(rows, verdict.stmt, overflow or len(rows)>=verdict.limit,
+                           perf_counter()-started)
 
     def create_schema(self) -> None:
         for stmt in statements():
@@ -98,6 +102,46 @@ class GraphStore:
                     'MATCH (n) RETURN labels(n)[0] AS label, count(*) AS count', timeout=60)},
                 'relations': {r['type']: r['count'] for r in self.read(
                     'MATCH ()-[r]->() RETURN type(r) AS type, count(*) AS count', timeout=60)}}
+
+    def reconcile_extracted(self, selected: set[str], retained: list[dict]) -> None:
+        """Replace selected FDA evidence and conflict flags in one transaction."""
+        from medkg.ingest.reconcile import reconcile_edges
+        allowed = {'CONTRAINDICATED_FOR','INTERACTS_WITH'}
+        if any(e['type'] not in allowed or e['source']!='openfda_extracted' or
+               not set(e.get('evidence',[]))<=selected for e in retained):
+            raise ValueError('Reconciliation requires selected FDA assertions')
+        with self.driver.session(database=self.settings.neo4j_database) as session:
+            with session.begin_transaction(timeout=60) as tx:
+                old = tx.run('MATCH (a)-[r]->(b) WHERE r.source="openfda_extracted" '
+                    'AND (any(uid IN r.evidence WHERE uid IN $selected) OR '
+                    'any(key IN $keys WHERE a.uid=key.a AND b.uid=key.b AND type(r)=key.type)) '
+                    'RETURN a.uid AS a,b.uid AS b,type(r) AS type,properties(r) AS props',
+                    {'selected':sorted(selected),'keys':[{'a':e['a'],'b':e['b'],'type':e['type']}
+                                                        for e in retained]}).data()
+                existing = [{**r['props'],'a':r['a'],'b':r['b'],'type':r['type']} for r in old]
+                updated = reconcile_edges(existing,selected,retained)
+                touched = {(e['a'],e['b'],e['type']) for e in [*existing,*retained]}
+                for relation in sorted(allowed):
+                    keys = [{'a':a,'b':b} for a,b,t in sorted(touched) if t==relation]
+                    tx.run('UNWIND $rows AS row MATCH (a:Drug {uid:row.a})-[r:'+relation+
+                        ']->(b {uid:row.b}) WHERE r.source="openfda_extracted" DELETE r',
+                        {'rows':keys}).consume()
+                    rows = [{**e,'props':{k:v for k,v in e.items() if k not in
+                             ('a','b','type','quote')}} for e in updated if e['type']==relation]
+                    tx.run('UNWIND $rows AS row MATCH (a:Drug {uid:row.a}),(b {uid:row.b}) '
+                        'MERGE (a)-[r:'+relation+' {source:"openfda_extracted"}]->(b) '
+                        'SET r += row.props',{'rows':rows}).consume()
+                pairs = [{'a':a,'b':b} for a,b,t in sorted(touched) if t=='CONTRAINDICATED_FOR']
+                tx.run('UNWIND $rows AS row MATCH (a:Drug {uid:row.a}),(b:Disease {uid:row.b}) '
+                    'MATCH (a)-[r:INDICATED_FOR]->(b) WHERE r.source="primekg" '
+                    'SET r.conflict=EXISTS { MATCH (a)-[:CONTRAINDICATED_FOR]->(b) }',
+                    {'rows':pairs}).consume()
+                tx.run('UNWIND $rows AS row MATCH (a:Drug {uid:row.a})'
+                    '-[r:CONTRAINDICATED_FOR]->(b:Disease {uid:row.b}) '
+                    'WHERE r.source="openfda_extracted" SET r.conflict=EXISTS {'
+                    ' MATCH (a)-[i:INDICATED_FOR]->(b) WHERE i.source="primekg" }',
+                    {'rows':pairs}).consume()
+                tx.commit()
 
     def entities(self) -> list[dict]:
         return self.read('MATCH (n) WHERE any(l IN labels(n) WHERE l IN $labels) '

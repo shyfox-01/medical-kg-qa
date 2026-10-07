@@ -64,45 +64,79 @@ def parse(records: list[dict],entities: list[dict],retrieved_at: str) -> tuple[l
     for drug in drugs.values():
         for alias in [drug['name'],*drug.get('synonyms',[])]:
             aliases.setdefault(normalize(alias),set()).add(drug['uid'])
-    documents,all_chunks = [],[]
-    stats = {'labels':0,'unlinked_labels':0,'ambiguous_labels':0}
-    seen = set()
+    documents,sections_by_id,brand_candidates = {},{},{}
+    unsafe_brands = set()
+    stats = {'labels':0,'unlinked_labels':0,'ambiguous_labels':0,'quarantined_aliases':0}
     for record in records:
         for label in record.get('results',[]):
             stats['labels'] += 1
             fields = label.get('openfda',{})
             names = fields.get('generic_name',[])+fields.get('substance_name',[])
-            about = set()
+            about,matched_names = set(),{}
+            ambiguous,unmatched = False,False
             for name in names:
-                about.update(aliases.get(normalize(name),set()))
-            if not about:
-                scored = []
-                for name in names:
-                    scored.extend(process.extract(normalize(name),aliases.keys(),
-                                   scorer=fuzz.token_sort_ratio,score_cutoff=95,limit=2))
-                if scored:
-                    maximum = max(s[1] for s in scored)
-                    for alias,score,_ in scored:
-                        if score==maximum:
-                            about.update(aliases[alias])
-            if len(about)>1:
+                ids = set(aliases.get(normalize(name),set()))
+                if not ids:
+                    scored = process.extract(normalize(name),aliases.keys(),
+                        scorer=fuzz.token_sort_ratio,score_cutoff=95,limit=2)
+                    if scored:
+                        maximum = scored[0][1]
+                        ids = set().union(*(aliases[alias] for alias,score,_ in scored
+                                            if score==maximum))
+                if len(ids)==1:
+                    uid = next(iter(ids))
+                    about.add(uid)
+                    matched_names.setdefault(uid,set()).add(name)
+                elif ids:
+                    ambiguous = True
+                else:
+                    unmatched = True
+            if ambiguous or len(about)>1:
                 stats['ambiguous_labels'] += 1
-                about = {record['drug_uid']} if record['drug_uid'] in about else set()
+            brands = fields.get('brand_name',[])
+            if len(about)!=1 or ambiguous or unmatched:
+                unsafe_brands.update(normalize(brand) for brand in brands)
             if not about:
                 stats['unlinked_labels'] += 1
+                stats['quarantined_aliases'] += len(brands)
                 continue
             for uid in about:
-                drugs[uid]['synonyms'] = sorted(set(drugs[uid]['synonyms']) | set(
-                    names+fields.get('brand_name',[])))
+                drugs[uid]['synonyms'] = sorted(set(drugs[uid].get('synonyms',[])) | matched_names[uid])
+            if len(about)==1 and not ambiguous and not unmatched:
+                uid = next(iter(about))
+                for brand in brands:
+                    entry = brand_candidates.setdefault(normalize(brand),{'uids':set(),'names':set()})
+                    entry['uids'].add(uid)
+                    entry['names'].add(brand)
+            else:
+                stats['quarantined_aliases'] += len(brands) + sum(
+                    name not in set().union(*matched_names.values()) for name in names)
             identifier = label.get('id',label.get('set_id',''))
-            if identifier in seen:
+            if not identifier:
+                stats['unlinked_labels'] += 1
                 continue
-            seen.add(identifier)
+            if identifier in documents:
+                documents[identifier]['about'] = sorted(set(documents[identifier]['about']) | about)
+                continue
             document = {'uid':'openfda:'+identifier,'source':'openfda',
                 'url':'https://api.fda.gov/drug/label.json?'+urllib.parse.urlencode({'search':'id:"'+identifier+'"'}),
                 'title':'; '.join(names) or 'Drug label','name':'; '.join(names) or 'Drug label',
                 'synonyms':[],'retrieved_at':retrieved_at,'about':sorted(about)}
             sections = {s:' '.join(label.get(s,[])) for s in SECTIONS if label.get(s)}
-            documents.append(document)
-            all_chunks.extend(chunks(document,sections))
-    return documents,all_chunks,stats
+            documents[identifier] = document
+            sections_by_id[identifier] = sections
+    for key,entry in brand_candidates.items():
+        if key in unsafe_brands or len(entry['uids'])!=1 or aliases.get(key,set())-entry['uids']:
+            stats['quarantined_aliases'] += len(entry['names'])
+            unsafe_brands.add(key)
+            continue
+        uid = next(iter(entry['uids']))
+        drugs[uid]['synonyms'] = sorted(set(drugs[uid]['synonyms']) | entry['names'])
+    # Also remove an unsafe brand retained from an earlier import. Canonical
+    # names remain authoritative and are never removed by this alias operation.
+    for drug in drugs.values():
+        drug['synonyms'] = [name for name in drug.get('synonyms',[])
+                            if normalize(name) not in unsafe_brands]
+    all_chunks = [chunk for identifier,document in documents.items()
+                  for chunk in chunks(document,sections_by_id[identifier])]
+    return list(documents.values()),all_chunks,stats

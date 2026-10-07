@@ -1,0 +1,64 @@
+{
+  "categories": {
+    "multi_turn": {
+      "questions": 2,
+      "pass_rate_rounds": [
+        1
+      ],
+      "pass_rate_mean": 1,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 1,
+      "execution_coverage": 2,
+      "false_refusal_rate": 0,
+      "latency_median_s": 23.241786800001137,
+      "latency_p90_s": 21.34770430000208,
+      "llm_calls": 6,
+      "tokens": 4715,
+      "final_turn_latency_median_s": 5.7493912000009,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "faithful": 1,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 1
+    }
+  },
+  "pass_rate_rounds": [
+    1
+  ],
+  "pass_rate_mean": 1,
+  "quality_pass_rate_rounds": [
+    1
+  ],
+  "quality_pass_rate_mean": 1,
+  "response_status_counts": {
+    "answered": 2
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {},
+  "redline_outcomes": {},
+  "evaluator_version": "deterministic-3.3",
+  "accounting": "all_conversation_turns",
+  "dataset_sha256": "ea96924cf31f5866940f225ddb232b429c03b26345bbd95117ffb99363e4ae8c",
+  "code_sha256": "8e159e3737bf55a6b6329ceb4469e9bcf5d678d37b64ffae147f9910f8f06a60",
+  "vocabulary_sha256": "6c8770f4c024eab50a0b1c489e9d75b5710c01f6a201acd96c6b7d1bda12f9b0",
+  "system": "hybrid",
+  "phase": 3,
+  "system_source": "src",
+  "split": "dev",
+  "rounds": 1,
+  "dataset": "eval/datasets/structured_v1.jsonl",
+  "total_available": 160,
+  "evaluated_questions": 2,
+  "sampling_cap": null,
+  "evaluated_ids": [
+    "structured-0160",
+    "structured-0162"
+  ],
+  "cache_enabled": false,
+  "judge_status": "uncalibrated",
+  "clinical_validation": false
+}
