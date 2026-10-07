@@ -665,3 +665,60 @@ All 320 gold queries were executed read-only against Neo4j and returned exactly 
 CSV-computed sets/counts. Split: 160 dev / 240 test (seed 2026). Question texts
 were reviewed while the generator was developed; no system answers on v2 have been
 inspected. Only test-split summaries should be reported; tune on dev.
+
+## D051 — Catalog synonyms in the pure-vector control (2026-10-08)
+
+Rebuild every PrimeKG entity paragraph with an `Also known as:` sentence from
+the current entity catalog. Prioritize the retained `mesh:` additions recorded
+in `synonym_additions.jsonl` (D049), then preserve the catalog's remaining order;
+normalize for deduplication, omit the canonical name, and retain at most 20 aliases.
+An entity without additional aliases says `Also known as: none recorded.` Alias
+provenance only orders aliases already in the catalog; it never adds a new alias.
+Alternative: reconstruct MeSH proposals or choose aliases using benchmark forms;
+rejected because the former could disagree with retained collision decisions and
+the latter would tune the control on evaluation questions.
+
+Copy and hash-verify the old corpus, matrix and progress file in
+`.cache/vector-corpus-pre-v2/` before rebuilding. `--rebuild` regenerates the corpus
+through a temporary file and starts embeddings from zero when paragraph bytes
+change. The previous append-only optimization must not reuse old vectors for
+rewritten rows. A matching corpus hash can resume interrupted embedding work.
+Use the existing cached CPU model, four threads and no downloads. Alternative:
+append aliases while retaining old embeddings; rejected because text and vectors
+would disagree. Fictional regression tests cover priority, deduplication, catalog
+membership, the limit, document preservation and complete vector invalidation.
+
+## D052 — Frozen v2 measurement and task accounting (2026-10-08)
+
+Use the existing evaluator's dev selection unchanged: `--max-per-category 2`
+retains all safety/adversarial controls, giving 38 rather than 22 smoke questions.
+The smoke finishes with 30 passes, five API-timeout questions and two handled
+planning `ValidationError` questions. These errors are preserved. Planning output
+leniency is explicitly deferred by T5; do not change schemas or prompts to repair
+these dev outcomes in this measurement task. The original provider JSON is not
+retained, so do not attribute either validation failure to a particular field.
+Alternative: broaden the planning schema now; rejected because T5 reserves that
+decision for the user. No test answer has been inspected before the freeze.
+
+Keep the existing provider, model, 30-second timeout and zero SDK retries; set
+the requested cooldown to two seconds. The initial conservative cumulative ledger
+balance is 5,344,304 tokens. Set the process-local cumulative `TOKEN_BUDGET` to
+8,344,304, enforcing at most 3,000,000 additional charged/reserved tokens. Existing
+unsettled reservations remain counted; never reset or edit the ledger. The smoke
+charges 69,000 tokens (40,607 provider-reported). Historical 240-case hybrid and
+vector runs reported 367,791 and 672,139 tokens; reserve approximate ranges of
+400,000-900,000 and 700,000-1,100,000 respectively before the new runs, and update
+the remaining allowance before each attempt. Failed calls can cost their full
+conservative reservation despite reporting zero tokens.
+
+Run hybrid then vector serially in owned background processes. Persist every
+60-case milestone, complete per-case records and immutable output names. A round
+with more than ten API-error questions is invalid, retained locally, and can only
+be retried as a whole after a cooling interval, with a new name and within the
+same task allowance. The interface-error set is exactly `APITimeoutError`,
+`RateLimitError`, `APIConnectionError`, and `InternalServerError`, checked across
+all conversation turns. The paired comparison excludes a question if either
+system has one of these errors; other failures still count. Alternative: retry
+only failed cases or exclude every answer failure; rejected because those would
+change the declared sample and hide model/system failures. After starting test,
+QA code, prompts, frozen datasets, catalog and retrieval corpus stay fixed.
