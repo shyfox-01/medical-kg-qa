@@ -859,3 +859,32 @@ this consumes the finite approved allowance without making a valid result possib
 Continue to estimate full-round cost before every launch and preserve all prior
 attempts locally. QA code, prompts, datasets, catalog, corpus and human queues
 remain frozen. Any accepted formal result must still contain all 240 questions.
+
+## D058 — Bound provider waiting consistently for the next valid pair (2026-10-08)
+
+The first post-approval hybrid attempt (`v2_test_hybrid_retry2`) reaches 11 API-error
+questions after 24 completed questions: two timeouts and nine rate-limit errors.
+Stop and retain this invalid prefix. It reports 5,479 provider tokens and charges
+45,482 conservative tokens; total task charges become 2,525,579. The evaluator
+exits after the console interrupt and its cleanup; no new reservation is unsettled.
+
+The task fixes the provider, model and two-second cooldown but leaves the provider
+timeout unspecified. Supersede the 30-second choice in D052/D057 for subsequent
+attempts: set the existing process-local `LLM_TIMEOUT` configuration to 60 seconds
+for both systems. Retain zero SDK retries, the 300-second worker deadline and all
+frozen code, prompts, datasets and retrieval inputs. Do not edit `.env` or change
+the endpoint/key. This responds only to API-error counts and the timeout/limit
+sequence, not answer text or pass rates; it does not establish why the endpoint
+throttles. Longer waiting may reduce timeout-driven repeated requests, but cannot
+guarantee availability. Alternative: repeatedly spend the finite allowance with
+the same 30-second cutoff; rejected after four API-invalid test attempts. Increasing
+SDK retries or changing QA output handling is also rejected.
+
+All earlier 30-second attempts remain invalid and local. Require the same new
+60-second setting in both accepted full rounds, record it beside latency results,
+and exclude worker-deadline or budget-censored incomplete runs from formal results.
+Keep the API invalidation rule, ten-minute interval between invalid attempts and
+full-round immutable restart names. Preserve the original freeze metadata as the
+historical record; store the runtime amendment in new per-attempt metadata.
+Only the private background wrapper changes. Its interrupt cleanup is bounded:
+after 20 seconds, terminate only its still-owned evaluator process tree if needed.
