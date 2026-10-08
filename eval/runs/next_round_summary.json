@@ -1,0 +1,484 @@
+{
+  "scope": "authorized_four_item_followup",
+  "development_only": true,
+  "dev": {
+    "scope": "full_v2_dev_hybrid_only",
+    "complete": true,
+    "counts": {
+      "questions": 160,
+      "passed": 140,
+      "pass_rate": 0.875,
+      "api_error_questions": 5,
+      "other_execution_error_questions": 6
+    },
+    "categories": {
+      "adversarial": {
+        "questions": 10,
+        "passed": 10,
+        "pass_rate": 1.0,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "aggregation": {
+        "questions": 16,
+        "passed": 16,
+        "pass_rate": 1.0,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "lexical_variation": {
+        "questions": 24,
+        "passed": 18,
+        "pass_rate": 0.75,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "multi_constraint": {
+        "questions": 16,
+        "passed": 11,
+        "pass_rate": 0.6875,
+        "api_error_questions": 1,
+        "other_execution_error_questions": 4
+      },
+      "multi_hop": {
+        "questions": 20,
+        "passed": 12,
+        "pass_rate": 0.6,
+        "api_error_questions": 4,
+        "other_execution_error_questions": 2
+      },
+      "multi_turn": {
+        "questions": 8,
+        "passed": 8,
+        "pass_rate": 1.0,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "out_of_scope": {
+        "questions": 12,
+        "passed": 12,
+        "pass_rate": 1.0,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "reverse": {
+        "questions": 12,
+        "passed": 12,
+        "pass_rate": 1.0,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "safety": {
+        "questions": 10,
+        "passed": 10,
+        "pass_rate": 1.0,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "sensitive_terms": {
+        "questions": 8,
+        "passed": 7,
+        "pass_rate": 0.875,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "single_hop": {
+        "questions": 24,
+        "passed": 24,
+        "pass_rate": 1.0,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      }
+    },
+    "no_api_error_subset": {
+      "questions": 155,
+      "passed": 140,
+      "pass_rate": 0.9032258064516129,
+      "api_error_questions": 0,
+      "other_execution_error_questions": 6
+    },
+    "api_error_ids": [
+      "v2-0228",
+      "v2-0241",
+      "v2-0245",
+      "v2-0269",
+      "v2-0270"
+    ],
+    "other_execution_error_ids": [
+      "v2-0193",
+      "v2-0196",
+      "v2-0198",
+      "v2-0204",
+      "v2-0231",
+      "v2-0238"
+    ],
+    "error_turns_by_type": {
+      "CypherSyntaxError": 6,
+      "APITimeoutError": 5
+    },
+    "answer_failures_without_execution_errors": [
+      "v2-0133",
+      "v2-0145",
+      "v2-0153",
+      "v2-0160",
+      "v2-0168",
+      "v2-0173",
+      "v2-0246",
+      "v2-0251",
+      "v2-0317"
+    ],
+    "lexical_by_variant": {
+      "lay_disease_name": {
+        "questions": 6,
+        "passed": 3,
+        "pass_rate": 0.5,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "typo": {
+        "questions": 10,
+        "passed": 10,
+        "pass_rate": 1.0,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "us_brand": {
+        "questions": 8,
+        "passed": 5,
+        "pass_rate": 0.625,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      }
+    },
+    "lexical_by_catalog": {
+      "True": {
+        "questions": 9,
+        "passed": 6,
+        "pass_rate": 0.6666666666666666,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "False": {
+        "questions": 5,
+        "passed": 2,
+        "pass_rate": 0.4,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      },
+      "None": {
+        "questions": 10,
+        "passed": 10,
+        "pass_rate": 1.0,
+        "api_error_questions": 0,
+        "other_execution_error_questions": 0
+      }
+    },
+    "sensitive_terms": {
+      "questions": 8,
+      "refusals": 0
+    },
+    "latency_median_s": 10.696336449997034,
+    "latency_p90_s": 46.03947789999802,
+    "tokens": {
+      "run_calls": 243,
+      "run_reported_tokens": 353298,
+      "run_charged_tokens": 391504,
+      "run_unsettled_reservations": 0,
+      "ledger_cumulative": 10201771,
+      "additional_task_tokens": 4857467,
+      "approved_additional_cap": 6000000,
+      "remaining": 1142533
+    },
+    "frozen": {
+      "checkpoint_source": "e318277e849e3a79c0c89136e1e9ed8320b289db98d22689bbe0ad8ab7a242ec",
+      "current_source": "e318277e849e3a79c0c89136e1e9ed8320b289db98d22689bbe0ad8ab7a242ec",
+      "source_unchanged": true,
+      "initial_files_unchanged": {
+        "eval\\datasets\\structured_v1.jsonl": true,
+        "eval\\datasets\\structured_v2.jsonl": true,
+        "eval\\human_labels\\extraction_blind_todo.jsonl": true,
+        "eval\\human_labels\\extraction_repair_review_todo.jsonl": true,
+        "eval\\human_labels\\extraction_review_todo.jsonl": true,
+        "eval\\human_labels\\judge_blind_todo.jsonl": true,
+        "eval\\human_labels\\judge_calibration_todo.jsonl": true,
+        "eval\\human_labels\\quarantine_blind_todo.jsonl": true,
+        "eval\\human_labels\\text_blind_todo.jsonl": true,
+        "data\\processed\\entities.json": true,
+        "data\\processed\\vector_corpus.jsonl": true,
+        "data\\processed\\vector_corpus.npy": true
+      }
+    },
+    "failed_dev_cases": [
+      {
+        "id": "v2-0133",
+        "category": "lexical_variation",
+        "errors": [],
+        "route": "template",
+        "response_status": "answered"
+      },
+      {
+        "id": "v2-0145",
+        "category": "lexical_variation",
+        "errors": [],
+        "route": "template",
+        "response_status": "answered"
+      },
+      {
+        "id": "v2-0153",
+        "category": "lexical_variation",
+        "errors": [],
+        "route": "planner",
+        "response_status": "unsupported"
+      },
+      {
+        "id": "v2-0160",
+        "category": "lexical_variation",
+        "errors": [],
+        "route": "planner",
+        "response_status": "answered"
+      },
+      {
+        "id": "v2-0168",
+        "category": "lexical_variation",
+        "errors": [],
+        "route": "planner",
+        "response_status": "answered"
+      },
+      {
+        "id": "v2-0173",
+        "category": "lexical_variation",
+        "errors": [],
+        "route": "planner",
+        "response_status": "answered"
+      },
+      {
+        "id": "v2-0193",
+        "category": "multi_constraint",
+        "errors": [
+          {
+            "stage": "query",
+            "type": "CypherSyntaxError"
+          }
+        ],
+        "route": "planner",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0196",
+        "category": "multi_constraint",
+        "errors": [
+          {
+            "stage": "query",
+            "type": "CypherSyntaxError"
+          }
+        ],
+        "route": "planner",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0198",
+        "category": "multi_constraint",
+        "errors": [
+          {
+            "stage": "query",
+            "type": "CypherSyntaxError"
+          }
+        ],
+        "route": "planner",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0204",
+        "category": "multi_constraint",
+        "errors": [
+          {
+            "stage": "query",
+            "type": "CypherSyntaxError"
+          }
+        ],
+        "route": "planner",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0228",
+        "category": "multi_constraint",
+        "errors": [
+          {
+            "stage": "routing",
+            "type": "APITimeoutError"
+          }
+        ],
+        "route": "",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0231",
+        "category": "multi_hop",
+        "errors": [
+          {
+            "stage": "query",
+            "type": "CypherSyntaxError"
+          }
+        ],
+        "route": "planner",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0238",
+        "category": "multi_hop",
+        "errors": [
+          {
+            "stage": "query",
+            "type": "CypherSyntaxError"
+          }
+        ],
+        "route": "planner",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0241",
+        "category": "multi_hop",
+        "errors": [
+          {
+            "stage": "query",
+            "type": "APITimeoutError"
+          }
+        ],
+        "route": "planner",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0245",
+        "category": "multi_hop",
+        "errors": [
+          {
+            "stage": "query",
+            "type": "APITimeoutError"
+          }
+        ],
+        "route": "planner",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0246",
+        "category": "multi_hop",
+        "errors": [],
+        "route": "planner",
+        "response_status": "answered"
+      },
+      {
+        "id": "v2-0251",
+        "category": "multi_hop",
+        "errors": [],
+        "route": "planner",
+        "response_status": "answered"
+      },
+      {
+        "id": "v2-0269",
+        "category": "multi_hop",
+        "errors": [
+          {
+            "stage": "generation",
+            "type": "APITimeoutError"
+          }
+        ],
+        "route": "planner",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0270",
+        "category": "multi_hop",
+        "errors": [
+          {
+            "stage": "routing",
+            "type": "APITimeoutError"
+          }
+        ],
+        "route": "",
+        "response_status": "error"
+      },
+      {
+        "id": "v2-0317",
+        "category": "sensitive_terms",
+        "errors": [],
+        "route": "template",
+        "response_status": "answered"
+      }
+    ],
+    "exit_code": 0,
+    "elapsed_s": 2912.1675095558167
+  },
+  "alias_audit": {
+    "catalog_sha256": "60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5",
+    "entities_examined": 42975,
+    "synonym_strings_examined": 95995,
+    "flagged_entity_alias_pairs": 2389,
+    "flags": {
+      "mesh_join_not_reproduced": 402,
+      "same_label_collision": 511,
+      "cross_label_distinct_canonical_names": 1497,
+      "acronym_collision": 228,
+      "ordinary_or_generic_word": 33
+    },
+    "priorities": {
+      "0": 402,
+      "1": 596,
+      "2": 1391
+    },
+    "review_tasks": 100,
+    "unreviewed_flagged_pairs_outside_batch": 2289,
+    "catalog_modified": false,
+    "human_labels_assigned": 0,
+    "benchmark_rows_read": 0,
+    "downloads": 0,
+    "llm_calls": 0
+  },
+  "artifacts": {
+    "passed": true,
+    "checks": {
+      "frozen_dataset": true,
+      "frozen_dataset_v2": true,
+      "corpus_hash": true,
+      "alias_shape": true,
+      "alias_identities": true,
+      "corpus_shape": true,
+      "corpus_complete": true,
+      "chunk_associations": true,
+      "assertion_evidence": true
+    },
+    "retained_assertions": 27,
+    "alias_rows": 138893,
+    "corpus_rows": 47668,
+    "graph_checked": false,
+    "clinical_validation": false,
+    "downloads": 0,
+    "llm_calls": 0
+  },
+  "verification": {
+    "ruff": true,
+    "non_integration_passed": 412,
+    "integration_passed": 15,
+    "isolated_integration_passed": 14,
+    "readonly_research_count_passed": 1
+  },
+  "independent_preparation": {
+    "slots": 100,
+    "human_labels_assigned": 0,
+    "new_holdout_run": false,
+    "status": "awaiting_user_authoring_and_review",
+    "source_snapshot_unchanged": true,
+    "queue_sha256": "521e6948e513a4c5e4356b3cd628d27c69802d87774de88eb73d92e22244c293"
+  },
+  "process_cleanup": {
+    "ports_closed": {
+      "7474": true,
+      "7687": true
+    },
+    "at": 1791471384.4197204,
+    "owned_server_pid": 30620
+  },
+  "downloads": 0,
+  "dependency_installs": 0,
+  "push": false,
+  "merge": false
+}

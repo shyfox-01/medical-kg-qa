@@ -98,12 +98,10 @@ Linux bind mounts must permit container uid 10001 to write caches and logs.
 $env:MEDKG_INTEGRATION='1'
 $env:MEDKG_REAL_COUNTS='1'
 .\.venv\Scripts\python.exe -m pytest -m integration
-# Generate local CSV gold only if absent; preserve the frozen MANIFEST:
-.\.venv\Scripts\python.exe -m eval.generate --paraphrase-limit 24
 # Use dev while changing rules/prompts:
-.\.venv\Scripts\python.exe -m eval.run --split dev --phase 3 --max-per-category 3
-# Three-round fixed-sample gate after development:
-.\.venv\Scripts\python.exe -m eval.run --split test --rounds 3 --phase 3 --max-per-category 3 --output eval/runs/recheck_summary.json --baseline eval/runs/v1_summary.json --fail-on-redline-regression
+.\.venv\Scripts\python.exe -m eval.run --dataset eval/datasets/structured_v2.jsonl --split dev --phase 3 --max-per-category 3
+# Offline readiness check for the new human-authored packet (initially blocked):
+.\.venv\Scripts\python.exe -m eval.independent check --packet .cache/next-round-2026-10-08/independent-evaluation --queue eval/human_labels/independent_2026_10_08_authoring_todo.jsonl
 ```
 
 Evaluation calls the public process boundary; `eval/` does not import QA internals.
@@ -111,6 +109,9 @@ Gold comes from CSV. Raw/derived datasets, per-question records and human queues
 are ignored. Public text drafts, MANIFEST and aggregates are committed. CI uses a
 fictional fixture graph and FakeLLM with no real LLM or embedding-model download.
 The default synthetic loader requires an empty/fixture-only database.
+Preserve the frozen v1/v2 datasets and historical test runs. The next held-out
+evaluation follows the [independent authoring protocol](docs/evaluation/independent-evaluation.md)
+after human authoring, source review and finite run/budget registration.
 
 ## Measured outcomes
 
@@ -136,6 +137,13 @@ This table describes the snapshot before the subsequent
 [T5 improvements](docs/reports/t5-improvements.md). Those changes add cached-source
 aliases, narrow population refusals, normalize planner booleans and pace transient
 provider failures; their checks use dev only, without a new held-out test score.
+
+The [subsequent follow-up](docs/reports/next-round-2026-10-08.md) adds bounded typo
+handling and a read-only alias audit. A complete 160-case hybrid dev run passes
+140/160 (87.50%), including 10/10 typo and 20/20 safety/adversarial cases, with five
+API timeouts and six query-syntax errors. Ruff, 412 non-integration tests and all
+15 integration tests pass. The new 100-slot independent evaluation packet awaits
+human authoring/review; these dev results do not replace the frozen test table.
 
 Historical v1 results use different cases/scoring and are not a matched v2
 baseline: the offline `deterministic-3.4` rescoring of earlier saved answers gives

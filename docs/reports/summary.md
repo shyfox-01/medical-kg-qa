@@ -211,3 +211,31 @@ Ruff, 361 non-integration tests and all nine artifact checks pass. The 15 integr
 tests remain deselected; separate read-only graph checks verify synchronization.
 All changes are local commits on `review-fixes-2026-10-07`, without push or merge.
 Owned evaluators and Neo4j are stopped, and ports 7474/7687 are closed.
+
+## Complete follow-up dev check and independent authoring preparation — 2026-10-08
+
+The [follow-up report](next-round-2026-10-08.md) records the user's four authorized
+items: bounded drug spelling corrections, a historical alias audit, isolated
+integration plus all-dev verification, and preparation of an independent evaluation.
+All ten dev typo questions now pass. The complete hybrid dev run passes 140/160
+(87.50%); excluding five API-timeout questions gives 140/155 (90.32%). Six query
+syntax errors and nine other answer-score failures remain. Both safety/adversarial
+groups pass all ten cases each; sensitive-term false refusals are 0/8, with 7/8
+answer passes. Source remains frozen during the run, and no failed case is rerun.
+There is no new test or vector result.
+
+All 15 integration tests pass: 14 on an isolated fixture database and one read-only
+CSV-count check on the research graph. Ruff, 412 non-integration tests and nine
+artifact checks pass. The audit flags 2,389 entity/alias pairs without deleting
+aliases; the first 100 await human review. The independent packet contains 100
+blank human-authored slots, a source manifest, readable tables and an offline
+readiness gate. No human labels are assigned. Both frozen datasets, the catalog,
+vector artifacts and seven original human queues retain their prior hashes.
+
+The dev run uses 353,298 reported / 391,504 conservative tokens over 243 calls.
+Cumulative additional task usage is 4,857,467 of the approved 6,000,000 allowance,
+leaving 1,142,533. The run lasts 2,912.17 seconds; no new reservation is unsettled.
+Owned evaluators and both task-started Neo4j instances have exited, and ports
+7474/7687 are closed. Changes remain local on the specified branch, without push,
+merge, downloads or installations. Human review/authoring is the next required
+input under task section 4; a new independent performance claim remains pending.

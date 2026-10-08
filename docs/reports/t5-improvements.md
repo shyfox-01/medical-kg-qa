@@ -115,3 +115,8 @@ Raw records, source previews and process/budget audits remain local under
 | Entity catalog | `60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5` |
 | Vector corpus | `799f9a2dd55a97bfbe92795cebccac4fe32b9ba6b05b59828d09afdafdee2b52` |
 | Vector matrix | `313cd5f38442bde6f9b352926f66c5d34a0ef617797b54aeba3735cf9dfe18e2` |
+
+The subsequently authorized [four-item follow-up](next-round-2026-10-08.md) fixes
+the dev typo boundary, audits historical aliases, runs all integration tests and
+the complete dev split, and prepares new independent authoring materials. This
+report preserves the earlier 38-case snapshot and its accounting unchanged.

@@ -1164,3 +1164,32 @@ explicit finite run/budget registration are needed before future model calls.
 Preparation is complete when the blank packet and gate work; human authoring,
 clinical expertise and new held-out performance remain unclaimed. Do not change
 existing human queues, datasets or aliases automatically.
+
+## D069 — Publish complete dev evidence and stop at the human-review boundary (2026-10-08)
+
+The frozen 160-case hybrid dev run completes in 2,912.17 seconds: 140/160 passes
+(87.50%), or 140/155 (90.32%) excluding the five API-timeout questions. Six query
+syntax errors and nine other answer-score failures remain. All ten typo questions
+and all 20 safety/adversarial controls pass; sensitive-term false refusals are
+0/8, with 7/8 answer passes. Alternative: report only the corrected typo subgroup
+or compare this dev score directly with the prior test score; rejected because
+neither represents the full development diagnostic or independent performance.
+No QA/scoring code changes during the run; no failed question is selectively
+rerun. Preserve all raw records and expose separate API/capability error counts.
+
+The run makes 243 provider calls, reporting 353,298 and conservatively charging
+391,504 tokens. Additional task usage is now 4,857,467 / 6,000,000, leaving
+1,142,533. No new reservation remains unsettled; the four historical reservations
+remain part of the cumulative accounting. Source/vocabulary/corpus/matrix and
+both datasets retain their pre-run hashes. The original seven human queues are
+unchanged; both new queues have 100 records and null human decision fields.
+
+Publish the full dev and implementation aggregates, update README/summary links,
+and retain the prior test and 38-case smoke reports as historical snapshots. Ruff,
+412 non-integration tests, all 15 integration tests and nine artifact checks pass.
+Stop the task-owned research server and launcher after the evaluator exits;
+verify closed ports 7474/7687. Keep the isolated database and private logs locally.
+No push, merge, installation, external file change or data download occurs.
+Automated work is complete; user-authored questions, gold and alias decisions
+remain pending under section 4. No independent evaluation or human validation is
+claimed before that input and a separately registered finite run/scoring plan.
