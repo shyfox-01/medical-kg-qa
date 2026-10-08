@@ -1193,3 +1193,78 @@ No push, merge, installation, external file change or data download occurs.
 Automated work is complete; user-authored questions, gold and alias decisions
 remain pending under section 4. No independent evaluation or human validation is
 claimed before that input and a separately registered finite run/scoring plan.
+
+## D070 — Add an explicitly authorized multi-agent source-review lane (2026-10-09)
+
+The user explains they lack domain expertise and explicitly asks for subagents
+with tailored prompts to perform the review. Proceed without requesting the same
+authorization again. Preserve the prior human queues and their null attestations;
+write distinct AI judgments and provenance. Alternative: fill human_* fields with
+agent decisions or insist that an untrained user certify medical truth; rejected
+because the former falsifies provenance and the latter does not improve evidence.
+
+Use two fresh-context reviewers for all 100 priority alias pairs, emphasizing
+direct concept equivalence and counterexamples respectively. Give both the same
+cached MeSH concepts, terms, relations and scope notes, stripped of previous audit
+flags and decisions. They cannot see each other's first pass. A third agent audits
+the evaluation protocol and authors 12 source-grounded pilot text questions; an
+available reviewer subsequently checks questions/evidence before seeing proposed
+answers. This bounded pilot tests the AI author/reviewer workflow, not the existing
+100-case human benchmark. The root agent checks source quotes, identities, complete
+coverage, conflicts and file preservation. No current QA source or scoring changes.
+
+Supported/unsupported/uncertain refer to source support for exact identity, not
+clinical truth. A class or sibling concept is not automatically an exact alias;
+absence alone is not proof of incorrectness. Preserve disagreements rather than
+forcing majority agreement. Shared model and evidence create correlated errors.
+Do not apply catalog changes or start a new model evaluation from this review.
+No new data is downloaded. Existing GLM provider accounting remains separate from
+Codex's agent work; zero additional project-provider calls must not be described
+as zero AI usage. Prompts and protocol are recorded in docs/evaluation/ai-review-protocol.md.
+
+## D071 — Preserve source uncertainty and separate review from system evaluation (2026-10-09)
+
+Both alias reviewers return 6 supported, 28 unsupported and 66 uncertain decisions
+for the 100 priority pairs. Decisions agree on all pairs; relationship labels
+agree on 98. Preserve the two relationship disagreements and all raw first passes.
+Validate all 780 submitted quote locations, not only substring presence, allowing
+permuted MeSH terms that reuse a TermUI. Raw reviewer A uses Clinical_validation
+and B uses clinical_validation; retain raw bytes and normalize only aggregate
+provenance. Alternative: infer accuracy from agreement or silently standardize
+frozen raw files; rejected because shared biases remain and provenance would drift.
+
+After the blind passes, search the 483 existing openFDA cache files for all 66
+uncertain aliases using exact normalized brand and canonical ingredient identity.
+No pair is resolved: 65 have no exact brand match; one documents a sodium salt
+rather than the exact canonical moiety. A no-match is not a false-alias verdict.
+Do not silently introduce salt stripping, partial-brand matching, product-name
+familiarity or new downloads to force resolution. Alternative: accept these
+engineering normalizations as chemical identity evidence; rejected because the
+review explicitly tests exact equivalence. All cache hashes and matched fields
+are checked; no source files or catalog entries change.
+
+Freeze the pilot auditor's first-pass hash before author-answer comparison.
+The audit supports all 12 reference answers, with six optional question/rubric
+clarifications and no required factual corrections. Preserve original author and
+blind references, attach clarification notes in a separate readable table, and
+retain AI origin. Alternative: edit the frozen answers to match the auditor or
+count the cases as human gold; rejected because neither preserves the observed
+review process. Verify the 23 author spans, 24 full source chunks and 60 auditor
+quote occurrences against the stored corpus. Semantic novelty is not established.
+
+Report seven evaluation-methodology recommendations and the synthetic scorer
+counterexamples without treating constructed inputs as runtime failures. The
+existing readiness gate explicitly remains schema-only and never authorizes a
+run. Keep previous automatic scores as historical diagnostics and disclose their
+limits; do not modify scoring, revisit old test outputs or create a new performance
+claim during this review. Apply no alias changes. Preserve all nine human queues,
+both frozen datasets, catalog and vector artifacts. Provider accounting is unchanged.
+Publish prompts, aggregate results, readable local evidence tables and the report;
+only these documentation/aggregate changes enter a local commit.
+
+Ruff and all 412 non-integration tests pass. The initial sandbox attempt stalls
+after three tests; stop only its two verified processes and rerun the whole suite
+with approved escalation and a new project-local temporary directory. It finishes
+in 4.83 seconds, with 15 integration tests deselected and one existing dependency
+deprecation warning. No dependency upgrade or service startup is warranted by
+this documentation/evidence-only change. Recheck all preserved hashes afterward.

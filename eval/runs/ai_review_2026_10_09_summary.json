@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-09",
+  "kind": "ai_source_review_not_system_evaluation",
+  "branch": "review-fixes-2026-10-07",
+  "reviewed_commit": "005a0d9",
+  "origin": "ai_review",
+  "agents": 3,
+  "fresh_contexts": true,
+  "statistical_independence_claimed": false,
+  "clinical_validation": false,
+  "alias_review": {
+    "cases": 100,
+    "reviewer_a": {
+      "uncertain": 66,
+      "unsupported": 28,
+      "supported": 6
+    },
+    "reviewer_b": {
+      "uncertain": 66,
+      "unsupported": 28,
+      "supported": 6
+    },
+    "consensus": {
+      "unresolved": 66,
+      "agreed_unsupported": 28,
+      "agreed_supported": 6
+    },
+    "decision_agreements": 100,
+    "relation_agreements": 98,
+    "quotes_checked": 780,
+    "quotes_present_in_source": 780,
+    "reviewer_sha256": {
+      "a": "4dd9c9e74a30ae898001866d59971de4ad4f41d5b08408f7b6e30dceef7c504e",
+      "b": "e84660d19e939a76bc58739216ca875b160e768dcf3d48c334030745b01500b3"
+    },
+    "applied_catalog_changes": 0,
+    "human_labels_assigned": 0,
+    "clinical_validation": false,
+    "agreement_is_accuracy": false
+  },
+  "cached_label_supplement": {
+    "origin": "ai_review",
+    "clinical_validation": false,
+    "uncertain_pairs_checked": 66,
+    "supported_by_cached_label": 0,
+    "still_uncertain": 66,
+    "conflicting_cached_labels": 0,
+    "no_exact_brand_match": 65,
+    "exact_brand_but_salt_mismatch": 1,
+    "files_searched": 483,
+    "label_occurrences_searched": 382,
+    "unique_label_ids_searched": 372,
+    "source_parse_errors": 0,
+    "review_sha256": "231c5aa3e1044d882af410cc5438d204a60f0a9ebb7e4466d8bf91ac228938d4",
+    "search_inventory_sha256": "172c68c42859d8e8054718cd3bdc5a195884e3475637e882ecc8587092135662",
+    "first_pass_artifact_sha256": {
+      "build_review.py": "4b750f0b94897730b5c64c243788be201b4c54890ba8df84a5ff65723547bcea",
+      "review.jsonl": "e84660d19e939a76bc58739216ca875b160e768dcf3d48c334030745b01500b3",
+      "summary.md": "6a78bd9790db8e37a955f2b7af8041e865ebdcf8b9b81ba5b89dfbaafbc233eb"
+    },
+    "first_pass_unchanged": true
+  },
+  "pilot": {
+    "cases": 12,
+    "source_supported": 12,
+    "question_complete": 12,
+    "factual_corrections_required": 0,
+    "items_with_optional_clarifications": 6,
+    "origin": "ai_authored",
+    "raw_author_status": "ai_draft",
+    "audit_status": "ai_source_review_complete",
+    "claim_count": 27,
+    "span_count": 23,
+    "human_benchmark_slots_filled": 0,
+    "system_evaluation_run": false,
+    "blind_sha256": "c92ea0ca9ef0be440b5e0d6ef2c5181822ab70e7bd87b5a22546de9b9fa5729f",
+    "comparison_sha256": "98ddc93e237fc893902f6f801b570b2a7c161be41b12e3c5810ddc977b1222b4"
+  },
+  "methodology_review": {
+    "recommendations": 7,
+    "synthetic_probe_groups": 5,
+    "runtime_outputs_tested": 0
+  },
+  "verification": {
+    "all_passed": true,
+    "frozen_files_unchanged": 17,
+    "input_files_unchanged": 11,
+    "human_queues_unchanged": 9,
+    "cached_label_file_hashes_verified": 483,
+    "matched_label_fields_verified": 3,
+    "pilot_spans_offsets_hashes_verified": 23,
+    "pilot_reviewer_quotes_verified": 60,
+    "full_source_chunks_verified": 24,
+    "blind_first_pass_hash_unchanged": true,
+    "alias_review_hashes_unchanged": true,
+    "provider_ledger_unchanged": true,
+    "provider_ledger_end": 10201771,
+    "clinical_validation": false
+  },
+  "project_provider_calls_added": 0,
+  "codex_agent_usage": "Separate AI work; not included in the project GLM ledger.",
+  "human_labels_assigned": 0,
+  "catalog_changes_applied": 0,
+  "downloads": 0,
+  "services_started": 0,
+  "private_evidence_directory": ".cache/ai-review-2026-10-09",
+  "artifact_sha256": {
+    "combined/alias_review.csv": "a403ed345571e221e06de97e6a3abdbafc1b3d178446233f17bfc976ee479a48",
+    "combined/pilot_review.csv": "f00a62103faac54a70f6bb71377226c38e0964b54d84a30d116fa0224e06eba9",
+    "evaluation/pilot.jsonl": "9ef35d51724cfc93b4012de2fcdbf8417249589899b45c7c1afc375c924caf0a",
+    "evaluation/review.md": "36f154a799d1d3a86dc2d1b180b0daf66c0a4f0a7e6ed00ec45a54551b309000",
+    "evaluation/probe_results.json": "eb180e3f5888d0a451677ce83faacf605ee3450660f90f3c96b92596895e130c",
+    "combined/locator_checks.json": "13fb5a2b738678285d164c58a80be4b7f8f287e9e756c26a0e9f54ea478a7c59",
+    "completion_checks.json": "960d2498a668d8504fcf196f7740dcaffab5fa8a718001466827ab75e645bf48",
+    "combined/alias_review_with_evidence.csv": "9318498983f33f6e09ce0dee28cefc309442eea8d27cce2cac5593666fddfd5c"
+  },
+  "local_checks": {
+    "ruff": "passed",
+    "non_integration_tests": {
+      "passed": 412,
+      "deselected": 15,
+      "seconds": 4.83,
+      "warnings": 1,
+      "warning": "Existing Starlette TestClient httpx deprecation."
+    },
+    "initial_sandbox_test": "Stalled after three tests; the two identified task-owned test processes were terminated, and the complete suite passed with approved escalation and a fresh project-local temporary directory.",
+    "integration_tests_rerun": false,
+    "frozen_hashes_rechecked_after_tests": true
+  }
+}

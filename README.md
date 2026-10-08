@@ -145,6 +145,13 @@ API timeouts and six query-syntax errors. Ruff, 412 non-integration tests and al
 15 integration tests pass. The new 100-slot independent evaluation packet awaits
 human authoring/review; these dev results do not replace the frozen test table.
 
+The user-authorized [AI source review](docs/reports/ai-review-2026-10-09.md) checks
+100 priority alias pairs (6 supported, 28 unsupported, 66 uncertain) and audits
+12 AI-authored source-grounded pilot questions. Three agents preserve separate
+AI provenance and the original human queues. Reviewer agreement is not accuracy;
+synthetic probes also expose semantic and safety-scoring limits. No catalog changes
+or new system performance measurements result from this review.
+
 Historical v1 results use different cases/scoring and are not a matched v2
 baseline: the offline `deterministic-3.4` rescoring of earlier saved answers gives
 87.50% for improved hybrid and 56.67% for vector on 240 cases. Earlier sampled,

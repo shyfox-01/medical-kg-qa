@@ -239,3 +239,32 @@ Owned evaluators and both task-started Neo4j instances have exited, and ports
 7474/7687 are closed. Changes remain local on the specified branch, without push,
 merge, downloads or installations. Human review/authoring is the next required
 input under task section 4; a new independent performance claim remains pending.
+
+## User-authorized multi-agent source review — 2026-10-09
+
+The user subsequently requests AI reviewers because they lack domain expertise.
+The [multi-agent report](ai-review-2026-10-09.md) records a distinct AI review lane,
+preserving every human queue and its original labels. Two fresh-context reviewers
+agree on 6 supported, 28 unsupported and 66 uncertain mappings among the first
+100 priority alias pairs (nine entities). Their relation classifications differ
+on two pairs. All 780 quoted evidence occurrences resolve to the stated cached
+MeSH locations; agreement and quote integrity do not establish medical accuracy.
+Searching 483 cached openFDA files does not resolve the remaining 66 pairs under
+the declared exact-identity rule. No alias is applied or deleted.
+
+A third agent reviews evaluation methodology and authors 12 text-only questions
+from cached MedlinePlus documents. A subsequent answer-blind audit finds all 12
+reference answers source-supported and complete for their questions, with six
+optional wording/grading clarifications and no required factual corrections.
+All 23 author spans, 24 supplied full-source chunks and 60 auditor quote occurrences
+are checked. These are AI-authored and AI-reviewed pilot artifacts, not human gold
+or QA-system outputs; the original 100 human-authoring slots remain untouched.
+
+Seven methodology recommendations include substantive safety-content review, exact
+gold reconstruction, subtype coverage, answer blinding, semantic claim evaluation
+and fuller preregistration. Synthetic scorer inputs expose missed contradictions,
+incomplete mixed graph coverage and inappropriate safety content passing the
+current diagnostics. No such response is claimed as an observed runtime output.
+No QA/scoring changes or new benchmark runs occur. The GLM ledger remains unchanged
+at 10,201,771 cumulative conservative tokens; Codex agent work is separate AI usage.
+The report links both completed review tables, raw evidence and aggregate checks.

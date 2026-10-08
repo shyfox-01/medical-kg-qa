@@ -5,6 +5,12 @@ have been supplied, and no new held-out run is authorized by this packet**.
 The previous v2 test is already observed. Later development results cannot renew
 its independence. This protocol freezes the candidate before new human questions.
 
+On 2026-10-09 the user authorized a separate
+[multi-agent AI review lane](ai-review-protocol.md). That workflow records AI
+authorship and review explicitly. This document and its original blank queue
+remain the human-authored benchmark specification; AI drafts do not fill those
+slots or establish a human-reviewed performance result.
+
 ## Scope and predeclared slots
 
 | Category | Slots | Required gold |
