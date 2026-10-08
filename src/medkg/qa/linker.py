@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 from rapidfuzz import fuzz, process
+from rapidfuzz.distance import DamerauLevenshtein
 
 from medkg_data.lexicon import COMMON_WORDS, GENERIC_ANCHORS, ambiguous_word, normalize
 
@@ -36,6 +37,10 @@ class Linker:
                     self.by_label.setdefault(e['label'], {}).setdefault(key, []).append(e['uid'])
         self.embedder, self.vectors, self.vector_aliases = embedder, vectors, vector_aliases
         self.alias_sizes = sorted({len(key.split()) for key in self.aliases},reverse=True)
+        # Single-edit correction is limited to long drug-name tokens. Short
+        # acronyms, gene symbols and ordinary words require the existing rules.
+        self.drug_spellings = {key:ids for key,ids in self.by_label.get('Drug',{}).items()
+                               if key.isalpha() and len(key)>=8 and key not in COMMON_WORDS}
 
     def link(self, mention: str, label: str | None = None) -> list[Candidate]:
         aliases = self.by_label.get(label, {}) if label else self.aliases
@@ -43,6 +48,21 @@ class Linker:
         if key in aliases:
             ids = sorted(set(aliases[key]))
             return [self._candidate(uid, 100, 'exact', len(ids)>1) for uid in ids]
+        if (label in (None,'Drug') and key.isalpha() and len(key)>=8
+                and key not in COMMON_WORDS):
+            matches = process.extract(key,self.drug_spellings.keys(),
+                scorer=DamerauLevenshtein.distance,score_cutoff=1,limit=None)
+            scored = {}
+            for alias,distance,_ in matches:
+                for uid in self.drug_spellings[alias]:
+                    score = 100*(1-distance/max(len(alias),len(key)))
+                    scored[uid] = max(score,scored.get(uid,0))
+            if scored:
+                # A one-edit tie is never resolved by a normalized-score margin:
+                # distinct nearby drug names are clinically meaningful alternatives.
+                ranked = sorted(scored.items(),key=lambda item:(-item[1],item[0]))
+                return [self._candidate(uid,score,'fuzzy',len(scored)>1)
+                        for uid,score in ranked[:5]]
         matches = process.extract(key, aliases.keys(), scorer=fuzz.token_sort_ratio, limit=5,
                                   score_cutoff=92)
         scored = {}
@@ -104,10 +124,12 @@ class Linker:
                     occupied |= positions
         if exact_only:
             return list(candidates.values()),[]
-        cues = {'of','for','about','with','does','and','between','versus','vs','is','are'}
+        cues = {'of','for','about','with','does','and','between','versus','vs','is','are',
+                'can','could','may'}
         stops = cues | {'interact','interacts','target','targets','treat','treats','is',
                         'are','has','have','associated','recorded','indicated','cause','causes',
-                        'side','effects','phenotypes','symptoms','contraindicated','indications'}
+                        'side','effects','phenotypes','symptoms','contraindicated','indications',
+                        'be','been','being','used','using','prescribed'}
         generic = {'the','a','an','what','which','it','its','their','that','drug','drugs',
                    'disease','diseases','condition','conditions','gene','genes','protein',
                    'proteins','symptom','symptoms','phenotype','phenotypes','other','both',

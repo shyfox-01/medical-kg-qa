@@ -1068,3 +1068,51 @@ score is claimed. Nine artifact checks pass; verify source/vocabulary fingerprin
 unchanged human queues/datasets, exact reuse of unchanged vectors and live graph
 aliases independently. Ruff and 361 non-integration tests pass (15 deselected,
 one pre-existing warning). Shut down owned processes and verify closed ports.
+
+## D065 — Repair drug mention extraction and bounded spelling variants (2026-10-08)
+
+The user authorizes all four follow-up steps after T5. Keep the current branch,
+frozen v1/v2 datasets, existing provider and six-million-token additional cap.
+Continue numbering decisions, and keep new audit/review artifacts separate from
+existing human queues. No test-split tuning or external data download is needed.
+
+The dev typo failure has two independent causes: modal constructions can leave a
+drug mention unexamined, and adjacent-letter transpositions fall below the existing
+token-sort similarity cutoff. Add can/could/may as mention cues and stop mention
+spans at be/been/being/used/using/prescribed. Exact catalog mentions still run first.
+Before the existing fuzzy fallback, allow Damerau-Levenshtein distance one only
+for alphabetic Drug tokens of at least eight characters, excluding known ordinary
+words. Limit this new correction path to Drugs; short symbols and other labels
+keep the existing rules. Alternative: lower the global similarity cutoff or map
+specific benchmark spellings; rejected because both can silently increase false
+matches or encode evaluation examples.
+
+Consider every one-edit candidate before selecting: multiple aliases of one drug
+are one candidate, but several drugs remain ambiguous regardless of normalized
+score differences. Preserve at most five alternatives with the ambiguity flag;
+the normal clarification boundary handles them. Do not correct document mentions
+in the exact-only ingestion pass. Fictional tests cover transpositions, missing,
+extra and replaced letters, similar drug names, exact-match precedence, short
+symbols, ordinary words and unknown anchors. All ten dev typo anchors now link
+correctly without ambiguity (previously zero); this is a linking diagnostic, not
+ten demonstrated correct answers. Full dev evaluation follows after freezing code.
+
+## D066 — Audit historical aliases without assigning human verdicts (2026-10-08)
+
+Add a read-only audit over the complete catalog and recorded enrichment provenance.
+Check normalized same-label collisions, different-name cross-label collisions,
+short acronym collisions, ordinary/generic words and MeSH joins that cannot be
+reproduced under the current stricter rules. Do not read benchmark questions or
+answers. A flagged join is not automatically false: genuine equivalence, source
+changes and catalog ambiguity need inspection. Alternative: remove every flagged
+alias; rejected because mechanical flags do not establish clinical equivalence.
+
+The audit examines 42,975 entities and 95,995 synonym strings, flagging 2,389
+entity/alias pairs. Overlapping flags: 402 unreproduced MeSH joins, 511 same-label
+collisions, 1,497 different-name cross-label collisions, 228 acronym collisions
+and 33 ordinary/generic words. Preserve all flags locally. Create a deterministic
+first batch of 100 review tasks, prioritizing unreproduced joins, with decision,
+reviewer and notes left null. The remaining 2,289 flagged pairs remain available
+outside that first batch; it is not a complete manual audit. Keep the catalog,
+vector artifacts and seven older human queues byte-identical. The user alone
+assigns human decisions under section 4; no labels are inferred from the flags.
