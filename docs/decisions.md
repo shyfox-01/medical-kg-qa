@@ -1116,3 +1116,51 @@ reviewer and notes left null. The remaining 2,289 flagged pairs remain available
 outside that first batch; it is not a complete manual audit. Keep the catalog,
 vector artifacts and seven older human queues byte-identical. The user alone
 assigns human decisions under section 4; no labels are inferred from the flags.
+
+## D067 — Isolate fixture integration and freeze a complete dev diagnostic (2026-10-08)
+
+Run the 13 synthetic integration tests and read-access check against a separate,
+authenticated, loopback Neo4j database with all writable paths inside a new ignored
+cache directory. Run the remaining CSV-count test read-only against the existing
+research graph. All 15 pass. Alternative: load fixtures into the research database;
+rejected because test entities would contaminate evaluation. Stop the isolated
+server before starting the research server on the same local ports. Preserve both
+process identities and logs; only stop this task's owned processes, retaining the
+isolated database rather than deleting existing cache files.
+
+Freeze QA source and artifacts before one complete 160-question hybrid dev run.
+Keep timeout 60 seconds, cooldown two seconds, zero SDK retries and cache off.
+Estimate 450,000-650,000 conservative tokens, enforce an 800,000-token run allowance
+and a 90-minute deadline. The run begins at cumulative ledger 9,810,267, beneath
+the existing 11,344,304 task cap; accounting is never reset. No selective failure
+reruns, fresh vector performance claim or used-test rerun is planned. Alternative:
+repeat only the corrected typo questions; rejected because it would omit broader
+development regressions and error accounting. New authoring tools and documents
+may be prepared while the run is active; measured QA/evaluator code stays frozen.
+
+## D068 — Prepare a human-authored independent evaluation, without invented labels (2026-10-08)
+
+Create 100 blank slots with predeclared quotas: 28 graph questions (seven each
+single-hop/reverse/count/multi-hop), 12 lexical variants (four each brand/lay/typo),
+15 text-only, 15 graph-plus-text, 10 out-of-scope, 10 safety and 10 adversarial.
+Use cached sources and the frozen candidate only. Alternative: generate another
+template dataset automatically or relabel the observed v2 test as independent;
+rejected because neither addresses evaluation independence. The user authors and
+reviews questions/gold; the assistant leaves identities, attestations and labels
+null. The same human can conduct a separate review pass, disclosed as a limitation.
+
+Add an offline authoring/readiness tool, immutable source manifest, blank JSONL
+queue and readable CSV copies. Fingerprint source, graph CSV, catalog, text and
+vector artifacts. Compare hashes of normalized old question wording only; no old
+test answers are inspected. The gate rejects incomplete review, duplicate wording,
+changed quotas, unknown evidence/target IDs and source drift. It never executes
+gold queries or authorizes provider calls; semantic correctness and novelty remain
+human checks. Tests use fictional labels only. CSV formula-like strings are escaped.
+
+Predeclare blinded human answer scoring for the 30 text/mixed cases as primary;
+strict phrase matching stays a diagnostic. Report structural, refusal and redline
+results separately. A reviewed immutable dataset, blinded scoring forms and an
+explicit finite run/budget registration are needed before future model calls.
+Preparation is complete when the blank packet and gate work; human authoring,
+clinical expertise and new held-out performance remain unclaimed. Do not change
+existing human queues, datasets or aliases automatically.

@@ -81,3 +81,12 @@ Concurrent writers are unsupported. A filesystem failure
 between queues can leave a partial import; rerunning safely completes it. No
 graph assertion is automatically approved or loaded. Unlabelled copies create no
 decisions, and incomplete judge labels remain uncalibrated.
+
+## Next independent evaluation and alias review
+
+The blank `independent_2026_10_08_authoring_todo.jsonl` assigns 100 new human-authored
+question slots. `alias_audit_2026_10_08_todo.jsonl` contains the first 100 prioritized
+alias flags with null decisions. These are additional queues; every original queue
+is preserved. See the [authoring and review protocol](../../docs/evaluation/independent-evaluation.md)
+for field definitions, local CSV copies, source freeze and readiness checks.
+Neither queue is completed or clinically validated by its creation.
