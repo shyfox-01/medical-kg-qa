@@ -1040,3 +1040,31 @@ answer or change provider; rejected because those hide failures or require a new
 authorization. Fake-clock tests cover shared clients, escalation, cap, reset,
 provider hints, unchanged call count and token accounting. These prove scheduling
 behavior, not availability of the free endpoint; real API failures remain reportable.
+
+## D064 — Verify the resumed work on dev and preserve the test snapshot (2026-10-08)
+
+Run one hybrid smoke on the same predeclared 38 dev IDs as D052, retaining every
+dev safety/adversarial control. Estimate and enforce at most 200,000 additional
+conservative tokens within the existing cumulative cap of 11,344,304; do not reset
+the ledger. Keep provider timeout 60 seconds, ordinary cooldown two seconds,
+zero SDK retries and cache off. Also bound the whole smoke to 20 minutes. Do not
+change QA source or retrieval artifacts while it runs. Alternative: rerun test to
+advertise a new score; rejected because that split has already been used.
+
+The smoke completes in 547.42 seconds with 35/38 passes, all 20 safety/adversarial
+controls passing, two API timeouts and no other execution errors. A dev typo still
+returns no supporting evidence. Preserve those three failures and do not selectively
+rerun them. Calls report 47,088 tokens and conservatively charge 61,607; cumulative
+additional task charges become 4,465,963 of the approved 6,000,000, leaving 1,534,037.
+There are no new unsettled reservations. Two observed ten-second backoffs confirm
+that the live pacing path was exercised; they do not prove an availability gain.
+
+Publish development-only aggregates and `docs/reports/t5-improvements.md`, linking
+them from README and the historical v2 report. Keep every prior test score and
+annotation intact; explicitly mark the measured table as the pre-improvement
+snapshot. Vocabulary, prompts and scheduling changed together, so a dev score
+difference cannot identify an individual change's effect. No new vector or test
+score is claimed. Nine artifact checks pass; verify source/vocabulary fingerprints,
+unchanged human queues/datasets, exact reuse of unchanged vectors and live graph
+aliases independently. Ruff and 361 non-integration tests pass (15 deselected,
+one pre-existing warning). Shut down owned processes and verify closed ports.

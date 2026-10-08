@@ -6,6 +6,11 @@ has an API error, the rates are 83.26% and 32.62%. These are single-round result
 on a frozen, mostly template-based knowledge benchmark, without clinical validation.
 The vector control fails one adversarial case that hybrid passes.
 
+This is the pre-improvement snapshot. The later [T5 work](t5-improvements.md)
+changes code, vocabulary and corpus; its dev diagnostics do not replace or revise
+any test result below. The original dataset annotations and accepted run artifacts
+are preserved.
+
 ## Scope and accepted runs
 
 | Scope | Questions | Hybrid | Pure vector |

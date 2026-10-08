@@ -1,0 +1,168 @@
+{
+  "scope": "Post-T5 implementation and development-only verification; no new test score",
+  "audit": {
+    "frozen_inputs": {
+      "eval\\datasets\\structured_v1.jsonl": true,
+      "eval\\datasets\\structured_v2.jsonl": true,
+      "eval\\human_labels\\extraction_blind_todo.jsonl": true,
+      "eval\\human_labels\\extraction_repair_review_todo.jsonl": true,
+      "eval\\human_labels\\extraction_review_todo.jsonl": true,
+      "eval\\human_labels\\judge_blind_todo.jsonl": true,
+      "eval\\human_labels\\judge_calibration_todo.jsonl": true,
+      "eval\\human_labels\\quarantine_blind_todo.jsonl": true,
+      "eval\\human_labels\\text_blind_todo.jsonl": true
+    },
+    "added_aliases": 94,
+    "entities_enriched": 80,
+    "additions_by_source": {
+      "openfda": 20,
+      "mesh": 1,
+      "medlineplus": 73
+    },
+    "graph_synonyms_verified": true,
+    "mentions_edges": 45636,
+    "dev_previously_absent_alias_rows": 5,
+    "dev_now_exact_linked": 4,
+    "dev_now_exact_linked_ids": [
+      "v2-0134",
+      "v2-0145",
+      "v2-0164",
+      "v2-0173"
+    ],
+    "dev_sensitive_total": 8,
+    "dev_sensitive_blocked": 0,
+    "vector_rows_changed": 75,
+    "vector_rows_unchanged": 47593,
+    "unchanged_vectors_equal": true,
+    "vector_norm_min": 0.9999998807907104,
+    "vector_norm_max": 1.0000001192092896,
+    "catalog_sha256": "60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5",
+    "corpus_sha256": "799f9a2dd55a97bfbe92795cebccac4fe32b9ba6b05b59828d09afdafdee2b52",
+    "matrix_sha256": "313cd5f38442bde6f9b352926f66c5d34a0ef617797b54aeba3735cf9dfe18e2",
+    "backups": [
+      ".cache/synonyms-20261008-203328",
+      ".cache\\synonym-corpus-1791462868137259600"
+    ]
+  },
+  "artifacts": {
+    "passed": true,
+    "checks": {
+      "frozen_dataset": true,
+      "frozen_dataset_v2": true,
+      "corpus_hash": true,
+      "alias_shape": true,
+      "alias_identities": true,
+      "corpus_shape": true,
+      "corpus_complete": true,
+      "chunk_associations": true,
+      "assertion_evidence": true
+    },
+    "retained_assertions": 27,
+    "alias_rows": 138893,
+    "corpus_rows": 47668,
+    "graph_checked": false,
+    "clinical_validation": false,
+    "downloads": 0,
+    "llm_calls": 0
+  },
+  "unit_tests": {
+    "passed": 361,
+    "integration_deselected": 15,
+    "existing_warnings": 1
+  },
+  "ruff_passed": true,
+  "new_downloads": 0,
+  "human_labels_filled": 0,
+  "test_runs": 0,
+  "dev": {
+    "questions": 38,
+    "passed": 35,
+    "api_error_questions": 2,
+    "api_error_types": {
+      "APITimeoutError": 2
+    },
+    "non_api_error_questions": 0,
+    "non_api_error_types": {},
+    "answer_failures_without_execution_error": [
+      "v2-0190"
+    ],
+    "categories": {
+      "adversarial": {
+        "questions": 10,
+        "passed": 10
+      },
+      "aggregation": {
+        "questions": 2,
+        "passed": 2
+      },
+      "lexical_variation": {
+        "questions": 2,
+        "passed": 1
+      },
+      "multi_constraint": {
+        "questions": 2,
+        "passed": 1
+      },
+      "multi_hop": {
+        "questions": 2,
+        "passed": 1
+      },
+      "multi_turn": {
+        "questions": 2,
+        "passed": 2
+      },
+      "out_of_scope": {
+        "questions": 2,
+        "passed": 2
+      },
+      "reverse": {
+        "questions": 2,
+        "passed": 2
+      },
+      "safety": {
+        "questions": 10,
+        "passed": 10
+      },
+      "sensitive_terms": {
+        "questions": 2,
+        "passed": 2
+      },
+      "single_hop": {
+        "questions": 2,
+        "passed": 2
+      }
+    },
+    "elapsed_s": 547.4202942848206,
+    "code_sha256": "d58b477f79df19d43f738a321710308e9366727595a6e6b62fb58acd68c7cf03",
+    "vocabulary_sha256": "60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5"
+  },
+  "usage": {
+    "calls": 35,
+    "provider_tokens": 47088,
+    "conservative_tokens": 61607,
+    "new_unsettled_reservations": 0,
+    "ledger_balance": 9810267,
+    "additional_task_total": 4465963,
+    "approved_additional_cap": 6000000,
+    "remaining_allowance": 1534037,
+    "smoke_estimate_and_cap": 200000,
+    "observed_backoff_seconds": [
+      10.0,
+      10.0
+    ]
+  },
+  "runtime": {
+    "provider_timeout_s": 60,
+    "cooldown_s": 2,
+    "sdk_retries": 0,
+    "cache": false,
+    "maximum_backoff_s": 60,
+    "provider_model_key_changed": false
+  },
+  "idempotence_additions": 0,
+  "cleanup": {
+    "owned_processes_remaining": 0,
+    "ports_7474_7687_closed": true,
+    "checked_at": "2026-10-08T20:47:05.1958378+08:00"
+  }
+}

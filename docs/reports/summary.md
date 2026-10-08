@@ -189,3 +189,25 @@ push or merge occurred. Owned evaluators and Neo4j are stopped, with ports
 refusals, planner-format tolerance and free-provider availability await the user.
 V1 and v2 have different cases/scoring; their headline scores are not a matched
 before/after experiment. The report provides the subgroup denominators and limits.
+
+## Authorized T5 continuation — 2026-10-08
+
+After the user's instruction to continue, implemented cached-source alias
+enrichment, narrower population refusals, bounded planner boolean normalization
+and cross-process provider backoff. Added 94 aliases to 80 entities and verified
+them in Neo4j; refreshed 75 vector paragraphs while preserving the other 47,593
+vectors exactly. No new source data was downloaded. Frozen datasets and all seven
+human queues remain unchanged. Details and current fingerprints are in the
+[T5 implementation report](t5-improvements.md), with decisions D060-D064.
+
+The same 38 dev cases yield 35 passes (92.11%), including all 20 safety/adversarial
+controls. Two API timeouts and one unsupported typo answer remain; there are no
+other execution-error questions. This is development evidence only, with no new
+test or vector performance claim. The preceding test table remains the historical
+pre-improvement snapshot. The new smoke charges 61,607 conservative tokens, bringing
+additional task usage to 4,465,963 of the approved 6,000,000 allowance.
+
+Ruff, 361 non-integration tests and all nine artifact checks pass. The 15 integration
+tests remain deselected; separate read-only graph checks verify synchronization.
+All changes are local commits on `review-fixes-2026-10-07`, without push or merge.
+Owned evaluators and Neo4j are stopped, and ports 7474/7687 are closed.

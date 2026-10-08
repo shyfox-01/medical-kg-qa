@@ -132,6 +132,10 @@ The default synthetic loader requires an empty/fixture-only database.
 
 The [v2 report](docs/reports/v2-results.md) records categories, lexical coverage,
 paired exclusions, latency, all-attempt token accounting, frozen hashes and limits.
+This table describes the snapshot before the subsequent
+[T5 improvements](docs/reports/t5-improvements.md). Those changes add cached-source
+aliases, narrow population refusals, normalize planner booleans and pace transient
+provider failures; their checks use dev only, without a new held-out test score.
 
 Historical v1 results use different cases/scoring and are not a matched v2
 baseline: the offline `deterministic-3.4` rescoring of earlier saved answers gives
