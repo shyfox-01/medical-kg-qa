@@ -45,6 +45,23 @@ POPULATION = (r'\b(?:pregnant|(?:during|in|while in|throughout) pregnancy|breast
 MEDICATION_CONTEXT = (r'\b(?:safe|safely|safety|take|taking|use|using|give|giving|drugs?|medicines?|'
                       r'medications?|meds|treatments?|treat|therapy|recommend\w*|prescri\w*|'
                       r'dose|dosage)\b')
+
+
+def population_advice(question: str) -> bool:
+    """Exempt explicit impersonal graph lookups, never personal medication advice."""
+    if not (re.search(POPULATION, question, re.I) and
+            re.search(MEDICATION_CONTEXT, question, re.I)):
+        return False
+    advice = (r'\b(?:should|can|could|may|safe|safely|safety|recommend\w*|prescri\w*|'
+              r'take|taking|give|giving|use|using|administer\w*|start|stop|suitable|best|'
+              r'choose|pick|select|advi\w*|ought|would|help)\b')
+    lookup = (r'^\s*(?:which|what|how many|list|show)\b[\s\S]*'
+              r'\b(?:recorded|listed|associated|linked|indicated|contraindicated|'
+              r'side effects?|interactions?|targets?)\b')
+    return bool(re.search(PERSONAL+'|'+advice, question, re.I) or
+                not re.search(lookup, question, re.I))
+
+
 RULES = {
     'crisis': lambda q: bool(re.search(CRISIS_EXPLICIT,q,re.I) or (
         re.search(CRISIS_TERM,q,re.I) and re.search(PERSONAL,q,re.I))),
@@ -53,8 +70,7 @@ RULES = {
     'dosage': lambda q: bool(re.search(
         r'\b(dosage|dose|how (much|many).*(take|mg|tablets)|milligrams|dosing)\b|'
         +DOSE_AMOUNT+'|'+DOSE_ARTICLE+'|'+DOSE_SCHEDULE,q,re.I)),
-    'special_population': lambda q: bool(re.search(POPULATION,q,re.I) and
-                                         re.search(MEDICATION_CONTEXT,q,re.I)),
+    'special_population': population_advice,
     'diagnosis_request': lambda q: bool(re.search(
         r'\b(diagnos\w* me|what (disease|illness) do i have|do i have|am i suffering|'
         r'tell me my diagnosis)\b',q,re.I)),

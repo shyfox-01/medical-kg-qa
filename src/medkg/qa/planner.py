@@ -39,6 +39,15 @@ class Step(BaseModel):
                 raise ValueError('At most 25 string uids')
         if self.tool=='template':
             from medkg.retrieval.templates import SPECS
+            # Accept only unambiguous boolean encodings, never an arbitrary count
+            # or Python truthiness ("false" would otherwise become True).
+            count = self.args.get('count',False)
+            if count is None:
+                self.args.pop('count')
+            elif type(count) is int and count in (0,1):
+                self.args['count'] = bool(count)
+            elif isinstance(count,str) and count.strip().casefold() in ('true','false'):
+                self.args['count'] = count.strip().casefold()=='true'
             if self.args['intent'] not in SPECS or not isinstance(self.args.get('count',False),bool):
                 raise ValueError('Unknown template intent or invalid count flag')
         if self.tool=='expand' and self.args.get('hops',2) not in (1,2):
@@ -108,7 +117,9 @@ def plan(llm, question: str, candidates: list[dict], phase: int) -> Plan:
         'intersection. Do not substitute expand or text search for an exact graph constraint. '
         'For a general introduction to one resolved entity, expand its uid by one hop; '
         'use text retrieval only when the question asks for text information. '
-        'Literal uids must be a JSON list, never a bare uid string. Optional source is only medlineplus '
+        'Literal uids must be a JSON list, never a bare uid string. '
+        'Template count is a boolean flag (true for an aggregate, false for a list), '
+        'never the expected answer or a result limit. Optional source is only medlineplus '
         'or openfda; omit it for graph data. Do not emit k, top_k, limit, relation or cypher arguments. '
         'Examples: '+json.dumps(examples))
     messages = [{'role':'system','content':prompt+' Use only the argument names shown. '

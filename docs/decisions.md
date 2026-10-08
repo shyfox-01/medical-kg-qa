@@ -990,3 +990,53 @@ link their anchors exactly. This is a dev linking diagnostic, not an answer scor
 or a new test result. Keep original `alias_in_catalog` annotations and historical
 v2 results intact. The catalog and corpus have new fingerprints, so the published
 test table describes the earlier measured snapshot only.
+
+## D061 — Separate population knowledge lookups from medication advice (2026-10-08)
+
+Keep population-plus-medication questions blocked by default. Allow an explicit
+impersonal graph lookup beginning with which/what/how many/list/show and containing
+a recorded/listed/associated/linked/indicated/contraindicated/side-effect/interaction/
+target cue. Any personal cue or medication-advice/action wording overrides that
+exception, including mixed requests that append a recommendation to a lookup.
+Crisis, emergency, dosage, diagnosis and final-output gates remain in force.
+Alternative: remove the population gate or allow every third-person question;
+rejected because neither preserves the professional-assessment boundary.
+
+Use fictional disease/drug regressions for the overlapping population/medication
+phrases, plus advice controls checked before any model or graph call. All eight
+dev sensitive-term questions pass the input gate; this checks routing, not answer
+quality or clinical safety. The rule is deliberately narrow and may still refuse
+other knowledge phrasings. No held-out answer was used to select regex terms.
+
+## D062 — Normalize only unambiguous planner boolean formats (2026-10-08)
+
+Normalize template `count` integers 0/1 and case-insensitive true/false strings to
+booleans. Omit null because this optional flag defaults to false. Reject other
+integers, floats, numeric strings, containers and truthy words; an arbitrary number
+might be an expected answer or row limit rather than a boolean. Make those flag
+semantics explicit in the planner prompt. Keep allowed argument names, tools,
+backward references, phase constraints and guarded execution unchanged.
+Alternative: cast every value with `bool()` or accept all numbers; rejected because
+`"false"` becomes true and result limits become aggregation requests. Fictional
+tests check both meanings and show a normalized plan needs no repair call. The
+previous dev ValidationErrors did not retain raw provider JSON, so do not attribute
+all of them specifically to numeric `count` or claim all format failures are fixed.
+
+## D063 — Share bounded provider backoff without retrying failed answers (2026-10-08)
+
+After a connection/timeout, HTTP 429 or HTTP 5xx failure, persist a pacing deadline
+under the existing cross-process provider mutex. Subsequent calls wait 10, 20, 40,
+then at most 60 seconds for consecutive transient failures. Respect numeric or
+HTTP-date Retry-After hints within the same 60-second ceiling. A successful call
+resets the sequence; non-transient errors do not trigger exponential pacing.
+Use atomic state replacement and cap waits even after wall-clock changes.
+
+Preserve zero SDK retries: each failed request is still returned as a failure,
+charged conservatively when usage is absent, and not secretly replaced by a later
+answer. Log only its exception class and delay, never response bodies or prompts.
+Keep the provider/model/key and the evaluation's two-second ordinary cooldown and
+60-second provider timeout. Alternative: automatically retry each failed evaluation
+answer or change provider; rejected because those hide failures or require a new
+authorization. Fake-clock tests cover shared clients, escalation, cap, reset,
+provider hints, unchanged call count and token accounting. These prove scheduling
+behavior, not availability of the free endpoint; real API failures remain reportable.

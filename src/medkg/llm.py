@@ -6,11 +6,35 @@ import re
 import time
 import uuid
 from contextlib import contextmanager
+from email.utils import parsedate_to_datetime
 
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, OpenAI
 
 from medkg.config import ROOT, Settings
 from medkg.tracing import span
+
+MAX_PROVIDER_BACKOFF = 60.0
+
+
+def provider_backoff(exc: Exception, failures: int) -> float:
+    """Bound shared pacing after transient failures; never retry the failed request."""
+    transient = isinstance(exc,APIConnectionError) or (
+        isinstance(exc,APIStatusError) and (exc.status_code==429 or exc.status_code>=500))
+    if not transient:
+        return 0.0
+    delay = min(MAX_PROVIDER_BACKOFF,10.0*2**min(max(failures-1,0),3))
+    if isinstance(exc,APIStatusError):
+        retry_after = exc.response.headers.get('retry-after','')
+        try:
+            requested = float(retry_after)
+        except ValueError:
+            try:
+                requested = parsedate_to_datetime(retry_after).timestamp()-time.time()
+            except (ValueError,TypeError,OverflowError):
+                requested = 0.0
+        if requested>0:
+            delay = max(delay,min(requested,MAX_PROVIDER_BACKOFF))
+    return delay
 
 
 def parse_json(raw: str) -> dict:
@@ -97,6 +121,26 @@ class LLMClient:
         with self.ledger.open('a', encoding='utf8') as stream:
             stream.write(json.dumps(record)+'\n')
 
+    def _pacing_state(self) -> dict:
+        path = self.ledger.with_name('llm_backoff.json')
+        if not path.exists():
+            return {'failures':0,'not_before':0.0}
+        state = json.loads(path.read_text(encoding='utf8'))
+        if (not isinstance(state,dict) or type(state.get('failures')) is not int
+                or not 0<=state['failures']<=4
+                or type(state.get('not_before')) not in (int,float)
+                or not 0<=state['not_before']<float('inf')):
+            raise RuntimeError('Invalid provider pacing state')
+        return state
+
+    def _save_pacing(self, failures: int, delay: float) -> None:
+        # Caller owns the cross-process provider mutex; replacement is atomic.
+        path = self.ledger.with_name('llm_backoff.json')
+        pending = path.with_suffix('.tmp')
+        pending.write_text(json.dumps({'failures':failures,
+            'not_before':time.time()+delay if delay else 0.0}),encoding='utf8')
+        pending.replace(path)
+
     def chat(self, messages: list[dict], max_tokens: int = 1400) -> str:
         before = dict(self.usage)
         with span('llm',model=self.model,**{'openinference.span.kind':'LLM'}) as attrs:
@@ -121,16 +165,28 @@ class LLMClient:
                           'model': self.model, 'run_id':os.getenv('MEDKG_RUN_ID','interactive'),
                           'timestamp': time.time()})
         started = time.perf_counter()
-        tokens, status = {}, 'failed'
+        tokens, status, failure = {}, 'failed', {}
         try:
             kwargs = dict(model=self.model, messages=messages, temperature=0, max_tokens=max_tokens)
             # The existing free endpoint rejects concurrent requests (HTTP 429).
             # A process-shared slot bounds concurrency without SDK retry storms;
             # LLM_COOLDOWN_S (default 1) spaces calls and can be 0 for paid providers.
             with ledger_lock(self.ledger.with_name('llm_call.lock'),timeout=120):
+                pacing = self._pacing_state()
+                wait = min(MAX_PROVIDER_BACKOFF,max(0.0,pacing['not_before']-time.time()))
+                if wait:
+                    time.sleep(wait)
                 try:
                     response = self.client.chat.completions.create(**kwargs,
                         extra_body={'thinking': {'type': 'disabled'}})
+                except Exception as exc:
+                    failures = min(pacing['failures']+1,4)
+                    delay = provider_backoff(exc,failures)
+                    self._save_pacing(failures if delay else 0,delay)
+                    failure = {'error_type':type(exc).__name__,'backoff_seconds':delay}
+                    raise
+                else:
+                    self._save_pacing(0,0.0)
                 finally:
                     if self.settings.llm_cooldown>0:
                         time.sleep(self.settings.llm_cooldown)
@@ -146,7 +202,8 @@ class LLMClient:
             charged = sum(tokens.values()) if tokens else reserve
             with ledger_lock(lock):
                 self._record({'call_id': identifier, 'status': status, 'charged_tokens': charged,
-                              **tokens, 'seconds': elapsed, 'model': self.model, 'timestamp': time.time()})
+                              **tokens, **failure, 'seconds': elapsed, 'model': self.model,
+                              'timestamp': time.time()})
             self.usage['calls'] += 1
             for key in ('prompt_tokens', 'completion_tokens'):
                 self.usage[key] += tokens.get(key, 0)
