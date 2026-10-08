@@ -722,3 +722,45 @@ system has one of these errors; other failures still count. Alternative: retry
 only failed cases or exclude every answer failure; rejected because those would
 change the declared sample and hide model/system failures. After starting test,
 QA code, prompts, frozen datasets, catalog and retrieval corpus stay fixed.
+
+## D053 — Resume the interrupted CPU rebuild (2026-10-08)
+
+A desktop turn interruption terminates the owned embedding process and the
+first Neo4j console instance. Confirm both process termination and closed ports
+before restarting anything. The progress file is valid at 6,720 of 47,668 rows,
+with the same rebuilt corpus hash. Resume `scripts.build_vector_corpus` without
+`--rebuild`, using the existing matrix and progress under the same corpus hash;
+completed vectors are retained, and rows beyond the saved progress are encoded
+again if necessary. Preserve the initial log and hash-verified pre-v2 backup;
+write a separate `vector-build-resume1.stdout.log`. Restart Neo4j through the
+approved script immediately before T3 and record its new process identity.
+
+Alternative: regenerate the corpus or discard partial vectors; rejected because
+the unchanged hash and valid flushed progress permit bounded recovery without
+new data, model calls, or changed benchmark inputs. No task token balance or
+frozen input is reset. Final artifact and matrix checks apply to the completed
+resumed corpus, rather than treating the interrupted process as a successful run.
+
+## D054 — Preserve an invalid API round and cool before a whole rerun (2026-10-08)
+
+The first v2 hybrid test attempt completes all 240 questions, recording all four
+60-question milestones, but has 44 API-error questions: 24 `APITimeoutError` and
+20 `RateLimitError`. It exceeds the declared ten-question limit and is invalid.
+Keep its summary, complete per-question records, checkpoint and logs locally;
+do not publish it as the formal capability result or select individual successful
+answers. Its 15 non-interface failure questions (11 `ValidationError`, four
+`CypherSyntaxError`) are also retained; no QA code or prompt is changed after
+starting test. Alternative: fix these test failures or retry only API failures;
+rejected because either would violate the frozen measurement protocol.
+
+Choose a ten-minute interval without new model calls after the evaluator exits,
+then use the new name `v2_test_hybrid_retry1` for another complete 240-question
+attempt. Keep the same provider/model, two-second cooldown and runtime parameters.
+Select a valid attempt by the API-error rule, never by its pass rate. The invalid
+attempt reports 453,534 provider tokens and conservatively charges 739,995 tokens;
+with the dev smoke, task charges are 808,995 and 2,191,005 remain. Estimate the
+hybrid rerun at 600,000-900,000 and the later vector run at 700,000-1,100,000
+conservative tokens before proceeding. All attempts share the same cumulative cap.
+Alternative: reset the ledger or change the endpoint to improve availability;
+rejected because neither is authorized. Any further attempt requires a new budget
+estimate; exceeding the task allowance requires the user's decision under section 4.
