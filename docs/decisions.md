@@ -940,3 +940,53 @@ attempt, below the approved 6,000,000 cap. The four historical unsettled
 reservations remain counted; no new one is unsettled. Artifact checks pass, and
 frozen inputs and all seven human queues remain unchanged. Stop owned evaluators
 and Neo4j, verify closed ports 7474/7687, and stop at T5 without new improvements.
+
+## D060 — Resume T5 with cached-source aliases and bounded index refresh (2026-10-08)
+
+The user's subsequent instruction to continue authorizes the deferred improvements.
+Keep the section-4 boundaries and the approved six-million-token total allowance.
+Use existing cached sources only; no DrugBank vocabulary is present. Do not read
+test answers for tuning, change frozen datasets or fill human review queues.
+
+Extend synonym enrichment with optional `--cached-labels` and an immutable
+`--output` preview containing the catalog fingerprint and each proposed source id.
+For openFDA, all generic/substance names must resolve to one Drug; never trust the
+search request's drug uid as the label's identity. Restrict this expansion to
+prescription labels, veto a brand also found on an unresolved/combination/OTC
+product, and retain collision checks. For MedlinePlus, use also-called names only
+when the English topic title matches a canonical Disease name, allowing removal
+of a terminal `(disease)` or `(disorder)` qualifier. ABOUT links and existing
+acronym aliases alone are insufficient evidence of synonym equivalence.
+
+The first preview had 151 candidates. Source review exposed broad-class and
+acronym joins, so it was not applied. MeSH drug joins now require a preferred
+concept/canonical drug match, with salt normalization only as fallback; narrower
+terms cannot anchor a chemical class to a drug, and existing aliases still veto
+other-entity conflicts. Simultaneously proposed aliases cannot join unrelated
+labels either. Alternatives: append the initial candidates, use benchmark gold
+anchors, or hand-write missing brands; rejected for identity errors or leakage.
+
+Apply the final 94 additions to 80 entities: 20 openFDA, 73 MedlinePlus and one
+MeSH. Back up the catalog, alias index/matrix, provenance ledger and unlinked
+mentions before applying. Synchronize graph synonyms and document MENTIONS;
+verify all 94 graph aliases and 45,636 retained mention edges. Encode 87 new alias
+texts, reusing existing text vectors, for 138,893 alias-index rows. Source-backed
+names remain a retrieval vocabulary, not independently reviewed clinical equivalence.
+The pre-existing 40 coverage probes remain 39/40; the missing probe is unresolved.
+
+Refresh the vector control with `scripts.refresh_synonym_corpus`: require only
+additive synonym changes, an exact previous paragraph prefix, and a complete
+hash-matched corpus/matrix. Preserve every relationship suffix and document row.
+Use the unchanged embedding recipe and the existing cached model offline with
+two CPU threads. Back up and hash-check all three corpus artifacts before staged
+replacement. Re-encode 75 changed paragraphs and preserve 47,593 vectors exactly;
+independently verify equality and unit norms. This narrow refresh is unsuitable
+for model, relation, document or canonical-name changes; those require a full rebuild.
+Alternative: repeat all 47,668 embeddings; rejected because unchanged text with
+the same cached model does not require new inference. The 20-alias cap remains.
+
+After application, four of the five dev rows originally marked catalog-absent now
+link their anchors exactly. This is a dev linking diagnostic, not an answer score
+or a new test result. Keep original `alias_in_catalog` annotations and historical
+v2 results intact. The catalog and corpus have new fingerprints, so the published
+test table describes the earlier measured snapshot only.

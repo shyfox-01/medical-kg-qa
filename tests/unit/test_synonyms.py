@@ -100,3 +100,73 @@ def test_drugbank_vocabulary_joins_by_id(tmp_path):
                     encoding='utf8')
     proposals = S.drugbank_proposals(S.read_drugbank_vocabulary(path),ENTITIES)
     assert {alias for _,alias,_ in proposals}=={'Brinex','Brinexate','BRX'}
+
+
+def label(identifier,brand,generics,substances=None):
+    return {'id':identifier,'openfda':{'brand_name':[brand],'generic_name':generics,
+                                     'product_type':['HUMAN PRESCRIPTION DRUG'],
+                                     'substance_name':substances or []}}
+
+
+def test_cached_fda_aliases_require_all_ingredients_and_ignore_requested_uid():
+    records = [{'drug_uid':'DrugBank:DB90001','results':[
+        label('one','Brinexa',['Brinex citrate'],['Brinex']),
+        label('two','Mixedbrand',['Brinex','Asteric acid']),
+        label('three','Unresolvedbrand',['Brinex'],['Unknown ingredient']),
+        label('four','Emptybrand',[]),
+    ]}]
+    assert S.cached_fda_proposals(records,ENTITIES)==[
+        ('DrugBank:DB90002','Brinexa','openfda:one')]
+
+
+def test_brand_on_an_unresolved_product_is_vetoed_across_all_records():
+    records = [{'results':[label('one','Starbrand',['Brinex'])]},
+               {'results':[label('two','Starbrand',['Unknown substance'])]}]
+    assert S.cached_fda_proposals(records,ENTITIES)==[]
+    records[-1]['results'][0]['openfda']['generic_name']=['Asteric acid']
+    assert S.merge_synonyms(ENTITIES,S.cached_fda_proposals(records,ENTITIES))[0]==[]
+
+
+def test_medline_aliases_need_exact_english_disease_title_not_broad_topic(tmp_path):
+    path = tmp_path/'topics.xml'
+    path.write_text('''<health-topics>
+      <health-topic id="1" language="English" title="Orion Fever">
+        <also-called>Orion Pyrexia</also-called></health-topic>
+      <health-topic id="2" language="Spanish" title="Orion Fever">
+        <also-called>Excluded foreign name</also-called></health-topic>
+      <health-topic id="3" language="English" title="Broad Fever Topic">
+        <also-called>Orion Fever</also-called><also-called>Different Disease</also-called>
+      </health-topic></health-topics>''',encoding='utf8')
+    assert S.medlineplus_proposals(path,ENTITIES)==[
+        ('MONDO:9000001','Orion Pyrexia','medlineplus:1')]
+
+
+def test_new_alias_cannot_join_unrelated_labels_within_one_batch():
+    proposals = [('DrugBank:DB90001','Starbrand','openfda:1'),
+                 ('MONDO:9000001','Starbrand','medlineplus:2')]
+    additions,skipped = S.merge_synonyms(ENTITIES,proposals)
+    assert additions==[] and skipped=={'proposed_for_unrelated_labels':2}
+
+
+def test_mesh_narrower_drug_does_not_acquire_a_whole_chemical_class():
+    descriptor = S.Descriptor('D999','Fictional Chemical Class',['D01'],
+                              ['Fictional Chemical Class'],['Brinex'])
+    assert S.mesh_drug_proposals([descriptor],ENTITIES)==[]
+    enriched = [dict(e,synonyms=['Fictional Chemical Class']) if e['name']=='Brinex' else e
+                for e in ENTITIES]
+    assert S.mesh_drug_proposals([descriptor],enriched)==[]
+
+
+def test_consumer_title_does_not_join_through_an_existing_acronym(tmp_path):
+    path = tmp_path/'topics.xml'
+    path.write_text('<health-topics><health-topic id="1" language="English" title="RASH">'
+                    '<also-called>Skin spots</also-called></health-topic></health-topics>')
+    entity = {'uid':'MONDO:999','label':'Disease','name':'Rare Astral Syndrome',
+              'synonyms':['RASH']}
+    assert S.medlineplus_proposals(path,[entity])==[]
+
+
+def test_otc_product_description_is_not_a_prescription_brand():
+    row = label('one','Allergy Relief',['Brinex'])
+    row['openfda']['product_type']=['HUMAN OTC DRUG']
+    assert S.cached_fda_proposals([{'results':[row]}],ENTITIES)==[]

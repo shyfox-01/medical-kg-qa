@@ -11,10 +11,12 @@ The DrugBank vocabulary cannot be fetched by scripts; download "DrugBank Vocabul
 """
 
 import argparse
+import hashlib
 import json
 import shutil
 import time
 from collections import Counter
+from pathlib import Path
 
 from medkg.config import ROOT
 from medkg.qa.linker import Linker
@@ -42,6 +44,10 @@ def drugbank_file():
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--cached-labels', action='store_true',
+                        help='Also propose aliases from existing openFDA and MedlinePlus files')
+    parser.add_argument('--output', type=Path,
+                        help='Write an immutable preview with source ids and catalog fingerprint')
     args = parser.parse_args()
     entities = json.loads((PROCESSED/'entities.json').read_text(encoding='utf8'))
     descriptors = synonyms.load_mesh(RAW/'desc2026.gz')
@@ -51,6 +57,10 @@ def main() -> None:
     vocabulary = drugbank_file()
     if vocabulary:
         proposals += synonyms.drugbank_proposals(synonyms.read_drugbank_vocabulary(vocabulary), entities)
+    if args.cached_labels:
+        records = [json.loads(path.read_text(encoding='utf8')) for path in sorted((RAW/'openfda').glob('*.json'))]
+        proposals += synonyms.cached_fda_proposals(records, entities)
+        proposals += synonyms.medlineplus_proposals(RAW/'medlineplus.xml', entities)
     additions, skipped = synonyms.merge_synonyms(entities, proposals)
     enriched = synonyms.apply_additions(entities, additions)
     before, after = coverage(entities), coverage(enriched)
@@ -63,14 +73,21 @@ def main() -> None:
         'probe_coverage_before': sum(bool(v) for v in before.values()),
         'probe_coverage_after': sum(bool(v) for v in after.values()), 'probes': len(PROBES),
         'probes_after': after, 'probes_unresolved': sorted(p for p, v in after.items() if not v),
+        'cached_labels': args.cached_labels,
+        'catalog_sha256': hashlib.sha256((PROCESSED/'entities.json').read_bytes()).hexdigest(),
     }
+    if args.output:
+        with args.output.open('x', encoding='utf8') as stream:
+            json.dump({**report, 'proposed_additions': additions}, stream, indent=2)
     print(json.dumps(report, indent=2, ensure_ascii=False))
     if not args.apply or not additions:
         return
     backup = ROOT/'.cache'/f'synonyms-{time.strftime("%Y%m%d-%H%M%S")}'
     backup.mkdir(parents=True)
-    for name in ('entities.json', 'vector_aliases.json', 'alias_vectors.npy'):
-        shutil.copy2(PROCESSED/name, backup/name)
+    for name in ('entities.json', 'vector_aliases.json', 'alias_vectors.npy',
+                 'synonym_additions.jsonl', 'unlinked_mentions.jsonl'):
+        if (PROCESSED/name).exists():
+            shutil.copy2(PROCESSED/name, backup/name)
     (PROCESSED/'entities.json').write_text(json.dumps(enriched), encoding='utf8')
     with (PROCESSED/'synonym_additions.jsonl').open('a', encoding='utf8') as stream:
         for addition in additions:

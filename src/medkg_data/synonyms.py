@@ -103,19 +103,25 @@ SALT = re.compile(r'\s+(?:citrate|hydrochloride|hcl|sodium|potassium|calcium|mal
 
 
 def mesh_drug_proposals(descriptors: Iterable[Descriptor], entities: list[dict]) -> list[tuple]:
-    drugs = _index(entities, 'Drug')
+    # Do not recursively use aliases added by a previous enrichment to join a
+    # broader descriptor to one of its narrower drugs.
+    drugs = _index([dict(e,synonyms=[]) for e in entities], 'Drug')
+    existing_aliases = _index(entities, 'Drug')
     proposals = []
     for d in descriptors:
         if not any(tree.startswith('D') for tree in d.trees):
             continue
         terms = [d.name, *d.preferred, *d.narrower]
-        matched = set().union(*(drugs.get(normalize(t), set()) for t in terms))
+        anchors = [d.name, *d.preferred]
+        matched = set().union(*(drugs.get(normalize(t), set()) for t in anchors))
         if not matched:
             # MeSH may index the salt ("Sildenafil Citrate", with Viagra) while the
             # catalog names the active moiety ("Sildenafil").
-            matched = set().union(*(drugs.get(normalize(SALT.sub('', t)), set()) for t in terms))
+            matched = set().union(*(drugs.get(normalize(SALT.sub('', t)), set()) for t in anchors))
         if len(matched) == 1:
             uid = matched.pop()
+            if set().union(*(existing_aliases.get(normalize(t),set()) for t in terms))-{uid}:
+                continue
             proposals += [(uid, t, 'mesh:' + d.ui) for t in dict.fromkeys(terms) if usable(t)]
     return proposals
 
@@ -173,6 +179,59 @@ def drugbank_proposals(rows: Iterable[dict], entities: list[dict]) -> list[tuple
     return proposals
 
 
+def cached_fda_proposals(records: Iterable[dict], entities: list[dict]) -> list[tuple]:
+    """Join every cached ingredient name, never the API search's requested drug uid.
+
+    Exact catalog names (or a terminal salt form) must all resolve to one Drug.
+    A brand seen on any unresolved/combination label is excluded globally.
+    """
+    drugs = _index(entities, 'Drug')
+    proposals, unsafe = [], set()
+    for record in records:
+        for label in record.get('results', []):
+            fields = label.get('openfda', {})
+            brands = fields.get('brand_name') or []
+            names = (fields.get('generic_name') or []) + (fields.get('substance_name') or [])
+            matches = [drugs.get(normalize(name)) or
+                       drugs.get(normalize(SALT.sub('', name)), set()) for name in names]
+            matched = set().union(*matches)
+            source_id = label.get('id') or label.get('set_id')
+            if not matches or any(len(ids)!=1 for ids in matches) or len(matched)!=1 or not source_id:
+                unsafe.update(normalize(brand) for brand in brands)
+                continue
+            # OTC product descriptions (e.g. "Allergy Relief") are not unique
+            # brand identities. Keep this expansion scoped to prescription labels.
+            if fields.get('product_type')!=['HUMAN PRESCRIPTION DRUG']:
+                unsafe.update(normalize(brand) for brand in brands)
+                continue
+            uid = next(iter(matched))
+            proposals.extend((uid, brand, 'openfda:'+source_id) for brand in brands if usable(brand))
+    return sorted(set(p for p in proposals if normalize(p[1]) not in unsafe))
+
+
+def medlineplus_proposals(path: Path, entities: list[dict]) -> list[tuple]:
+    """Use also-called names only for an exact, unambiguous Disease topic title.
+
+    ABOUT edges and broad MeSH headings do not establish synonym equivalence.
+    No benchmark surface forms or gold anchors participate in this join.
+    """
+    diseases = _index([dict(e,name=re.sub(r'\s*\((?:disease|disorder)\)$','',e['name']),
+                           synonyms=[]) for e in entities], 'Disease')
+    proposals = []
+    for topic in ET.parse(path).getroot().findall('health-topic'):
+        if topic.get('language', '').casefold()!='english' or not topic.get('id'):
+            continue
+        matched = diseases.get(normalize(topic.get('title', '')), set())
+        if len(matched)!=1:
+            continue
+        uid = next(iter(matched))
+        for alias in topic.findall('also-called'):
+            text = (alias.text or '').strip()
+            if usable(text):
+                proposals.append((uid, text, 'medlineplus:'+topic.get('id')))
+    return sorted(set(proposals))
+
+
 def merge_synonyms(entities: list[dict], proposals: Iterable[tuple]) -> tuple[list[dict], dict]:
     """Choose additions that never create a new same-label ambiguity.
 
@@ -206,11 +265,18 @@ def merge_synonyms(entities: list[dict], proposals: Iterable[tuple]) -> tuple[li
         else:
             wanted[key].setdefault(uid, (alias, source))
     additions = []
+    proposed_owners: dict[str, set[str]] = defaultdict(set)
+    for (_, alias), by_uid in wanted.items():
+        proposed_owners[alias].update(by_uid)
     for key, by_uid in wanted.items():
         if len(by_uid) > 1:
             skipped['proposed_for_several_entities'] += len(by_uid)
             continue
         (uid, (alias, source)), = by_uid.items()
+        if any(label[other]!=label[uid] and not keys[uid] & keys[other]
+               for other in proposed_owners[key[1]]):
+            skipped['proposed_for_unrelated_labels'] += 1
+            continue
         additions.append({'uid': uid, 'label': key[0], 'alias': alias, 'source': source})
     return sorted(additions, key=lambda a: (a['uid'], a['alias'])), dict(skipped)
 
