@@ -114,94 +114,31 @@ The default synthetic loader requires an empty/fixture-only database.
 
 ## Measured outcomes
 
-The latest frozen capability comparison uses repaired cached data, the same
-provider/model and cache off. Each system answered all 240 structured test cases
-once, plus three rounds on 70 fixed cases. The saved answers are scored offline
-with the corrected `deterministic-3.4` evaluator (D047; zero new model calls).
-
-| System | 240 cases, one round | 70 cases, three-round mean | Round std |
+| Frozen v2 test scope | Questions | Hybrid | Pure vector |
 |---|---:|---:|---:|
-| Exact pre-capability phase-3 hybrid | 60.00% | 73.33% | 1.35 pp |
-| Improved phase-3 hybrid | **87.50%** | **92.38%** | 1.35 pp |
-| Improved-code pure vector | 56.67% | 75.24% | 1.78 pp |
+| All cases, one accepted round | 240 | **194/240 (80.83%)** | 78/240 (32.50%) |
+| Same cases with no API error in either system | 233 | **194/233 (83.26%)** | 76/233 (32.62%) |
 
-| Category (240-case round) | Questions | Before | Improved hybrid | Pure vector |
-|---|---:|---:|---:|---:|
-| single_hop | 42 | 78.57% | 90.48% | 69.05% |
-| reverse | 27 | 40.74% | 85.19% | 59.26% |
-| multi_constraint | 27 | 7.41% | 85.19% | 18.52% |
-| multi_hop | 36 | 19.44% | 66.67% | 13.89% |
-| aggregation | 21 | 85.71% | 100.00% | 71.43% |
-| lexical_variation | 27 | 59.26% | 88.89% | 48.15% |
-| multi_turn | 12 | 75.00% | 83.33% | 83.33% |
-| out_of_scope | 18 | 100.00% | 100.00% | 88.89% |
-| adversarial | 15 | 100.00% | 93.33% | 80.00% |
-| safety | 15 | 100.00% | 100.00% | 100.00% |
+- One accepted round per system, scored by `deterministic-3.5`; four API-invalid
+  attempts are retained locally. The accepted hybrid has seven API-error questions,
+  vector zero. Both use the same 60-second timeout and two-second cooldown.
+- Hybrid passes all 30 safety/adversarial controls. Vector fails one adversarial
+  control (`v2-0373`) that hybrid passes; it is not an approved fallback.
+- Lexical variation remains weak: hybrid 17/36, vector 0/36 despite the synonym
+  rebuild. Both falsely refuse 1/12 sensitive-term knowledge questions.
+- V2 is mostly template-based, with small subgroups and unreviewed human queues.
+  Long-list scoring does not measure full recall. These are knowledge-benchmark
+  results, without clinical validation.
 
-Only aggregation differs from the originally reported `deterministic-3.3` scores
-(58.75% / 85.83% / 52.92%; 71.90% / 90.95% / 73.81%): that parser rejected correct
-"Count: N" answers whenever another number appeared. These answers predate the
-D047 code fixes, which need a new real-provider run to measure. The benchmark only
-samples entities with at most 15 neighbors and ontology synonyms, so these rates
-do not cover common drugs, brand names or lay wording (see D047). Rescored
-summaries are `eval/runs/improvement_{full,repeat,balanced}_*_rescored_v34_summary.json`.
+The [v2 report](docs/reports/v2-results.md) records categories, lexical coverage,
+paired exclusions, latency, all-attempt token accounting, frozen hashes and limits.
 
-The repeated subset is safety-heavy (30/70 redline cases). These rates do not
-establish clinical efficacy. The measured capability snapshot has one hybrid
-timeout regression and three vector refusal regressions. Later scope/mutex
-maintenance receives separate final-code checks: 213 unit tests, 15 native
-integration tests, FakeLLM 13 cases in three rounds, and 30 safety/adversarial
-cases in three fresh hybrid rounds with no regression. Some refusals still depend
-on the provider. Final vector revalidation retains one refusal regression.
-See the [implementation report](docs/reports/improvement-2026-10-06.md) for exact
-source fingerprints, failed historical gates, recovery and interpretation limits.
-
-The following tables archive the original staged implementation.
-
-These are sampled results, not full-test estimates. All models use the same 54/240
-structured test questions, three rounds and cache off. The sample overweights
-safety/adversarial cases: all 30 such cases, three per other category.
-
-| Archived stage/model | Mean pass | Population std | Redline regressions |
-|---|---:|---:|---:|
-| Phase 2: v0 structured | 74.07% | 1.51 pp | Baseline |
-| Phase 3: v1 hybrid | 70.37% | 0.00 pp | 0 |
-| Phase 3: pure vector | 38.89% | 0.00 pp | 13; gate exit 1 |
-| Phase 4: hybrid delivery | 70.99% | 0.87 pp | 0 against v1 |
-
-**Archived v1 did not improve the overall sampled structured score over v0.** The vector
-control fails the redline gate and is not an approved fallback. The baseline already
-has one failing adversarial case; a no-regression gate does not mean every attack
-passes. Engineering changes are measured separately in [phase 4](docs/reports/phase-4.md).
-
-Text measurements use the same 8/48 draft test questions, three rounds: hybrid
-12.50% (std 0.00 pp), vector 45.83% (std 5.89 pp). Strict quote coverage can reject
-correct paraphrases. These unreviewed, small-sample scores are exploratory.
-BioRED uses 12 sampled test abstracts: pair F1 0.3467, native typed F1 0.1067.
-FDA extraction produced 45 assertions from 80/592 eligible chunks, with 75.56%
-PrimeKG agreement; agreement is not medical truth.
-
-The [corrective review report](docs/reports/fix-2026-10-05.md) records subsequent
-repairs and validation. Historical scores above remain archived measurements.
-Versioned `*_rescored_v2_summary.json` files rejudge saved answers using corrected
-scoring/catalog data; they are not new runs of the repaired QA system. Legacy
-multi-turn costs remain incomplete. The cached repair retains 27 extracted
-assertions and quarantines 18 for human review, without new model calls or downloads.
-
-The [ordered follow-up report](docs/reports/followup-2026-10-06.md) records the next
-eight correctness fixes, 143 passing unit tests, 13 passing native integration
-tests and a new real-provider pilot (38 fixed test IDs, three rounds per system).
-Composite quality means are 92.98% for current-code phase-1 control, 94.74% for
-hybrid and 80.70% for vector. Hybrid has no redline regression; vector has four.
-The pilot is safety-heavy, uses a newer evaluator and does not establish overall
-improvement over historical v0. Human review remains pending.
-
-The [capability implementation report](docs/reports/improvement-2026-10-06.md)
-records the subsequent planning, routing, lexical and conversation improvements,
-213 passing unit tests, 15 passing native integration tests and the frozen
-before/after/vector experiment (240 cases once; 70 common cases in three rounds).
-Human blind decisions now have a validated import
-command; labels and medical validation still require independent human review.
+Historical v1 results use different cases/scoring and are not a matched v2
+baseline: the offline `deterministic-3.4` rescoring of earlier saved answers gives
+87.50% for improved hybrid and 56.67% for vector on 240 cases. Earlier sampled,
+text and staged results remain in the [delivery summary](docs/reports/summary.md),
+[follow-up report](docs/reports/followup-2026-10-06.md) and
+[implementation report](docs/reports/improvement-2026-10-06.md).
 
 ## Data licensing
 
@@ -222,8 +159,9 @@ does not grant rights to upstream medical data.
 
 ## Limits and human review
 
-The corpus has 400 structured questions (160 dev / 240 test), but only 24 were
-LLM-paraphrased; others use declared template/authored wording. Text drafts are
+The frozen v2 corpus has 400 structured questions (160 dev / 240 test), with
+28 validated LLM rewordings; most retain template wording or unchanged LLM returns.
+The earlier v1 set had 24 paraphrases. Text drafts are
 40 text-only and 40 mixed. Only 19 passed the bounded LLM drafting/grounding step;
 fallbacks are disclosed. All 80 remain `draft`.
 

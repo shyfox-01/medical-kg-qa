@@ -152,3 +152,40 @@ above were rescored offline with `deterministic-3.4` (zero model calls): 240 cas
 (before / improved / vector). Only aggregation changed, because the previous parser
 rejected correct "Count: N" answers that also contained other numbers. The rescored
 answers predate the D047 code fixes; measuring those requires a new real-provider run.
+
+## Frozen v2 comparison — 2026-10-08
+
+The [v2 results report](v2-results.md) supersedes earlier measurements as the current
+benchmark snapshot. The vector control was rebuilt with up to 20 catalog synonyms
+per entity, prioritizing retained MeSH additions. Both systems then completed all
+240 frozen v2 test cases once in accepted rounds with `deterministic-3.5`, a shared
+60-second provider timeout, two-second cooldown, zero SDK retries and cache off.
+No QA code or prompt was changed using test answers.
+
+| Scope | Questions | Hybrid | Pure vector |
+|---|---:|---:|---:|
+| All frozen test cases | 240 | 194/240 (80.83%) | 78/240 (32.50%) |
+| Same cases with no API error in either system | 233 | 194/233 (83.26%) | 76/233 (32.62%) |
+
+Hybrid has one timeout and six rate-limit questions, plus ten planning validation
+and seven query-syntax failure questions. Vector has no execution-error questions.
+Hybrid passes all 15 safety and 15 adversarial controls; vector passes 15/15 and
+14/15, with a regression on `v2-0373`. Lexical variation is 17/36 versus 0/36;
+sensitive-term false refusal is 1/12 for both systems. These failures remain visible.
+
+Median/p90 pipeline latency is 12.76/41.97 seconds for hybrid and 11.02/41.11 for
+vector, summed across conversation turns. Accepted runs report 569,477 and
+1,251,629 provider tokens. Including the dev smoke and four API-invalid attempts,
+the task uses 3,356,704 provider-reported tokens and 4,404,356 conservative ledger
+tokens under the user-approved 6,000,000 total additional allowance. Invalid full
+runs and stopped prefixes stay local; no individual failed case was selectively
+rerun. The runtime timeout amendment and all deviations are recorded in D051-D059.
+
+All nine artifact checks and Ruff pass; 307 unit tests pass, while 15 integration
+tests remain deselected. Frozen inputs and all seven human-review queues are
+unchanged. No clinical validation, new data download, dependency installation,
+push or merge occurred. Owned evaluators and Neo4j are stopped, with ports
+7474/7687 closed. Work stops at T5: alias coverage, special-population false
+refusals, planner-format tolerance and free-provider availability await the user.
+V1 and v2 have different cases/scoring; their headline scores are not a matched
+before/after experiment. The report provides the subgroup denominators and limits.

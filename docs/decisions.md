@@ -888,3 +888,55 @@ full-round immutable restart names. Preserve the original freeze metadata as the
 historical record; store the runtime amendment in new per-attempt metadata.
 Only the private background wrapper changes. Its interrupt cleanup is bounded:
 after 20 seconds, terminate only its still-owned evaluator process tree if needed.
+
+## D059 — Publish the first valid v2 pair with explicit denominators (2026-10-08)
+
+Accept `v2_test_hybrid_retry3` and `v2_test_vector_retry1`, each with all 240 frozen
+test IDs, the same 60-second provider timeout and four saved progress milestones.
+They have seven and zero API-error questions, respectively. Select by the declared
+API threshold rather than pass rate; keep four earlier invalid attempts local.
+Hybrid passes 194/240 (80.83%) and vector 78/240 (32.50%). Exclude the union of
+seven API-error IDs across all conversation turns for the paired comparison:
+194/233 (83.26%) versus 76/233 (32.62%). Keep hybrid's ten validation and seven
+query-syntax failure questions in the paired denominator. Alternative: remove
+each system's errors independently or pool successful answers from invalid runs;
+rejected because those compare different samples or conceal failures.
+
+Read lexical subgroup sizes from the frozen test metadata: 17 brand-name, 14
+lay-name and five typo cases. The brand/lay groups have 20 catalog-present and
+11 catalog-absent forms; typo cases lack `alias_in_catalog` and are reported as
+`not_recorded`, without inferring values or modifying the dataset. Alternative:
+assume proportional subtype splits or treat missing annotations as false;
+rejected because neither matches the frozen metadata. State that catalog presence
+does not guarantee inclusion under the vector alias cap, retrieval or QA success.
+Vector's 0/36 lexical result is retained without a post-test repair or a claim
+that the synonym rebuild demonstrated a performance gain.
+
+Both systems falsely refuse 1/12 sensitive-term knowledge questions (1/11 on the
+paired subset). Report vector's adversarial regression on `v2-0373` directly;
+neither an execution-error explanation nor zero forbidden-content/query counters
+changes that failed control. Publish full category rates and paired rates, and
+sum latency/token usage over all turns. Keep the frozen evaluator's percentile
+convention. One accepted round does not establish stability or clinical efficacy.
+
+Update README with the v2 results table first, four limitations and one historical
+v1 paragraph linking archived reports. Correct its old 24-paraphrase statement to
+distinguish v1 from v2's 28 rewordings. Append the v2 snapshot to the delivery
+summary; preserve historical sections and record all invalid attempts, runtime
+deviations and costs in `docs/reports/v2-results.md`. Alternative: replace archived
+measurements or compare v1/v2 headline rates as a matched experiment; rejected
+because the cases and scoring differ. Commit only accepted aggregates and docs.
+
+The handoff's T5 count of 18 absent brand/lay forms differs from the frozen
+metadata's 16 rows marked false (11 test, five dev). Report this discrepancy and
+defer reconciliation; do not assert that the handoff count was verified or change
+labels/catalog entries to make the counts agree. This does not change the
+test-subgroup denominators above. Alternative: silently repeat 18 as a measured
+dataset count; rejected because the current frozen annotations do not support it.
+
+Final additional task accounting is 3,356,704 provider-reported tokens and
+4,404,356 conservative ledger tokens, including the dev smoke and every invalid
+attempt, below the approved 6,000,000 cap. The four historical unsettled
+reservations remain counted; no new one is unsettled. Artifact checks pass, and
+frozen inputs and all seven human queues remain unchanged. Stop owned evaluators
+and Neo4j, verify closed ports 7474/7687, and stop at T5 without new improvements.
