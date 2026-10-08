@@ -764,3 +764,32 @@ conservative tokens before proceeding. All attempts share the same cumulative ca
 Alternative: reset the ledger or change the endpoint to improve availability;
 rejected because neither is authorized. Any further attempt requires a new budget
 estimate; exceeding the task allowance requires the user's decision under section 4.
+
+## D055 — Complete the independent vector attempt within the remaining allowance (2026-10-08)
+
+The complete `v2_test_hybrid_retry1` attempt also exceeds the API threshold: 30
+questions, comprising 18 timeouts and 12 rate-limit errors. Its 16 non-interface
+failure questions comprise ten planning `ValidationError` and six
+`CypherSyntaxError` events. Preserve this invalid attempt locally without changing
+code or prompts. It reports 486,552 provider tokens and charges 719,525 tokens;
+combined task charges are 1,528,520, leaving 1,471,480 under the original cap.
+
+Before requesting a larger allowance for more reruns, complete the independently
+authorized first vector attempt: estimate 700,000-1,300,000 conservative tokens,
+including room for failed-call reservations, within the remaining allowance.
+Wait ten minutes without model calls after the hybrid process exits, then run all
+240 test questions once in vector mode. Use the task's original
+`v2_test_hybrid_summary.json` baseline argument unchanged. The evaluator reads
+that baseline only after producing all vector answers; it does not affect QA
+inputs, retrieval or scoring. Any recorded redline comparison against that
+API-invalid snapshot is diagnostic, not an accepted capability comparison.
+The eventual report must compare individual outcomes against a valid hybrid
+attempt and exclude the union of both systems' API-error questions.
+
+Alternative: spend the remaining allowance on further hybrid retries before
+starting vector; rejected because the next hybrid-plus-vector upper estimate is
+2,200,000 and exceeds the remaining allowance, whereas the independent vector
+attempt fits. Keep all frozen inputs and runtime parameters unchanged. Reestimate
+before further attempts, and ask under section 4 if the remaining allowance cannot
+cover them. A run censored by the runtime token cap is not a completed capability
+measurement, even if its API-error count happens to be below the threshold.
