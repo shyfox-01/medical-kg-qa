@@ -793,3 +793,44 @@ attempt fits. Keep all frozen inputs and runtime parameters unchanged. Reestimat
 before further attempts, and ask under section 4 if the remaining allowance cannot
 cover them. A run censored by the runtime token cap is not a completed capability
 measurement, even if its API-error count happens to be below the threshold.
+
+## D056 — Stop at the task-budget decision before further reruns (2026-10-08)
+
+Stop the first vector attempt after 121 of 240 questions: it already has 17
+API-error questions (16 timeouts, one rate-limit error), so the round is invalid
+irrespective of later answers. Its 60/120-question milestones, checkpoint,
+per-question records and logs remain intact. Signal only its verified owned
+hidden console, then stop the owned Neo4j console and its waiting launcher;
+verify that owned evaluation processes are gone and ports 7474/7687 are closed.
+This deliberately leaves a partial invalid attempt instead of spending the
+remaining allowance to finish it. The original vector summary is not produced;
+any future vector attempt must restart all 240 questions with a new output name.
+Alternative: finish the already-invalid round or resume only its remaining/error
+cases; rejected because the former spends the finite allowance without obtaining
+a valid measurement and the latter violates the whole-round rerun rule.
+
+The conservative task ledger now charges 2,480,097 tokens, leaving 519,903 under
+the unchanged 3,000,000 cap. Provider-reported task tokens are 1,530,119; failed
+calls without reported usage retain their full UTF-8-input-plus-output reservation.
+These are resource-accounting values, not monetary charges. The same four old
+unsettled reservations remain counted; no new reservation is unsettled. The vector
+prefix alone charges 951,577 tokens, including its stopped in-flight call, exceeding
+the burn implied by the historical-data estimate. Keep that original estimate in
+the launch record rather than rewriting it after observing test.
+
+Before any additional model calls, request the user's section-4 decision. Based
+on observed usage, estimate a complete hybrid attempt at 600,000-900,000 and a
+complete vector attempt at 1,300,000-2,100,000 conservative tokens. Even the lower
+combined estimate exceeds the remaining allowance. A proposed total task cap of
+6,000,000 would leave 3,519,903 for another full attempt of each system, but it is
+not applied without authorization and cannot guarantee a valid API round.
+Alternative: reset the ledger, silently count failed calls as zero or change the
+provider/model; rejected because these change the authorized resource/protocol
+boundaries. Freeze QA code, prompts, data and catalog throughout.
+
+T1/T2 are complete; T3 still has no valid paired measurement. Keep the two complete
+invalid hybrid summaries and partial vector records local. Save an answer-free
+budget review in `.cache/v2-evaluation-2026-10-08/budget-decision-review.json`.
+Do not present these diagnostic scores as v2 capability results or claim T4/T5
+completion. The requested results report and README/summary updates await valid
+measurements or a new explicit reporting instruction from the user.
