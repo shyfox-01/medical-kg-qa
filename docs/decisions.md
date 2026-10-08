@@ -834,3 +834,28 @@ budget review in `.cache/v2-evaluation-2026-10-08/budget-decision-review.json`.
 Do not present these diagnostic scores as v2 capability results or claim T4/T5
 completion. The requested results report and README/summary updates await valid
 measurements or a new explicit reporting instruction from the user.
+
+## D057 — Apply the approved six-million-token cap without resetting usage (2026-10-08)
+
+The user approves the proposed total task allowance of 6,000,000 additional
+tokens after the D056 budget report. Retain the original `start.json`, usage
+ledger and budget-decision review. Record the authorization in a separate local
+policy overlay; the cumulative runtime cap becomes 11,344,304, from the original
+5,344,304 ledger balance plus the approved 6,000,000. Already charged task usage
+of 2,480,097 remains counted, leaving 3,519,903 before any new calls. Keep the
+provider, model, key, timeout, zero SDK retries and two-second cooldown unchanged.
+Alternative: interpret the approval as six million more tokens or reset accounting;
+rejected because the approved proposal was a total task cap, including prior work.
+
+For further attempts, stop the owned evaluator as soon as more than ten completed
+questions have an API error on any turn. Preserve that invalid prefix, its logs,
+checkpoint and any 60-question milestones; record the stop and process exit.
+Wait at least ten minutes without calls before a new whole 240-question attempt
+under a new name. The first post-approval attempt already follows over thirty
+minutes without calls. This rule depends only on the declared API threshold,
+never answer quality or pass rate; it does not retry individual cases or change
+the frozen evaluator. Alternative: finish known-invalid rounds; rejected because
+this consumes the finite approved allowance without making a valid result possible.
+Continue to estimate full-round cost before every launch and preserve all prior
+attempts locally. QA code, prompts, datasets, catalog, corpus and human queues
+remain frozen. Any accepted formal result must still contain all 240 questions.
