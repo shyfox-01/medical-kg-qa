@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-15",
+  "kind": "independent_implementation_review_and_repairs",
+  "base_commit": "4d73f081cb0be259cdd52367377f21e42d01b68b",
+  "branch": "review-fixes-2026-10-07",
+  "independent_reviewers": 3,
+  "cross_review_and_root_verification": true,
+  "scorer_version": "deterministic-3.7",
+  "closed_finding_groups": [
+    "known_category_kind_evidence_bypass",
+    "quoted_or_negated_required_safety_support_and_quote_boundaries",
+    "unknown_citation_collision_during_masking",
+    "parsed_bytes_and_reported_digest_mismatch",
+    "frozen_source_drift_during_validation",
+    "current_scorer_dependencies_missing_from_alternate_system_fingerprint"
+  ],
+  "additional_improvements": [
+    "malformed_authoring_rows_return_errors",
+    "guard_original_and_copied_public_packet_paths"
+  ],
+  "remaining_actionable_findings_in_scope": [],
+  "graph_oracle": {
+    "synthetic_plans": 300,
+    "mismatches": 0
+  },
+  "alias_policy_pairs_probed": 28,
+  "alias_policy_changed": false,
+  "verification": {
+    "ruff": "passed",
+    "non_integration_tests": {
+      "passed": 677,
+      "deselected": 15,
+      "seconds": 12.7,
+      "warnings": [
+        "Existing Starlette TestClient deprecation."
+      ]
+    },
+    "root_blind_regressions": {
+      "passed": 7,
+      "deselected": 41
+    },
+    "artifact_checks": {
+      "passed": true,
+      "checks": {
+        "frozen_dataset": true,
+        "frozen_dataset_v2": true,
+        "corpus_hash": true,
+        "alias_shape": true,
+        "alias_identities": true,
+        "corpus_shape": true,
+        "corpus_complete": true,
+        "chunk_associations": true,
+        "assertion_evidence": true
+      },
+      "retained_assertions": 27,
+      "alias_rows": 138893,
+      "corpus_rows": 47668,
+      "graph_checked": false,
+      "clinical_validation": false,
+      "downloads": 0,
+      "llm_calls": 0
+    },
+    "preserved_files_unchanged": 81,
+    "reviewed_source_hashes_match": true,
+    "reviewed_source_sha256": {
+      "eval/run.py": "01a68c1086de2deb706ad3cb2a206122e6af0a48b1fb1050cd57184443c40f3e",
+      "tests/unit/test_metric_semantics.py": "3ce7ba3a0c6c322fea5276aa44af37d80cbb0d5f071bc836bf101ecb2c462b51",
+      "eval/score.py": "816c43196feb5a072ec6ef7e222e9cdd0006cdeebb878e2ca5952e46c239861c",
+      "tests/unit/test_score_review_fixes.py": "a6c2cc3eacbfa313ce247055cda95b0f138d120abfdedb30666d7ae7308de5b4",
+      "src/medkg_data/alias_policy.py": "100b5e23c4ef0fbf5565e78b67a26d96f27fa4e47b4ef4f9494f3423c65522e3",
+      "src/medkg_data/lexicon.py": "82c59d694f897ef77e4748d0c485b62fb685aa275f3b6ea31d030fb9162d00ed",
+      "eval/evidence.py": "35f37d78d76bca63d09acdda4bf456d8012f5b7c06f1f32de728058fdef2a102",
+      "eval/independent.py": "a4a2028596ba6eae78232a5b0e3ecfeda4875f5a6963e8558794ac129fddd772",
+      "tests/test_evidence_readiness.py": "7eac1dbca5469839e6f565f072d5709946011b0481d46be2d879e39f2c182ffb",
+      "tests/unit/test_independent.py": "026008e31b84d149800168bfbf0fa5cd6d83c7d7c6872bb66af4eb888b6198e5",
+      "eval/blind_review.py": "a78820ea6e29aa76cf36f06f2883d3423dba805f78a1af34ec672d0c2b40abea",
+      "tests/test_blind_review.py": "84bd35cb50a54d31f109ab4b76ddff4df20a7cb9b6441c51b7726ba97d4455e8"
+    },
+    "pilot_validation": {
+      "evidence_integrity_verified": true,
+      "errors": [],
+      "checked_text_rows": 12,
+      "verified_text_rows": 12,
+      "checked_graph_rows": 0,
+      "verified_graph_rows": 0,
+      "derived_graph": {},
+      "claim_entailment": "unverified",
+      "clinical_validation": false,
+      "ready_for_model_run": false
+    },
+    "provider_ledger_unchanged": 10201771,
+    "integration_tests_rerun": false
+  },
+  "historical_benchmarks_read": false,
+  "historical_qa_outputs_read": false,
+  "human_labels_assigned": 0,
+  "new_benchmark_runs": 0,
+  "project_provider_calls_added": 0,
+  "downloads": 0,
+  "installations": 0,
+  "services_started": 0,
+  "clinical_validation": false,
+  "codex_agent_usage": "Separate AI work, not included in the project provider ledger.",
+  "limitations": [
+    "Finite quotation and safety grammar, not general semantic judging.",
+    "File snapshots are not locks or atomic multi-file snapshots.",
+    "No integration services or live provider behavior exercised.",
+    "Original human review and clinical evidence obligations remain."
+  ],
+  "private_evidence_directory": ".cache/independent-review-2026-10-15",
+  "artifact_sha256": {
+    "start.json": "89cbb2878d1152353b629b8efdca51612b469dca57104a75d6a1da1ea4e07c38",
+    "artifact_checks.json": "8b5ed92774ec400fa26aae6f9b5bfc40c0651f01b2ed2dd8ebffdbc7ab6ed651",
+    "candidate-manifest.json": "66fce7671ca4f3f6dadca5ebac5da31b6e3871db00d4ec2d320f00f939051b77",
+    "completion_checks.json": "641bbc564fae0999341806114a4b220ca5a4915b67863d67503b9086480793a5",
+    "pilot-r2-validation.json": "3cd90c5712d959237360978251d06c4e64b15db225a443b238e87305bafe1beb",
+    "alias-score/findings-before-fixes.json": "8fc94211db5163ae652039adbd57578c0355bf4daacec4a30fdfa1734b677412",
+    "alias-score/probes-after-fixes.json": "97cd79b7ce46a52f99ae32f25154fa95df11dc06c2adadc256aeea29ff6e24b5",
+    "alias-score/probes-after-quote-refinement.json": "97cd79b7ce46a52f99ae32f25154fa95df11dc06c2adadc256aeea29ff6e24b5",
+    "alias-score/cross-review.json": "1557022b8b526d6b8ce5bbf1330d14d6f8def9fc6b4b069ec3dcb6707c333dc0",
+    "alias-score/final-scorer-hashes.json": "e8ce688763140f3332f0e7ee6cc8cac3135e8b06bcdc5c7d1392a244087e5921",
+    "evidence/probe_results.json": "95dcf9684e05983aed3e5333d3bb748d9f339aeddd265f6480cc9be5e1988917",
+    "evidence/probe_results_after.json": "6c3b9657f0cd2716d82fc342b5fcdbe4c735dcd75ad94b9b5b068d07eb42da9b",
+    "evidence/boundary_results.json": "b7fef632f16f429b3617ba94ab615ecfd1ce806d2175ea86eade52cfdebc3998",
+    "evidence/boundary_results_after.json": "a949ff0f8172dc8544971fc648d57159acdd41bad4601a79b65e941e4486ba88",
+    "evidence/cross_review_results.json": "31f70dab96146cde33bb17847e8d3bbb9eafa55b644b61229e2b25e822131de9",
+    "evidence/cross_review_results_after.json": "1f6eb296a75ee65efc41598d4d9544cce4ec09b7ee3f711a6217e5005838655b",
+    "evidence/review_findings.md": "60c5be72ee1f7c369face2d9d499a492c768a76aee7542b2f465fcf7b532ce48",
+    "blind/probe-r2-01/probe-results.json": "50d67a4d5546bfcdd555d3c28785f34aaecb9cc28ca9cd5e4dbd0e0fb0b96e69",
+    "blind/probe-r2-02-after/probe-results.json": "cfc7cc29feff4a9d9f9aba451e6de98c52c29b21f33f533830ac35bb7f5a8847"
+  }
+}

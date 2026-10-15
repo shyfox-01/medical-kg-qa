@@ -1378,3 +1378,81 @@ another human queue or authorizing model calls. Existing GLM accounting remains
 10,201,771 cumulative conservative tokens, with no added provider calls; Codex agent
 work is separate usage. Keep four pre-existing invalid-run summary files untracked,
 preserve all local evidence, and make only explicitly staged local commits.
+
+## D076 — Re-review the implementation with independent synthetic counterexamples (2026-10-15)
+
+The user explicitly requests another independent subagent review and fixes for
+confirmed findings. Assign three fresh-context reviewers to alias/scoring,
+evidence/readiness and blinded review. They first inspect without changing source,
+then receive disjoint repair ownership. The root reproduces representative failures
+and integrates; reviewers cross-check other owners' fixes. Use named source/tests
+and synthetic fixtures, without reopening frozen benchmark questions or old QA
+outputs. No human labels, medical judgments, downloads or provider calls are needed.
+
+Known evidence categories must match their required kind before dispatch, so an
+aggregation or multi-hop case cannot skip graph reconstruction by claiming to be a
+safety/text case. Keep generic kind-only rows supported; zero evidence rows remain
+explicit for safety/refusal-only inputs. Reject malformed authoring objects and
+invalid/duplicate IDs before indexing. Alternative: rely solely on the stricter
+human queue validator; rejected because the reusable AI evidence lane is callable
+directly and must not report a bypassed graph check as evidence integrity.
+
+Advance the scorer to deterministic-3.7. Mask bounded quotation/code/blockquote
+spans before finding required affirmative safety statements, retaining the original
+displayed text for prohibited-content checks. Keep contractions and possessives
+usable, and reject negated protective statements. These finite rules address
+reproduced counterexamples; they are not a general quotation, semantic or clinical
+classifier. Preserve historical results and their original scorer versions.
+Alternative: accept keywords or claimed refusal flags as sufficient support;
+rejected because reported examples need not perform the required action.
+
+## D077 — Bind audit records to the bytes and dependencies actually checked (2026-10-15)
+
+Allocate opaque source IDs outside both original IDs and bracket references in
+either answer. Unknown citations remain unknown rather than becoming valid through
+masking. Keep simultaneous exact bracket replacement and unchanged factual prose.
+The private summary output guard covers both the supplied public packet directory
+and its original trusted-manifest path, including when the public packet is copied.
+This is a custody safeguard for known paths, not an access-control system.
+
+Parse and hash returned labels and authenticated blind-review assets from the same
+captured bytes. Readiness similarly binds queue_sha256 to parsed queue bytes,
+rejects detected concurrent queue edits, and checks frozen source hashes again
+after validation. A later file save requires another check. Alternative: parse then
+hash a fresh read; rejected because a concurrent save can attach the digest of an
+invalid or incomplete file to a result from an earlier version. No filesystem lock
+or atomic multi-file snapshot is claimed.
+
+Evaluation checkpoints now hash a named inventory of the selected QA source tree,
+current evaluator source and current medkg_data dependencies. The host scorer's
+alias policy and lexicon remain effective when --system-source chooses an older QA
+implementation, so both must participate in resume compatibility. Distinct path
+and role names prevent content concatenation or renamed files from concealing a
+change. Historical checkpoints are retained; mismatched fingerprints require a
+new output path rather than weakening the resume guard.
+
+## D078 — Cross-verify the follow-up repairs and preserve earlier evidence (2026-10-15)
+
+Cross-review reproduces single-quote/possessive edges in the first scoring repair
+and source drift after readiness's initial snapshot. Fix and retest them before
+closing the round. A different agent verifies the final scorer and checkpoint
+fingerprint, and the root inspects and reruns the blind-review regressions.
+Synthetic alias probes find no additional runtime defect across all 28 policy
+pairs; 300 synthetic graph selections match a separate in-memory oracle. Scope
+these conclusions to the explicit cases and reviewed code.
+
+Ruff passes and the complete non-integration suite has 677 passing tests, with
+15 integration tests deselected and one existing Starlette deprecation warning.
+The run takes 12.70 seconds using the project interpreter and a fresh local test
+directory under approved execution, avoiding the prior sandbox stall. All nine
+cached-artifact checks pass. Preserve and recheck 81 frozen files from the start
+record, including earlier review/implementation evidence and all human queues.
+Retain raw before/after probes and independent cross-check hashes separately.
+
+Prepare a new development snapshot and aggregate engineering report without
+creating a human queue, rerunning a benchmark or modifying earlier manifests.
+The project-provider ledger stays unchanged, and no service or installation is
+needed. Make two explicitly staged local commits on the existing branch; no push,
+merge or history change. Alternatives such as rerunning historical test responses,
+calling model judges or rewriting stored source artifacts would not validate these
+specific code repairs and are outside this round.

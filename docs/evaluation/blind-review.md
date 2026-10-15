@@ -113,7 +113,11 @@ need not be balanced, and distinct seeds can produce the same assignment.
 
 The exporter drops system names, model fields, timings, traces, automatic scores,
 other judge outputs and source metadata by constructing an allowlisted packet.
-Original source IDs become per-case `S1`, `S2`, etc.; claim and behavior IDs become
+Original source IDs become per-case `S1`, `S2`, etc., skipping original IDs and
+bracket references already present in either raw answer. This prevents an unknown
+reference such as `[S1]` from accidentally becoming a valid citation. Unknown
+references remain unchanged; the exporter never repairs a broken citation.
+Claim and behavior IDs become
 `C1`, `B1`, etc. In answer prose only, simultaneous **case-sensitive** replacement
 rewrites explicit `[original-source-id]` citations to `[S1]`, etc. Source IDs in
 ordinary prose are preserved: source ID `1` cannot change the count in `10`.
@@ -156,10 +160,19 @@ The placeholder digest above is intentionally invalid; copy the real receipt.
 labels and 2 for invalid inputs, hash drift or changed runtime. Exit 0 does not
 mean the judgments are resolved or the answers passed. `summarize` can produce an
 explicit partial summary; only its custodian should see it. Its output file must
-be new and outside the public packet. Both commands compare the original inputs,
+be new and outside both the supplied public directory and the original public
+directory recorded in the trusted manifest, even when inspecting a copied packet.
+Both commands compare the original inputs,
 tool code and runtime to their frozen hashes. If those change, retain the old
 package and environment or prepare a newly identified package; do not update its
 manifest to conceal drift.
+
+Returned labels are parsed and hashed from the same captured bytes. The reported
+`labels_sha256` identifies the exact version used for judgments, even if an editor
+saves another version during processing; recheck that new version separately.
+Manifest, packet, mapping and environment files likewise use the same captured
+bytes for authentication and parsing. These checks do not lock the filesystem or
+make a multi-file snapshot atomic.
 
 ## Returned labels
 

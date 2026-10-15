@@ -75,6 +75,12 @@ Schema-2 manifests additionally freeze every Python source under `src`, `eval`
 and `scripts`, evaluation protocol Markdown, `pyproject.toml`, Python/platform and
 installed package versions. No environment variables or credentials are collected.
 Changes to the source set, dependencies or frozen files make a packet drift.
+The authoring queue is parsed and hashed from the same captured bytes; a detected
+edit during validation makes it not ready. The returned `queue_sha256` always
+identifies the validated bytes. Frozen source hashes are compared both before and
+after validation; drift at either check blocks readiness. Malformed rows and invalid
+or duplicate slot IDs produce validation errors. These checks are point-in-time
+observations, not file locks or an atomic snapshot of the whole repository.
 
 ## Evidence fields checked offline
 
@@ -86,6 +92,11 @@ in the exact cached text. The checker verifies document joins, quote locations,
 hashes and all claim-to-span references. This proves integrity of declared evidence,
 not that the evidence entails the claim. `eval.evidence.validate_evidence_rows`
 also supports the separate AI lane without human attestations.
+For recognized categories, `kind` must match the required evidence lane; a graph
+case cannot skip reconstruction by declaring itself a safety or text case.
+Generic rows without a category remain supported. Safety/refusal-only rows may
+have zero checked text/graph rows; integrity success in that case establishes no
+source support or semantic judgment. Inspect the checked/verified row counts.
 
 Structured and mixed rows require a `graph_selection` object:
 

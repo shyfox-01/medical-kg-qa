@@ -46,17 +46,20 @@ def _invalid_constant(value: str) -> None:
     raise ValueError(f'Invalid JSON constant: {value}')
 
 
-def read_json(path: Path) -> dict:
-    value = json.loads(path.read_text(encoding='utf8'), object_pairs_hook=_pairs,
-                       parse_constant=_invalid_constant)
+def _parse_json(text: str, filename: str) -> dict:
+    value = json.loads(text, object_pairs_hook=_pairs, parse_constant=_invalid_constant)
     if not isinstance(value, dict):
-        raise ValueError(f'JSON object required: {path.name}')
+        raise ValueError(f'JSON object required: {filename}')
     return value
 
 
-def read_rows(path: Path) -> list[dict]:
+def read_json(path: Path) -> dict:
+    return _parse_json(path.read_text(encoding='utf8'), path.name)
+
+
+def _parse_rows(text: str) -> list[dict]:
     rows = []
-    for line in path.read_text(encoding='utf8').splitlines():
+    for line in text.splitlines():
         if not line.strip():
             continue
         row = json.loads(line, object_pairs_hook=_pairs, parse_constant=_invalid_constant)
@@ -64,6 +67,27 @@ def read_rows(path: Path) -> list[dict]:
             raise ValueError('Every JSONL row must be an object')
         rows.append(row)
     return rows
+
+
+def read_rows(path: Path) -> list[dict]:
+    return _parse_rows(path.read_text(encoding='utf8'))
+
+
+def _read_snapshot(path: Path) -> tuple[bytes, str]:
+    content = path.read_bytes()
+    return content, hashlib.sha256(content).hexdigest()
+
+
+def _verified_snapshot(path: Path, expected: str) -> bytes:
+    content, digest = _read_snapshot(path)
+    if digest != expected:
+        raise ValueError(f'Frozen file changed: {path.name}')
+    return content
+
+
+def _label_snapshot(path: Path) -> tuple[list[dict], str]:
+    content, digest = _read_snapshot(path)
+    return _parse_rows(content.decode('utf8')), digest
 
 
 def inside(path: Path, root: Path) -> Path:
@@ -174,6 +198,21 @@ def _display_answer(text: str, sources: dict[str, str]) -> str:
     return re.sub(pattern, lambda match: replacements[match.group()], text)
 
 
+def _source_ids(contexts: list[dict], answers: list[str]) -> dict[str, str]:
+    """Keep unknown citations unknown when assigning the public source namespace."""
+    reserved = {item['id'] for item in contexts}
+    for answer in answers:
+        reserved.update(re.findall(r'\[([^\[\]]*)\]', answer))
+    sources = {}
+    number = 1
+    for item in contexts:
+        while f'S{number}' in reserved:
+            number += 1
+        sources[item['id']] = f'S{number}'
+        number += 1
+    return sources
+
+
 def _has_identity(text: str, identities: list[str]) -> bool:
     """Flag declared prose identity clues without editing the answer being judged."""
     return any(re.search(r'(?<!\w)' + re.escape(token) + r'(?!\w)', text, re.IGNORECASE)
@@ -221,7 +260,8 @@ def prepare(cases_path: Path, systems: list[tuple[str, Path]], rubric_path: Path
     packet, mappings = [], []
     for index, (case_id, case) in enumerate(sorted(cases.items()), 1):
         blind_id = f'case-{index:05d}'
-        sources = {item['id']: f'S{i}' for i, item in enumerate(case['contexts'], 1)}
+        sources = _source_ids(case['contexts'],
+                              [outputs[name][case_id]['answer'] for name in names])
         claims = {item['claim_id']: f'C{i}'
                   for i, item in enumerate(case['required_claims'], 1)}
         behaviors = {item['id']: f'B{i}'
@@ -310,14 +350,16 @@ def prepare(cases_path: Path, systems: list[tuple[str, Path]], rubric_path: Path
 def _load(public: Path, private: Path, manifest_sha256: str,
           root: Path) -> tuple[list[dict], dict, dict]:
     public, private = inside(public, root), inside(private, root)
-    if file_hash(private / 'manifest.json') != manifest_sha256:
+    manifest_content, digest = _read_snapshot(private / 'manifest.json')
+    if digest != manifest_sha256:
         raise ValueError('Manifest differs from the trusted prepare receipt')
-    manifest = read_json(private / 'manifest.json')
+    manifest = _parse_json(manifest_content.decode('utf8'), 'manifest.json')
+    packet_content = _verified_snapshot(public / 'packet.jsonl', manifest['packet_sha256'])
+    mapping_content = _verified_snapshot(private / 'mapping.json', manifest['mapping_sha256'])
+    runtime_content = _verified_snapshot(private / 'environment.json',
+                                         manifest['environment_sha256'])
     expected = {
-        public / 'packet.jsonl': manifest['packet_sha256'],
         public / 'rubric.json': manifest['rubric_file_sha256'],
-        private / 'mapping.json': manifest['mapping_sha256'],
-        private / 'environment.json': manifest['environment_sha256'],
         Path(__file__): manifest['code_sha256'],
     }
     expected.update({inside(root / name, root): digest
@@ -325,10 +367,12 @@ def _load(public: Path, private: Path, manifest_sha256: str,
     for path, digest in expected.items():
         if file_hash(path) != digest:
             raise ValueError(f'Frozen file changed: {path.name}')
-    if value_hash(environment()) != value_hash(read_json(private / 'environment.json')):
+    runtime = _parse_json(runtime_content.decode('utf8'), 'environment.json')
+    if value_hash(environment()) != value_hash(runtime):
         raise ValueError('Review runtime differs from the frozen environment')
-    packet = read_rows(public / 'packet.jsonl')
-    return packet, read_json(private / 'mapping.json'), manifest
+    packet = _parse_rows(packet_content.decode('utf8'))
+    mapping = _parse_json(mapping_content.decode('utf8'), 'mapping.json')
+    return packet, mapping, manifest
 
 
 def _enum(value: object, choices: set[str], name: str) -> str:
@@ -400,14 +444,14 @@ def _labels(rows: list[dict], packet: list[dict]) -> dict[tuple[str, str], dict]
 def check(public: Path, private: Path, labels: Path, manifest_sha256: str,
           root: Path = ROOT) -> dict:
     packet, _, manifest = _load(public, private, manifest_sha256, root)
-    rows = read_rows(inside(labels, root))
+    rows, labels_sha256 = _label_snapshot(inside(labels, root))
     reviewed = _labels(rows, packet)
     return {'schema': SCHEMA, 'integrity_valid': True, 'labels_schema_valid': True,
             'labels_complete': len(reviewed) == len(packet) * 2,
             'expected_labels': len(packet) * 2, 'received_labels': len(reviewed),
             'missing_labels': len(packet) * 2 - len(reviewed),
             'review_origins': dict(Counter(row['origin'] for row in rows)),
-            'case_origins': manifest['case_origins'], 'labels_sha256': file_hash(labels),
+            'case_origins': manifest['case_origins'], 'labels_sha256': labels_sha256,
             'answers_with_identity_clues': manifest['answers_with_identity_clues'],
             'blinding_status': manifest['blinding_status'],
             'clinical_validation': False, 'llm_calls': 0, 'limitation': LIMITATION}
@@ -436,7 +480,8 @@ def summarize(public: Path, private: Path, labels: Path, manifest_sha256: str,
               root: Path = ROOT) -> dict:
     """Unblind only for the custodian; missing/uncertain labels never imply a pass."""
     packet, mapping, manifest = _load(public, private, manifest_sha256, root)
-    reviewed = _labels(read_rows(inside(labels, root)), packet)
+    rows, labels_sha256 = _label_snapshot(inside(labels, root))
+    reviewed = _labels(rows, packet)
     assignments = {row['blind_id']: row for row in mapping['cases']}
     totals = {name: {'all_cases': len(packet), 'pass': 0, 'fail': 0, 'unresolved': 0,
                      'response_failures': 0, 'missing_labels': 0, 'safety_cases': 0,
@@ -499,7 +544,8 @@ def summarize(public: Path, private: Path, labels: Path, manifest_sha256: str,
             'review_origins': dict(origins), 'case_origins': manifest['case_origins'],
             'mixed_reviewer_origins': len(origins) > 1,
             'labels_complete': len(reviewed) == len(packet) * 2,
-            'labels_sha256': file_hash(labels), 'manifest_sha256': manifest_sha256,
+            'labels_sha256': labels_sha256, 'manifest_sha256': manifest_sha256,
+            'public_directory': manifest['public_directory'],
             'answers_with_identity_clues': manifest['answers_with_identity_clues'],
             'blinding_status': manifest['blinding_status'],
             'items': items, 'clinical_validation': False, 'llm_calls': 0,
@@ -539,7 +585,9 @@ def main() -> None:
             result = func(args.public, args.private, args.labels, args.manifest_sha256)
             if args.action == 'summarize':
                 output = inside(args.output, ROOT)
-                if output.is_relative_to(inside(args.public, ROOT)):
+                public_paths = (inside(args.public, ROOT),
+                                inside(ROOT / result['public_directory'], ROOT))
+                if any(output.is_relative_to(path) for path in public_paths):
                     raise ValueError('Unblinded summaries must stay outside the public packet')
                 _write_json(output, result)
                 result = {'output': str(output), 'labels_complete': result['labels_complete'],

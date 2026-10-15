@@ -158,6 +158,9 @@ mixed-graph coverage checks, bounded full-answer safety diagnostics, reproducibl
 evidence checks and offline blinded review tools. Automatic entity support is
 explicitly separated from unevaluated semantic support. The historical results
 above retain their original scorer; no new held-out score is claimed.
+The subsequent [independent review and repairs](docs/reports/independent-review-2026-10-15.md)
+close evidence-dispatch, quotation, citation-masking and audit-fingerprint gaps.
+Scorer `deterministic-3.7` remains a bounded diagnostic, without new benchmark results.
 
 Historical v1 results use different cases/scoring and are not a matched v2
 baseline: the offline `deterministic-3.4` rescoring of earlier saved answers gives

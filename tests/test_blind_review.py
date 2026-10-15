@@ -2,8 +2,10 @@
 
 import copy
 import json
+import shutil
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -307,6 +309,132 @@ def test_numeric_and_case_sensitive_source_ids_only_rewrite_explicit_citations(i
     for answer in blind.read_rows(inputs / 'public/packet.jsonl')[0]['answers'].values():
         assert answer['answer'] == 'There are 10 fictional widgets. [S1] [S2] [S3]'
         assert answer['cited_context_ids'] == ['S1', 'S2', 'S3']
+
+
+def test_unknown_public_shaped_reference_does_not_become_a_valid_citation(inputs):
+    first = blind.read_rows(inputs / 'first.jsonl')
+    first[0]['answer'] = 'Widget 1 is red. [S1]'
+    write_rows(inputs / 'first.jsonl', first)
+    prepare(inputs)
+    case = blind.read_rows(inputs / 'public/packet.jsonl')[0]
+    assignments = blind.read_json(inputs / 'private/mapping.json')['cases'][0]['assignments']
+    first_slot = next(slot for slot, item in assignments.items()
+                      if item['system'] == 'private-graph')
+    second_slot = next(slot for slot in assignments if slot != first_slot)
+    assert case['contexts'][0]['id'] == 'S2'
+    assert case['answers'][first_slot]['answer'] == 'Widget 1 is red. [S1]'
+    assert case['answers'][second_slot]['answer'] == 'Widget 1 is red. [S2]'
+    assert (case['answers'][first_slot]['answer_sha256']
+            != case['answers'][second_slot]['answer_sha256'])
+    assert assignments[first_slot]['display_transformed'] is False
+
+
+def test_source_namespace_avoids_original_ids_and_both_answers_unknown_references(inputs):
+    cases = blind.read_rows(inputs / 'cases.jsonl')
+    cases[0]['contexts'] = [
+        {'id': 'S2', 'text': 'First fictional observation.'},
+        {'id': 'S1', 'text': 'Second fictional observation.'},
+        {'id': 'chunk', 'text': 'Third fictional observation.'},
+        {'id': 'chunk:extra', 'text': 'Fourth fictional observation.'},
+    ]
+    write_rows(inputs / 'cases.jsonl', cases)
+    for filename, unknown in [('first.jsonl', 'S3'), ('second.jsonl', 'S4')]:
+        outputs = blind.read_rows(inputs / filename)
+        outputs[0].update(answer=f'Fictional observations. [S2] [S1] [chunk] [chunk:extra] '
+                          f'[{unknown}]', cited_context_ids=['S2', 'S1', 'chunk', 'chunk:extra'])
+        write_rows(inputs / filename, outputs)
+    prepare(inputs)
+    case = blind.read_rows(inputs / 'public/packet.jsonl')[0]
+    assert [item['id'] for item in case['contexts']] == ['S5', 'S6', 'S7', 'S8']
+    assert {answer['answer'] for answer in case['answers'].values()} == {
+        'Fictional observations. [S5] [S6] [S7] [S8] [S3]',
+        'Fictional observations. [S5] [S6] [S7] [S8] [S4]',
+    }
+    for answer in case['answers'].values():
+        assert answer['cited_context_ids'] == ['S5', 'S6', 'S7', 'S8']
+
+
+@pytest.mark.parametrize('operation', [blind.check, blind.summarize])
+def test_report_hash_binds_the_labels_snapshot_even_if_the_file_is_saved_again(
+        inputs, monkeypatch, operation):
+    receipt = prepare(inputs)
+    labels = make_labels(inputs)
+    label_path = inputs / 'labels.jsonl'
+    parsed_digest = blind.file_hash(label_path)
+    original_labels = blind._labels
+
+    def save_during_validation(rows, packet):
+        reviewed = original_labels(rows, packet)
+        write_rows(label_path, labels[:1])
+        return reviewed
+
+    monkeypatch.setattr(blind, '_labels', save_during_validation)
+    result = operation(inputs / 'public', inputs / 'private', label_path,
+                       receipt['manifest_sha256'], root=inputs)
+    assert result['labels_complete'] is True
+    assert result['labels_sha256'] == parsed_digest
+    assert result['labels_sha256'] != blind.file_hash(label_path)
+    assert len(blind.read_rows(label_path)) == 1
+
+
+def test_frozen_packet_is_parsed_from_the_verified_snapshot(inputs, monkeypatch):
+    receipt = prepare(inputs)
+    make_labels(inputs)
+    packet_path = inputs / 'public/packet.jsonl'
+    changed = blind.read_rows(packet_path)
+    for answer in changed[0]['answers'].values():
+        answer['response_status'] = 'failed'
+    original_open = Path.open
+    saved = False
+
+    @contextmanager
+    def save_after_binary_read(path, *args, **kwargs):
+        nonlocal saved
+        with original_open(path, *args, **kwargs) as stream:
+            yield stream
+        mode = args[0] if args else kwargs.get('mode', 'r')
+        if path == packet_path and mode == 'rb' and not saved:
+            saved = True
+            with original_open(path, 'w', encoding='utf8') as stream:
+                stream.write(''.join(json.dumps(row) + '\n' for row in changed))
+
+    monkeypatch.setattr(Path, 'open', save_after_binary_read)
+    result = summarize(inputs, receipt)
+    assert saved
+    assert result['systems']['private-graph']['pass'] == 3
+    assert result['systems']['private-graph']['response_failures'] == 0
+    with pytest.raises(ValueError, match='Frozen file changed: packet.jsonl'):
+        summarize(inputs, receipt)
+
+
+@pytest.mark.parametrize('destination', ['public', 'public-copy'])
+def test_cli_copied_packet_protects_both_known_public_directories(
+        inputs, monkeypatch, capsys, destination):
+    receipt = prepare(inputs)
+    make_labels(inputs)
+    shutil.copytree(inputs / 'public', inputs / 'public-copy')
+    original_summarize = blind.summarize
+    monkeypatch.setattr(blind, 'ROOT', inputs)
+    monkeypatch.setattr(blind, 'summarize',
+                        lambda *args: original_summarize(*args, root=inputs))
+    common_args = ['blind_review', 'summarize', '--public', str(inputs / 'public-copy'),
+                   '--private', str(inputs / 'private'),
+                   '--labels', str(inputs / 'labels.jsonl'),
+                   '--manifest-sha256', receipt['manifest_sha256']]
+    rejected = inputs / destination / 'summary-new.json'
+    monkeypatch.setattr(sys, 'argv', [*common_args, '--output', str(rejected)])
+    with pytest.raises(SystemExit) as exc:
+        blind.main()
+    assert exc.value.code == 2
+    assert 'outside the public packet' in capsys.readouterr().err
+    assert not rejected.exists()
+    accepted = inputs / 'private/summary-new.json'
+    monkeypatch.setattr(sys, 'argv', [*common_args, '--output', str(accepted)])
+    blind.main()
+    assert json.loads(capsys.readouterr().out)['output'] == str(accepted)
+    summary = blind.read_json(accepted)
+    assert summary['public_directory'] == 'public'
+    assert summary['labels_complete'] is True
 
 
 @pytest.mark.parametrize('tokens,clues', [((), 0), (('10',), 1)])

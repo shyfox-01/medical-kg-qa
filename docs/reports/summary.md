@@ -292,3 +292,18 @@ found and prompted fixes for shorter-alias fallback and answer-corrupting source
 replacement. Final validation and artifact preservation are linked in the report.
 No downloads, provider calls, push or merge are added; historical scores remain
 unchanged under their original evaluators.
+
+## Independent follow-up review and repairs — 2026-10-15
+
+The [follow-up report](independent-review-2026-10-15.md) records three independent
+reviewers and cross-checks of their repairs. Confirmed gaps included category/kind
+evidence bypass, quoted or negated safety support, citation-ID collisions, hashes
+from different file revisions, concurrent source drift and omitted current-scorer
+dependencies in frozen-system checkpoints. Fixes retain original data, prior
+outputs and human queues. Scorer deterministic-3.7 remains a finite diagnostic;
+historical measurements are not recomputed.
+
+All 677 non-integration tests, Ruff and nine artifact checks pass; 81 preserved
+files match the initial hashes. There is no new QA benchmark, provider call,
+clinical validation, download or background service. Raw before/after probes and
+reviewer cross-checks are retained locally and indexed in the aggregate report.
