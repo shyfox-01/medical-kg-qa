@@ -4,13 +4,14 @@ import numpy as np
 
 from medkg.config import ROOT
 from medkg.embeddings import Embeddings
+from medkg_data.alias_policy import allowed_names
 
 
 def main() -> None:
     processed = ROOT/'data/processed'
     entities = json.loads((processed/'entities.json').read_text(encoding='utf8'))
     aliases = [{'uid':e['uid'],'text':alias} for e in entities
-               for alias in sorted({e['name'],*(e.get('synonyms') or [])})]
+               for alias in sorted(set(allowed_names(e)))]
     old_index, old_text_index, old_vectors = {}, {}, None
     if (processed/'alias_vectors.npy').exists() and (processed/'vector_aliases.json').exists():
         old = json.loads((processed/'vector_aliases.json').read_text(encoding='utf8'))

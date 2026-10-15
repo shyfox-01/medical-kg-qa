@@ -11,12 +11,14 @@ from medkg.config import ROOT
 from medkg.embeddings import Embeddings
 from medkg.ingest.ontology import load_obo
 from medkg.ingest.primekg import read_graph
+from medkg_data.alias_policy import is_excluded
 from medkg_data.lexicon import normalize
 
 
 def prioritized_synonyms(entity: dict, mesh_aliases: list[str], limit: int = 20) -> list[str]:
     """Use catalog aliases only, putting retained D049 MeSH additions first."""
-    catalog = entity.get('synonyms') or []
+    catalog = [alias for alias in entity.get('synonyms') or []
+               if not is_excluded(entity.get('uid', ''), alias)]
     allowed = {normalize(alias) for alias in catalog}
     seen = {normalize(entity['name'])}
     selected = []

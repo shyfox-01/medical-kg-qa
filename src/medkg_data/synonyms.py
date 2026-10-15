@@ -23,6 +23,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from medkg_data.alias_policy import is_excluded
 from medkg_data.lexicon import COMMON_WORDS, GENERIC_ANCHORS, normalize
 from medkg_data.ontology import mondo_ids
 
@@ -254,6 +255,9 @@ def merge_synonyms(entities: list[dict], proposals: Iterable[tuple]) -> tuple[li
     wanted: dict[tuple, dict[str, tuple]] = defaultdict(dict)
     skipped = defaultdict(int)
     for uid, alias, source in proposals:
+        if is_excluded(uid, alias):
+            skipped['review_quarantine'] += 1
+            continue
         key = (label[uid], normalize(alias))
         others = {o for o in any_owner.get(key[1], ()) if label[o] != label[uid]}
         if uid in owners.get(key, ()):

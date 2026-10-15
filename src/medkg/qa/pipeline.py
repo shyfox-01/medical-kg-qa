@@ -67,6 +67,13 @@ class Pipeline:
                     result['unresolved_mentions'] = unresolved
                     result['focus'] = [c.name for c in candidates if not c.ambiguous][:2]
                     attrs['candidates'] = len(candidates)
+                quarantined = self.linker.quarantined_mentions(unresolved)
+                if quarantined:
+                    result.update(
+                        answer='This name does not uniquely identify a supported drug. '
+                               'Please provide the exact drug name before I continue.',
+                        route='linking', refused=True, quarantined_mentions=quarantined)
+                    return self._finish(result,start,before)
                 stage = 'routing'
                 with span('routing') as attrs:
                     intent = None if unresolved else route(resolved,candidates,previous)

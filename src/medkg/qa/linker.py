@@ -7,6 +7,7 @@ import numpy as np
 from rapidfuzz import fuzz, process
 from rapidfuzz.distance import DamerauLevenshtein
 
+from medkg_data.alias_policy import EXCLUDED_ALIASES, allowed_names, is_excluded
 from medkg_data.lexicon import COMMON_WORDS, GENERIC_ANCHORS, ambiguous_word, normalize
 
 __all__ = ['Candidate', 'Linker', 'label_choices', 'normalize']
@@ -30,13 +31,19 @@ class Linker:
         self.aliases: dict[str, list[str]] = {}
         self.by_label: dict[str, dict[str, list[str]]] = {}
         for e in entities:
-            for alias in [e['name'], *(e.get('synonyms') or [])]:
+            for alias in allowed_names(e):
                 key = normalize(alias)
                 if key:
                     self.aliases.setdefault(key, []).append(e['uid'])
                     self.by_label.setdefault(e['label'], {}).setdefault(key, []).append(e['uid'])
         self.embedder, self.vectors, self.vector_aliases = embedder, vectors, vector_aliases
-        self.alias_sizes = sorted({len(key.split()) for key in self.aliases},reverse=True)
+        self.excluded_by_key: dict[str, set[str]] = {}
+        for uid in self.entities.keys() & EXCLUDED_ALIASES.keys():
+            for key in EXCLUDED_ALIASES[uid]:
+                self.excluded_by_key.setdefault(key, set()).add(uid)
+        self.quarantined_keys = set(self.excluded_by_key)
+        self.alias_sizes = sorted({len(key.split()) for key in
+                                   self.aliases.keys() | self.quarantined_keys}, reverse=True)
         # Single-edit correction is limited to long drug-name tokens. Short
         # acronyms, gene symbols and ordinary words require the existing rules.
         self.drug_spellings = {key:ids for key,ids in self.by_label.get('Drug',{}).items()
@@ -48,6 +55,9 @@ class Linker:
         if key in aliases:
             ids = sorted(set(aliases[key]))
             return [self._candidate(uid, 100, 'exact', len(ids)>1) for uid in ids]
+        # A reviewed conflicting name must not return through typo or vector
+        # similarity to the entity whose exact mapping was quarantined.
+        excluded = self.excluded_by_key.get(key, set())
         if (label in (None,'Drug') and key.isalpha() and len(key)>=8
                 and key not in COMMON_WORDS):
             matches = process.extract(key,self.drug_spellings.keys(),
@@ -55,6 +65,8 @@ class Linker:
             scored = {}
             for alias,distance,_ in matches:
                 for uid in self.drug_spellings[alias]:
+                    if uid in excluded:
+                        continue
                     score = 100*(1-distance/max(len(alias),len(key)))
                     scored[uid] = max(score,scored.get(uid,0))
             if scored:
@@ -68,6 +80,8 @@ class Linker:
         scored = {}
         for alias, score, _ in matches:
             for uid in aliases[alias]:
+                if uid in excluded:
+                    continue
                 scored[uid] = max(score, scored.get(uid, 0))
         if scored:
             ranked = sorted(scored.items(), key=lambda x: (-x[1], x[0]))
@@ -81,6 +95,9 @@ class Linker:
                 uid = self.vector_aliases[int(i)]['uid']
                 if similarities[i]<0.85:
                     break
+                if (uid not in self.entities or uid in excluded or
+                        is_excluded(uid, self.vector_aliases[int(i)]['text'])):
+                    continue
                 if uid not in seen and (not label or self.entities[uid]['label']==label):
                     ranked.append((uid, float(similarities[i])))
                     seen.add(uid)
@@ -104,7 +121,7 @@ class Linker:
         """
         words = normalize(question).split()
         original = re.findall(r'\w+',question)
-        candidates, occupied = {}, set()
+        candidates, occupied, quarantined = {}, set(), []
         for size in self.alias_sizes:
             if size>len(words):
                 continue
@@ -122,8 +139,13 @@ class Linker:
                         candidates[uid].mention = ' '.join(original[start:start+size])
                         candidates[uid].span = (start,start+size)
                     occupied |= positions
+                elif key in self.quarantined_keys:
+                    # Reserve the whole rejected phrase so that a shorter alias
+                    # inside it cannot silently identify a different substance.
+                    occupied |= positions
+                    quarantined.append(key)
         if exact_only:
-            return list(candidates.values()),[]
+            return list(candidates.values()),quarantined
         cues = {'of','for','about','with','does','and','between','versus','vs','is','are',
                 'can','could','may'}
         stops = cues | {'interact','interacts','target','targets','treat','treats','is',
@@ -138,7 +160,7 @@ class Linker:
                    'information','data','evidence','these','those','some','any','warnings','warning',
                    'treatment','treatments','used','use','why','entities','anything','something',
                    'nothing','all','known','available','recorded'}
-        unresolved = []
+        unresolved = list(quarantined)
         interaction = bool(re.search(r'\binteract',question,re.I))
         labels = {c.label for c in candidates.values()}
         hint = 'Drug' if interaction else next(iter(labels)) if len(labels)==1 else None
@@ -170,6 +192,10 @@ class Linker:
             else:
                 unresolved.append(mention)
         return list(candidates.values()),unresolved
+
+    def quarantined_mentions(self, unresolved: list[str]) -> list[str]:
+        """Only unresolved reviewed names trigger the conservative query gate."""
+        return sorted({mention for mention in unresolved if mention in self.quarantined_keys})
 
     def describe(self, candidates: list[Candidate]) -> list[dict]:
         return [asdict(c) for c in candidates]

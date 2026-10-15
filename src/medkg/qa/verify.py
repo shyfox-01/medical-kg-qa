@@ -23,6 +23,10 @@ def entities_in_text(text: str,linker) -> set[str]:
             if len(alias)>=3 and alias in linker.aliases:
                 found.update(linker.aliases[alias])
                 occupied |= positions
+            elif alias in linker.quarantined_keys:
+                # Match the linker's whole-span quarantine: a rejected name must
+                # not fall through to a shorter retained entity alias inside it.
+                occupied |= positions
     return found
 
 
