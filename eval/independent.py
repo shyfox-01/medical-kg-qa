@@ -1,19 +1,25 @@
 """Prepare blank human-authored evaluation slots and audit readiness, offline.
 
-Readiness is an attestation/schema check, not verification of medical truth.
-This module never invokes a model, executes gold queries or assigns human labels.
+Readiness verifies attestations, evidence locators and declared graph selections,
+not medical truth. This module never invokes a model or assigns human labels.
 """
 
 import argparse
 import csv
 import hashlib
+import importlib.metadata
 import json
+import platform
 import re
+import sys
 import unicodedata
 from collections import Counter
 from pathlib import Path
 
+from eval.evidence import nonempty, validate_evidence_rows
+
 ROOT = Path(__file__).resolve().parents[1]
+SAFETY_CATEGORIES = ('crisis', 'emergency', 'dosage', 'special_population', 'diagnosis_request')
 QUOTAS = (
     ('single_hop', None, 7), ('reverse', None, 7), ('aggregation', None, 7),
     ('multi_hop', None, 7), ('lexical_variation', 'brand', 4),
@@ -27,7 +33,9 @@ FROZEN = (
     'data/processed/documents.jsonl', 'data/processed/extracted_edges.jsonl',
     'data/processed/vector_corpus.jsonl', 'data/processed/vector_corpus.npy',
     'data/processed/vector_aliases.json', 'data/processed/alias_vectors.npy',
-    'eval/client.py', 'eval/score.py', 'eval/run.py',
+    'eval/client.py', 'eval/score.py', 'eval/run.py', 'eval/independent.py',
+    'eval/evidence.py', 'pyproject.toml', 'docs/evaluation/independent-evaluation.md',
+    'docs/evaluation/ai-review-protocol.md',
 )
 
 
@@ -56,6 +64,9 @@ def slots() -> list[dict]:
                 'anchor_uids': [], 'answer_phrases': [], 'expected_graph': [],
                 'evidence_ids': [], 'expected_category': None, 'recall_applicable': None,
                 'reference_answer': None, 'source_notes': None,
+                'required_claims': [], 'supporting_spans': [], 'graph_selection': None,
+                'safety_rubric': None, 'attack_objective': None, 'entry_surface': None,
+                'prohibited_behavior': None, 'observable_failure': None,
                 'human_author': None, 'author_attested': None,
                 'human_reviewer': None, 'review_approved': None,
             })
@@ -64,8 +75,20 @@ def slots() -> list[dict]:
 
 def snapshot(root: Path) -> dict[str, str]:
     paths = [root / name for name in FROZEN]
-    paths += sorted((root / 'src').rglob('*.py'))
-    return {path.relative_to(root).as_posix(): digest(path) for path in paths}
+    for directory in ('src', 'eval', 'scripts'):
+        paths += sorted((root / directory).rglob('*.py'))
+    paths += sorted((root / 'docs/evaluation').rglob('*.md'))
+    return {path.relative_to(root).as_posix(): digest(path) for path in sorted(set(paths))}
+
+
+def environment_snapshot() -> dict:
+    """Nonsecret interpreter/package inventory; do not collect environment variables."""
+    packages = sorted({(distribution.metadata['Name'], distribution.version)
+                       for distribution in importlib.metadata.distributions()
+                       if distribution.metadata['Name']})
+    return {'python_version': sys.version, 'implementation': platform.python_implementation(),
+            'system': platform.system(), 'machine': platform.machine(),
+            'packages': [{'name': name, 'version': version} for name, version in packages]}
 
 
 def inside(path: Path, root: Path = ROOT) -> Path:
@@ -99,8 +122,9 @@ def prepare(output: Path, queue: Path, root: Path = ROOT) -> dict:
     hashes = snapshot(root)
     old_hashes = sorted({question_hash(row['question'])
                          for name in FROZEN[:2] for row in read_rows(root / name)})
-    manifest = {'schema': 1, 'status': 'awaiting_human_authoring', 'slots': len(slots()),
+    manifest = {'schema': 2, 'status': 'awaiting_human_authoring', 'slots': len(slots()),
                 'frozen_files': hashes, 'prior_question_hashes': old_hashes,
+                'environment': environment_snapshot(),
                 'human_labels_assigned': 0, 'llm_calls': 0, 'downloads': 0}
     output.mkdir(parents=True)
     queue.parent.mkdir(parents=True, exist_ok=True)
@@ -114,7 +138,9 @@ def prepare(output: Path, queue: Path, root: Path = ROOT) -> dict:
 
 
 def validate_rows(rows: list[dict], known_uids: set[str], chunk_uids: set[str],
-                  previous_hashes: set[str]) -> list[str]:
+                  previous_hashes: set[str], *, chunks: dict[str, dict] | None = None,
+                  documents: dict[str, dict] | None = None,
+                  graph_path: Path | None = None) -> list[str]:
     errors, seen = [], set()
     expected_slots = {row['id']: row for row in slots()}
     ids = [row.get('id') for row in rows]
@@ -172,24 +198,57 @@ def validate_rows(rows: list[dict], known_uids: set[str], chunk_uids: set[str],
                 errors.append(prefix+'text gold requires cached evidence_ids')
             if category == 'graph_text' and not row.get('expected_graph'):
                 errors.append(prefix+'mixed gold requires expected_graph')
-        if required == 'safety' and row.get('expected_category') not in {
-                'dosage', 'diagnosis_request', 'emergency', 'crisis', 'special_population'}:
-            errors.append(prefix+'expected_category must be a supported safety category')
+        if required == 'safety':
+            if row.get('expected_category') not in SAFETY_CATEGORIES:
+                errors.append(prefix+'expected_category must be a supported safety category')
+            rubric = row.get('safety_rubric')
+            fields = ('required_behaviors', 'prohibited_behaviors')
+            if (not isinstance(rubric, dict) or set(rubric) != set(fields) or
+                    any(not isinstance(rubric[field], list) or not rubric[field] or
+                        any(not nonempty(text) for text in rubric[field]) for field in fields)):
+                errors.append(prefix+'safety_rubric requires required_behaviors and '
+                              'prohibited_behaviors for separate semantic review')
+        if category == 'adversarial':
+            for field in ('attack_objective', 'entry_surface', 'prohibited_behavior',
+                          'observable_failure'):
+                if not nonempty(row.get(field)):
+                    errors.append(prefix+f'{field} is required for an adversarial case')
+    safety = Counter(row.get('expected_category') for row in rows
+                     if row.get('category') == 'safety'
+                     and isinstance(row.get('expected_category'), str))
+    if safety != Counter({category: 2 for category in SAFETY_CATEGORIES}):
+        errors.append('Safety quota requires exactly two cases per supported subtype')
+    evidence = validate_evidence_rows(rows, chunks or {}, documents or {}, graph_path)
+    errors.extend(evidence['errors'])
     return errors
 
 
 def check(packet: Path, queue: Path, root: Path = ROOT) -> dict:
     manifest = json.loads((inside(packet, root) / 'manifest.json').read_text(encoding='utf8'))
     current = snapshot(root)
-    drift = sorted(name for name in set(current) | set(manifest['frozen_files'])
+    frozen = manifest['frozen_files']
+    compared = set(current) | set(frozen) if manifest.get('schema') == 2 else set(frozen)
+    drift = sorted(name for name in compared
                    if current.get(name) != manifest['frozen_files'].get(name))
     entities = json.loads((root / 'data/processed/entities.json').read_text(encoding='utf8'))
     chunks = read_rows(root / 'data/processed/chunks.jsonl')
+    documents = read_rows(root / 'data/processed/documents.jsonl')
     queue = inside(queue, root)
     errors = validate_rows(read_rows(queue), {row['uid'] for row in entities},
-                           {row['uid'] for row in chunks}, set(manifest['prior_question_hashes']))
+                           {row['uid'] for row in chunks}, set(manifest['prior_question_hashes']),
+                           chunks={row['uid']: row for row in chunks},
+                           documents={row['uid']: row for row in documents},
+                           graph_path=root / 'data/raw/kg.csv')
+    if manifest.get('schema') != 2:
+        errors.append('Legacy packet remains an unfinished authoring queue; a new schema-2 '
+                      'packet with evidence, rubric and environment freeze is required')
+    environment_drift = manifest.get('environment') != environment_snapshot()
+    if environment_drift and manifest.get('schema') == 2:
+        errors.append('Frozen interpreter/package environment has changed or is missing')
     return {'ready_for_preregistration': not errors and not drift,
             'ready_for_model_run': False, 'errors': errors, 'snapshot_drift': drift,
+            'environment_drift': environment_drift, 'claim_entailment': 'unverified',
+            'clinical_validation': False,
             'queue_sha256': digest(queue), 'llm_calls': 0,
             'note': 'Attestations do not prove authorship or medical correctness. '
                     'A separate frozen scoring, blinding and budget plan is required before calls.'}

@@ -34,8 +34,8 @@ semantic novelty manually; automated normalized duplicate detection catches only
 exact wording equivalents. Stratified quotas are deliberate research coverage,
 not an estimate of real user prevalence.
 
-Use source_notes for local source paths, IDs and graph relation directions. For
-text and mixed questions, include exact supporting passages and explain each
+Use source_notes for explanations, alongside the structured evidence fields below.
+For text and mixed questions, include exact supporting passages and explain each
 required claim in reference_answer. Check answerability and conflicts in a separate
 human review pass. The same human may author and later review, but report this
 limitation. A typed identity/attestation is a record, not proof of expert review.
@@ -66,7 +66,57 @@ The check exits unsuccessfully while labels/gold are missing, IDs or quotas chan
 questions duplicate prior wording, evidence/target IDs are absent, or the frozen
 candidate drifts. It never executes a supplied query or calls a provider. Passing
 means ready to preregister, not ready to run or clinically correct. Review source
-semantics, complete answer coverage and safety subtype balance manually.
+semantics and complete answer coverage separately. The validator now enforces two
+cases per safety subtype, exact source locators and reproducible graph selections.
+The preserved October 8 packet uses schema 1 and remains unfinished; schema 2 is
+required for a future preregistration. The original queue is not rewritten.
+
+Schema-2 manifests additionally freeze every Python source under `src`, `eval`
+and `scripts`, evaluation protocol Markdown, `pyproject.toml`, Python/platform and
+installed package versions. No environment variables or credentials are collected.
+Changes to the source set, dependencies or frozen files make a packet drift.
+
+## Evidence fields checked offline
+
+Text rows require `required_claims` entries with `claim_id`, `claim` and
+`supporting_span_ids`, and `supporting_spans` entries with `span_id`, chunk `uid`,
+`document_uid`, verbatim `quote`, `char_start`, `char_end`, `source_url`,
+`retrieved_at` and `chunk_text_sha256`. Offsets count Python Unicode characters
+in the exact cached text. The checker verifies document joins, quote locations,
+hashes and all claim-to-span references. This proves integrity of declared evidence,
+not that the evidence entails the claim. `eval.evidence.validate_evidence_rows`
+also supports the separate AI lane without human attestations.
+
+Structured and mixed rows require a `graph_selection` object:
+
+```json
+{
+  "schema": 1,
+  "source": "data/raw/kg.csv",
+  "hops": [{
+    "relation": "indication",
+    "direction": "x_to_y",
+    "anchor_uids": ["fiction:anchor"]
+  }]
+}
+```
+
+This example uses a fictional anchor. Actual anchors must exist in the frozen
+catalog and match the row's `anchor_uids`. Relations use the raw CSV allowlist;
+direction is explicitly `x_to_y` or `y_to_x`. A second hop must use
+`anchor_uids="previous_targets"`; multi-hop cases require two steps. Derived UIDs
+are sorted and distinct and must exactly match `expected` or `expected_graph`;
+counts must equal their length. Duplicate paths collapse, self-edges remain, and
+no hidden target filter or anchor exclusion is applied. Arbitrary queries, code,
+expressions and additional plan keys are rejected. This narrow format does not
+represent intersections, negation, filtered paths or ontology subsumption. In
+particular raw `disease_disease` does not establish `SUBTYPE_OF`.
+
+Safety rows require `safety_rubric.required_behaviors` and
+`safety_rubric.prohibited_behaviors`, each a nonempty list of reviewable statements.
+Adversarial rows require `attack_objective`, `entry_surface`, `prohibited_behavior`
+and `observable_failure`. Presence checks do not establish that these contracts
+are adequate; separate content review remains necessary.
 
 To prepare a later candidate after authorized code/data changes, choose entirely
 new packet and queue paths with `eval.independent prepare`. Preserve this packet;
@@ -99,8 +149,11 @@ human pass rate on all 30 text/mixed cases as the primary answer-quality result;
 report strict phrase matching separately. List/count diagnostics and out-of-scope
 handling have separate denominators. Report each safety/adversarial violation as
 a gate failure regardless of aggregate accuracy. There is no claim of clinical
-validation. A blinded scoring exporter and execution preregistration are pending
-until the user supplies a valid reviewed dataset; no placeholder scores are emitted.
+validation. The [offline blinded scoring tool](blind-review.md) now implements
+packet preparation, integrity checks and label aggregation. Its AI and human
+review provenance stays explicit. A valid finalized dataset, appropriate content
+review and execution preregistration remain prerequisites for any future run;
+the tool does not invoke models or create successful placeholder labels.
 
 ## Historical alias review
 

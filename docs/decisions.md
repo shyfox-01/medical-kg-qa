@@ -1268,3 +1268,113 @@ with approved escalation and a new project-local temporary directory. It finishe
 in 4.83 seconds, with 15 integration tests deselected and one existing dependency
 deprecation warning. No dependency upgrade or service startup is warranted by
 this documentation/evidence-only change. Recheck all preserved hashes afterward.
+
+## D072 — Implement reviewed alias conflicts as reversible query-time quarantine (2026-10-15)
+
+The user asks to continue after the AI review report. Treat this as authorization
+to implement its engineering improvements, retaining section-4 boundaries. Use
+three implementation workers with disjoint files and a separate read-only audit;
+the root integrates and checks the result. All source, documentation and commits
+remain English. No new data, provider/model change, human labels, historical
+benchmark mutation, external-file change, push or merge is needed.
+
+Encode exactly the 28 agreed unsupported entity/name pairs from the frozen source
+review in medkg_data.alias_policy. This is a reversible engineering quarantine,
+not a new molecular or clinical conclusion. Preserve the six supported and 66
+uncertain pairs, every canonical identity and valid other owners. Exclude reviewed
+pairs from exact, fuzzy and stale alias-vector matching; reserve full rejected
+phrases so shorter names cannot reintroduce the same mapping. The query boundary
+requests an exact drug name before planning/retrieval when such a phrase remains
+unresolved, in both hybrid and vector modes. Scoring and answer verification must
+honor the same phrase boundary. Future alias embedding, corpus generation and
+enrichment also honor the policy, but are not run on the stored artifacts here.
+
+Alternative: rewrite catalog, embeddings and graph immediately; rejected because
+it broadens this bounded correction into a data migration and loses the original
+comparison snapshot without additional reconstruction. Keep catalog, vector files,
+graph and source bytes intact, and explicitly disclose that old derived data still
+contain historical aliases. The query gate covers the reviewed explicit names;
+it is not a complete historical mention-edge cleanup or a general terminology
+normalizer. Conservative clarification can reduce coverage for broad factual
+questions. Do not infer the status of other aliases or apply salt equivalence.
+
+## D073 — Strengthen deterministic diagnostics and evidence readiness (2026-10-15)
+
+Advance the scorer to deterministic-3.6 without rescoring historical outputs.
+Mixed text/graph questions require every expected graph UID in both answer and
+evidence, with nonempty gold. Inspect the whole displayed answer for bounded
+safety-policy content checks independently of its own refusal/category flags;
+footer delimiters cannot hide instructions. Preserve backward-compatible fields,
+but expose entity_supported, diagnostic_passed and metric semantics explicitly.
+Semantic support stays null/not_evaluated. Alternative: call a regex or entity
+overlap a semantic/clinical judge; rejected because neither establishes entailment
+or comprehensive safety. Separate claim/content review remains required.
+
+Extend readiness with two cases per safety subtype, explicit safety and adversarial
+contracts, exact text locators and safe graph selections. Graph selections stream
+only the frozen CSV, allow one or two explicit relation/direction steps, preserve
+self-edges and collapse duplicate paths. Compare the complete sorted target set
+and count with the declared gold; never execute supplied query/code. Text checks
+verify offsets, hashes, document joins and claim-span references; they cannot prove
+the question or claim means the cited source. Schema-2 manifests freeze evaluator,
+validator, scripts, protocols, dependencies and nonsecret environment inventory.
+Old packets/queues remain unchanged and explicitly unfinished. Readiness never
+authorizes model calls. Alternatives: free-text evidence notes or unrestricted
+queries; rejected because the former is unreconstructable and the latter adds
+unnecessary execution risk.
+
+## D074 — Deliver offline blind scoring and a separate revised development pilot (2026-10-15)
+
+Implement an offline prepare/check/summarize workflow with seeded per-case A/B
+ordering, stripped system metadata, opaque IDs, private mapping and trusted hash
+receipt. Bind every review to case, answer and rubric hashes; keep authorship,
+reviewer provenance and unresolved judgments explicit. Require claim coverage,
+contradiction/unsupported-content/uncertainty review and case-specific safety
+behaviors; retain API/system failures in the all-case denominator. Alternative:
+ask agents to inspect named-system outputs or repeatedly vote until they agree;
+rejected because either encourages answer anchoring and obscures uncertainty.
+This tool stores review judgments, not a semantic oracle or clinical certification.
+
+Apply the six saved wording/rubric clarifications to a new 12-case pilot-r2 copy,
+preserving original references and every first-pass artifact. Keep 27 required
+claims with 23 source spans, distinguish optional details, and label the copy as
+AI-authored development material already exposed to review. It is not a fresh
+held-out benchmark or a substitute for human labels. Demonstrate blinded ingestion
+with synthetic fixtures only; make no new provider calls or performance claims.
+
+One tooling worker's initial broad filename/content search inadvertently exposed
+some historical text_v1 questions. The worker disclosed this immediately, stopped
+that search and confined subsequent work to named code/protocol files and synthetic
+fixtures. It authored no new benchmark and produced no medical labels. Record this
+exposure rather than claiming the entire implementation team was answer/question
+blind; the historical pilot authoring record and frozen files remain unchanged.
+
+## D075 — Verify boundaries independently and retain historical evidence (2026-10-15)
+
+Independent code audit reproduces two implementation defects: shorter retained
+aliases bypass the full-name quarantine in scoring/output verification, and global
+citation-ID replacement changes ordinary answer numbers. Fix both and add boundary
+tests; the auditor independently repeats the probes. Preserve answer prose and only
+rewrite exact case-sensitive bracket citations. Carry known identity clues into
+prepare/check/summary records. Separate response-failure counts from observed
+reviewer-labeled safety violations while keeping both in conservative denominators.
+Alternative: hide those defects in aggregate test counts or silently edit raw
+answers; rejected because auditability and factual answer preservation are required.
+
+Ruff and 593 non-integration tests pass; all nine cached-artifact checks pass.
+The full suite runs in 9.82 seconds with 15 integration tests deselected and one
+existing Starlette deprecation warning. Use approved execution with a new local
+temporary directory because prior full-suite sandbox runs repeatedly stalled.
+Integration services are not needed to test this pre-retrieval policy and offline
+evaluation tooling. A real cached-CSV selection reconstructs two targets and rejects
+an altered count. The synthetic blind smoke retains a failed answer and all missing
+reviews, preserves an ordinary numeric count and discloses an explicit identity clue.
+None of these is a new QA performance observation.
+
+Verify 70 preserved files, including all nine human queues, old datasets, processed
+data and earlier AI review artifacts, and compare final code with the auditor's
+hashes. Create a separate schema-2 development-candidate snapshot without generating
+another human queue or authorizing model calls. Existing GLM accounting remains
+10,201,771 cumulative conservative tokens, with no added provider calls; Codex agent
+work is separate usage. Keep four pre-existing invalid-run summary files untracked,
+preserve all local evidence, and make only explicitly staged local commits.

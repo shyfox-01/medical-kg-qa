@@ -268,3 +268,27 @@ current diagnostics. No such response is claimed as an observed runtime output.
 No QA/scoring changes or new benchmark runs occur. The GLM ledger remains unchanged
 at 10,201,771 cumulative conservative tokens; Codex agent work is separate AI usage.
 The report links both completed review tables, raw evidence and aggregate checks.
+
+## Implementation of review findings — 2026-10-15
+
+The [implementation report](review-implementation-2026-10-15.md) records the user's
+request to continue. Exactly 28 reviewed conflicting entity/name mappings now have
+reversible query-time quarantine, including fuzzy/vector fallback and whole-phrase
+scorer/verifier protection. The actual catalog probe preserves all six supported
+and 66 uncertain mappings; original catalog and vector bytes remain unchanged.
+
+Scorer deterministic-3.6 requires complete mixed-graph coverage and checks bounded
+safety content across the full displayed answer. Entity support is explicitly
+separate from unevaluated semantic support. Evidence readiness verifies exact text
+locators, declarative raw-CSV selections/counts, subtype quotas and adversarial
+contracts. New manifests freeze broader code/protocol/environment state. Offline
+blinded review tooling binds explicit AI/human judgments to immutable packets,
+retains failures and unresolved labels, and makes no model calls.
+
+Six prior pilot clarifications are applied to a separate 12-case development copy;
+all 27 required claims retain source spans. No new held-out result, human labels,
+clinical validation or permanent catalog migration is claimed. Independent audit
+found and prompted fixes for shorter-alias fallback and answer-corrupting source-ID
+replacement. Final validation and artifact preservation are linked in the report.
+No downloads, provider calls, push or merge are added; historical scores remain
+unchanged under their original evaluators.

@@ -1,0 +1,156 @@
+{
+  "date": "2026-10-15",
+  "kind": "review_implementation_engineering_checks",
+  "base_commit": "29e7b077955fecc53d38618015c440a688936a28",
+  "branch": "review-fixes-2026-10-07",
+  "implementation_workers": 3,
+  "independent_auditors": 1,
+  "scorer_version": "deterministic-3.6",
+  "clinical_validation": false,
+  "alias_quarantine": {
+    "reviewed_pairs": 100,
+    "quarantined_pairs": 28,
+    "supported_pairs_preserved": 6,
+    "uncertain_pairs_preserved": 66,
+    "canonical_identity_checks": 28,
+    "stale_vector_rows_filtered_at_runtime": 28,
+    "unresolved_query_gate_cases": 28,
+    "other_owner_resolutions": 0,
+    "catalog_sha256": "60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5",
+    "catalog_changed": false,
+    "llm_calls": 0,
+    "clinical_validation": false
+  },
+  "pilot_revision": {
+    "origin": "ai_authored",
+    "clinical_validation": false,
+    "cases": 12,
+    "items_clarified": 6,
+    "source_sha256": "9ef35d51724cfc93b4012de2fcdbf8417249589899b45c7c1afc375c924caf0a",
+    "pilot_sha256": "29cc9d0e8e6276c4e880660db9438583cde0359f5c8e578e9fbb80f0f5783df1",
+    "references_changed": 0,
+    "required_claims": 27,
+    "new_system_runs": 0,
+    "human_labels_assigned": 0,
+    "limitation": "Previously exposed source-reviewed pilot, revised for development; no held-out or clinical claim."
+  },
+  "pilot_evidence_integrity": {
+    "evidence_integrity_verified": true,
+    "errors": [],
+    "checked_text_rows": 12,
+    "verified_text_rows": 12,
+    "checked_graph_rows": 0,
+    "verified_graph_rows": 0,
+    "derived_graph": {},
+    "claim_entailment": "unverified",
+    "clinical_validation": false,
+    "ready_for_model_run": false
+  },
+  "graph_reconstruction": {
+    "kind": "source_reconstruction_check_not_qa_performance",
+    "graph_selection": {
+      "schema": 1,
+      "source": "data/raw/kg.csv",
+      "hops": [
+        {
+          "relation": "indication",
+          "direction": "x_to_y",
+          "anchor_uids": [
+            "DrugBank:DB00492"
+          ]
+        }
+      ]
+    },
+    "derived_targets": [
+      "MONDO:5044",
+      "MONDO_grouped:1200_1134_15512_5080_100078"
+    ],
+    "derived_count": 2,
+    "valid_gold_accepted": true,
+    "invented_count_rejected": true,
+    "clinical_validation": false,
+    "provider_calls": 0
+  },
+  "blind_workflow_smoke": {
+    "origin": "synthetic",
+    "cases": 2,
+    "outputs": 4,
+    "labels_assigned": 0,
+    "both_denominators": 2,
+    "response_failures": 1,
+    "missing_reviews_unresolved": true,
+    "factual_numbers_preserved": true,
+    "answers_with_identity_clues": 1,
+    "blinding_status": "declared_identity_clues_present",
+    "semantic_or_system_performance_claimed": false
+  },
+  "independent_audit": {
+    "judgment": "approve_for_bounded_offline_engineering_scope",
+    "fixes_verified": [
+      "Scorer and verifier reserve rejected complete alias spans",
+      "Source citation remapping preserves quantities and case-sensitive source identities",
+      "Identity clues disclosed by prepare/check/summarize and item flags",
+      "Safety response failures distinguished from reviewer-observed safety violations"
+    ],
+    "remaining_blocking_findings": []
+  },
+  "verification": {
+    "preserved_files_unchanged": 70,
+    "audited_source_hashes_match": true,
+    "human_queues_unchanged": 9,
+    "provider_ledger_unchanged": true,
+    "provider_ledger_cumulative": 10201771,
+    "ruff": "passed",
+    "non_integration_tests": {
+      "passed": 593,
+      "deselected": 15,
+      "seconds": 9.82,
+      "warnings": [
+        "Existing Starlette TestClient httpx deprecation."
+      ]
+    },
+    "integration_tests_rerun": false,
+    "artifact_checks": {
+      "passed": true,
+      "checks": {
+        "frozen_dataset": true,
+        "frozen_dataset_v2": true,
+        "corpus_hash": true,
+        "alias_shape": true,
+        "alias_identities": true,
+        "corpus_shape": true,
+        "corpus_complete": true,
+        "chunk_associations": true,
+        "assertion_evidence": true
+      },
+      "retained_assertions": 27,
+      "alias_rows": 138893,
+      "corpus_rows": 47668,
+      "graph_checked": false,
+      "clinical_validation": false,
+      "downloads": 0,
+      "llm_calls": 0
+    },
+    "clinical_validation": false
+  },
+  "project_provider_calls_added": 0,
+  "human_labels_assigned": 0,
+  "new_benchmark_runs": 0,
+  "downloads": 0,
+  "services_started": 0,
+  "codex_agent_usage": "Separate AI work, not included in the project GLM ledger.",
+  "exposure_disclosure": "One tooling worker incidentally saw historical text_v1 questions, disclosed it and used only named code/protocol files and synthetic fixtures afterward. No benchmark was authored; no fresh independence claim.",
+  "private_evidence_directory": ".cache/review-implementation-2026-10-15",
+  "artifact_sha256": {
+    "start.json": "5e88bbc102e1ca46d3889ea81528c5a86075d640776f53f32cc82b47362ed920",
+    "candidate-manifest.json": "127a14382f18bc5ad2d604e2b9e3f4a64f26b1097755cbc9e10f273742bf8fc0",
+    "completion_checks.json": "f7e85abf20648fc379b4f52d729569527716bc318009e66411fba53ec8f1e715",
+    "alias_policy_check.json": "3db11c7c6590cec86e8af6e38b181974f0f62e7e485b0cb2bfd270fcb0e5386a",
+    "pilot-r2/pilot.jsonl": "29cc9d0e8e6276c4e880660db9438583cde0359f5c8e578e9fbb80f0f5783df1",
+    "pilot-r2/final-validation.json": "3cd90c5712d959237360978251d06c4e64b15db225a443b238e87305bafe1beb",
+    "blind-smoke/receipt.json": "1b8caa121f3d7deba949f43166e066319ec928d0eceb89d99c0a5d30bb0ae028",
+    "blind-smoke/check.json": "86b1f265409a03294c707f0ba2940de2688ffdaf7c2ad72bb20730bbc3737edb",
+    "blind-smoke/summary.json": "c0dba2866d8afc8b95f3015b93883d0b95b62d03eb72d68ddb4b4a3b974b80b5",
+    "audit/audit-closeout.json": "30e8c4fe43e19e592a5f2b3374e757f5a690c28206d68437c45c996e339f4e33"
+  }
+}

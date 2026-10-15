@@ -152,6 +152,13 @@ AI provenance and the original human queues. Reviewer agreement is not accuracy;
 synthetic probes also expose semantic and safety-scoring limits. No catalog changes
 or new system performance measurements result from this review.
 
+The [October 15 implementation](docs/reports/review-implementation-2026-10-15.md)
+adds reversible query-time quarantine for the 28 conflicting mappings, complete
+mixed-graph coverage checks, bounded full-answer safety diagnostics, reproducible
+evidence checks and offline blinded review tools. Automatic entity support is
+explicitly separated from unevaluated semantic support. The historical results
+above retain their original scorer; no new held-out score is claimed.
+
 Historical v1 results use different cases/scoring and are not a matched v2
 baseline: the offline `deterministic-3.4` rescoring of earlier saved answers gives
 87.50% for improved hybrid and 56.67% for vector on 240 cases. Earlier sampled,

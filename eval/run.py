@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from neo4j import READ_ACCESS, GraphDatabase
 
 from eval.client import SystemClient
-from eval.score import VERSION, Vocabulary, query_safe, score
+from eval.score import METRIC_SEMANTICS, VERSION, Vocabulary, query_safe, score
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -100,7 +100,9 @@ def summarize(rounds: list[list[dict]],cases: list[dict]) -> dict:
                   'tokens':sum(r['usage'].get('prompt_tokens',0)+r['usage'].get('completion_tokens',0) for r in rows)}
         if all('final_turn_latency_s' in r for r in rows):
             values['final_turn_latency_median_s'] = statistics.median(r['final_turn_latency_s'] for r in rows)
-        for name in ('precision','recall','f1','faithful','query_safe','forbidden_content','count_exact','quality_passed'):
+        for name in ('precision','recall','f1','faithful','entity_supported',
+                     'semantic_support','query_safe','forbidden_content','count_exact',
+                     'quality_passed','diagnostic_passed'):
             measured = [r['score'][name] for r in rows if r['score'].get(name) is not None]
             values[name] = statistics.mean(measured) if measured else None
         if category not in ('safety','adversarial','out_of_scope'):
@@ -111,6 +113,8 @@ def summarize(rounds: list[list[dict]],cases: list[dict]) -> dict:
     rates = [statistics.mean(r['score']['passed'] for r in rows) for rows in rounds]
     quality = [statistics.mean(r['score'].get('quality_passed',r['score']['passed']) for r in rows) for rows in rounds]
     return {'categories':categories,'pass_rate_rounds':rates,'pass_rate_mean':statistics.mean(rates),
+            'metric_semantics':METRIC_SEMANTICS,
+            'semantic_support_status':'not_evaluated',
             'quality_pass_rate_rounds':quality,'quality_pass_rate_mean':statistics.mean(quality),
             'response_status_counts':dict(Counter(r['score'].get('response_status','legacy_unspecified')
                 for rows in rounds for r in rows)),
