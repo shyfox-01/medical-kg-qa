@@ -96,8 +96,12 @@ Linux bind mounts must permit container uid 10001 to write caches and logs.
 .\.venv\Scripts\ruff.exe check .
 .\.venv\Scripts\python.exe -m pytest -m 'not integration'
 $env:MEDKG_INTEGRATION='1'
+# Select a separate authenticated fixture database before this command.
+# The fixture loader refuses any existing non-fixture nodes.
+.\.venv\Scripts\python.exe -m pytest tests/integration/test_synthetic.py tests/integration/test_graph.py::test_read_access_enforced -m integration
+# Stop the fixture server and restore the research database connection first.
 $env:MEDKG_REAL_COUNTS='1'
-.\.venv\Scripts\python.exe -m pytest -m integration
+.\.venv\Scripts\python.exe -m pytest tests/integration/test_graph.py::test_csv_counts_match_database -m integration
 # Use dev while changing rules/prompts:
 .\.venv\Scripts\python.exe -m eval.run --dataset eval/datasets/structured_v2.jsonl --split dev --phase 3 --max-per-category 3
 # Offline readiness check for the new human-authored packet (initially blocked):
@@ -161,6 +165,9 @@ above retain their original scorer; no new held-out score is claimed.
 The subsequent [independent review and repairs](docs/reports/independent-review-2026-10-15.md)
 close evidence-dispatch, quotation, citation-masking and audit-fingerprint gaps.
 Scorer `deterministic-3.7` remains a bounded diagnostic, without new benchmark results.
+The [integration verification](docs/reports/integration-2026-10-15.md) passes 19
+database/interface integration tests. Four live-provider smoke requests pass on a
+single full-group retry; the original vector-request timeout remains disclosed.
 
 Historical v1 results use different cases/scoring and are not a matched v2
 baseline: the offline `deterministic-3.4` rescoring of earlier saved answers gives

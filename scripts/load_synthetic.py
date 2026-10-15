@@ -8,7 +8,8 @@ from medkg.graph.store import GraphStore
 
 
 def load(store, allow_mixed=False):
-    other = store.read('MATCH (n) WHERE NOT n.uid STARTS WITH "synthetic:" RETURN count(n) AS count')[0]['count']
+    other = store.read('MATCH (n) WHERE n.uid IS NULL OR NOT n.uid STARTS WITH "synthetic:" '
+                       'RETURN count(n) AS count')[0]['count']
     if other and not allow_mixed:
         raise RuntimeError('Synthetic-only import requires an empty or fictional-only database')
     fixtures = ROOT/'tests/fixtures'

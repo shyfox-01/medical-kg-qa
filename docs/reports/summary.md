@@ -307,3 +307,20 @@ All 677 non-integration tests, Ruff and nine artifact checks pass; 81 preserved
 files match the initial hashes. There is no new QA benchmark, provider call,
 clinical validation, download or background service. Raw before/after probes and
 reviewer cross-checks are retained locally and indexed in the aggregate report.
+
+## Integration and live-interface verification — 2026-10-15
+
+The [integration report](integration-2026-10-15.md) records 19 passing integration
+tests: 18 in an isolated authenticated fixture database and one read-only comparison
+between the research graph and frozen CSV. Four new tests cover CLI, stdio,
+HTTP/SSE and rejection of unidentified non-fixture nodes. The fixture path now
+requires isolation by default. All 677 non-integration tests, Ruff and nine
+artifact checks pass.
+
+Live CLI hybrid/vector and HTTP/SSE requests complete 3/4 initially, with one
+provider timeout, then 4/4 on one complete-group retry. Eight calls add 27,118
+conservative tokens; the cumulative ledger ends at 10,228,889. These operational
+observations are separate from answer-quality or clinical claims. Research counts
+and 82 preserved files remain unchanged; the final owned-process and port checks
+confirm cleanup. No provider/model change, download, installation, push or merge
+is performed.

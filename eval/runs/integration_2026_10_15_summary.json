@@ -1,0 +1,476 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-15T13:14:58.761613+00:00",
+  "purpose": "Bounded integration verification, not independent QA evaluation",
+  "base_commit": "1feae244e27beab224099bd7fef83ea82d26e53a",
+  "preserved_files": 82,
+  "preserved_files_unchanged": true,
+  "qa_source_unchanged_since_live_smoke": true,
+  "branch": "review-fixes-2026-10-07",
+  "tests": {
+    "isolated-final-tests.xml": {
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 8.882
+    },
+    "real-counts.xml": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 29.17
+    },
+    "unit-after-guard.xml": {
+      "tests": 677,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 11.652
+    },
+    "fixture-guard-before.xml": {
+      "tests": 1,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 4.954
+    }
+  },
+  "artifact_checks": {
+    "frozen_dataset": true,
+    "frozen_dataset_v2": true,
+    "corpus_hash": true,
+    "alias_shape": true,
+    "alias_identities": true,
+    "corpus_shape": true,
+    "corpus_complete": true,
+    "chunk_associations": true,
+    "assertion_evidence": true
+  },
+  "provider_calls": 8,
+  "provider_statuses": {
+    "complete": 7,
+    "failed": 1
+  },
+  "conservative_tokens_added": 27118,
+  "cumulative_tokens": 10228889,
+  "shutdown": {
+    "PortsClosed": [
+      7474,
+      7687,
+      18080
+    ],
+    "OwnedDatabasePidsStopped": [
+      3348,
+      37736,
+      13544,
+      19988,
+      13864,
+      15580
+    ],
+    "CheckedAt": "2026-10-15T13:06:58.4116097Z"
+  },
+  "integration_passed": 19,
+  "nonintegration_passed": 677,
+  "integration_deselected_in_unit_run": 19,
+  "ruff": {
+    "passed": true,
+    "command": ".venv/Scripts/ruff.exe check ."
+  },
+  "fixture_guard_regression": {
+    "before_fix_failed_as_expected": true,
+    "after_fix_passed": true
+  },
+  "live_groups": [
+    {
+      "cases": [
+        {
+          "id": "cli-hybrid-count",
+          "ok": true,
+          "route": "template",
+          "failure_stage": null,
+          "error_type": null,
+          "usage": {
+            "calls": 1,
+            "prompt_tokens": 377,
+            "completion_tokens": 15,
+            "seconds": 3.7262439999976777
+          },
+          "trace_id": "255acfdce2a5339be8dd34f1d8190886"
+        },
+        {
+          "id": "cli-vector-text",
+          "ok": false,
+          "route": "vector",
+          "failure_stage": "generation",
+          "error_type": "APITimeoutError",
+          "usage": {
+            "calls": 1,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "seconds": 62.72816479999892
+          },
+          "trace_id": "aa81c58199181f821afae744a480ef5c"
+        },
+        {
+          "id": "http-hybrid-list",
+          "ok": true,
+          "route": "template",
+          "failure_stage": null,
+          "error_type": null,
+          "usage": {
+            "calls": 1,
+            "prompt_tokens": 2073,
+            "completion_tokens": 186,
+            "seconds": 21.652832700005092
+          },
+          "trace_id": "903e775731596f8f4c8b4ecd49dd9e92"
+        },
+        {
+          "id": "sse-hybrid-count",
+          "ok": true,
+          "route": "template",
+          "failure_stage": null,
+          "error_type": null,
+          "usage": {
+            "calls": 1,
+            "prompt_tokens": 377,
+            "completion_tokens": 15,
+            "seconds": 2.721530899994832
+          },
+          "trace_id": "513da4306e20ca6e30ef20d9d053ac4c"
+        }
+      ],
+      "all_passed": false,
+      "counts_unchanged": true,
+      "ledger_start": 10201771,
+      "ledger_end": 10221850,
+      "conservative_tokens_added": 20079,
+      "http_port_closed": true,
+      "cleanup_initial_assertion_failed": true,
+      "report_recovered_from_saved_responses": true,
+      "clinical_validation": false,
+      "new_benchmark": false
+    },
+    {
+      "cases": [
+        {
+          "id": "cli-hybrid-count",
+          "ok": true,
+          "route": "template",
+          "failure_stage": null,
+          "error_type": null,
+          "response_status": "answered",
+          "usage": {
+            "calls": 1,
+            "prompt_tokens": 377,
+            "completion_tokens": 15,
+            "seconds": 3.3855408000017633
+          },
+          "trace_id": "cc59e242e777b2147a5f45608445b32c",
+          "seconds": 6.811999999998079
+        },
+        {
+          "id": "cli-vector-text",
+          "ok": true,
+          "route": "vector",
+          "failure_stage": null,
+          "error_type": null,
+          "response_status": "answered",
+          "usage": {
+            "calls": 1,
+            "prompt_tokens": 3495,
+            "completion_tokens": 520,
+            "seconds": 23.577392999999574
+          },
+          "trace_id": "6e2e133cd8c3fb110d1247226d9981b3",
+          "seconds": 28.906000000002678
+        },
+        {
+          "id": "http-hybrid-list",
+          "ok": true,
+          "route": "template",
+          "failure_stage": null,
+          "error_type": null,
+          "response_status": "answered",
+          "usage": {
+            "calls": 1,
+            "prompt_tokens": 2073,
+            "completion_tokens": 167,
+            "seconds": 8.088500400001067
+          },
+          "trace_id": "593b983560146500189f3c1c49d5356d",
+          "seconds": 8.18800000000192
+        },
+        {
+          "id": "sse-hybrid-count",
+          "ok": true,
+          "route": "template",
+          "failure_stage": null,
+          "error_type": null,
+          "response_status": "answered",
+          "usage": {
+            "calls": 1,
+            "prompt_tokens": 377,
+            "completion_tokens": 15,
+            "seconds": 3.3203678999998374
+          },
+          "trace_id": "91e26b2b220a84443c525d642c525fdd",
+          "seconds": 3.5309999999954016
+        }
+      ],
+      "all_passed": true,
+      "counts_unchanged": true,
+      "cached_retrieval": {
+        "hybrid": {
+          "rows": 8,
+          "uids": [
+            "medlineplus:2:summary:0",
+            "medlineplus:1507:summary:0",
+            "medlineplus:2:summary:250",
+            "medlineplus:24:summary:0",
+            "medlineplus:1507:summary:500",
+            "medlineplus:1507:summary:250",
+            "medlineplus:2:summary:500",
+            "medlineplus:130:summary:0"
+          ]
+        },
+        "vector": {
+          "rows": 8,
+          "uids": [
+            "medlineplus:2:summary:0",
+            "medlineplus:1507:summary:0",
+            "medlineplus:2:summary:250",
+            "vector-primekg:HPO:12652",
+            "medlineplus:24:summary:0",
+            "medlineplus:1507:summary:500",
+            "medlineplus:1507:summary:250",
+            "medlineplus:2:summary:500"
+          ]
+        }
+      },
+      "ledger_start": 10221850,
+      "ledger_end": 10228889,
+      "conservative_tokens_added": 7039,
+      "task_conservative_tokens_added": 27118,
+      "clinical_validation": false,
+      "new_benchmark": false
+    }
+  ],
+  "live_operational_inputs": [
+    {
+      "id": "cli-hybrid-count",
+      "boundary": "cli",
+      "mode": "hybrid",
+      "question": "How many genes are associated with asthma?"
+    },
+    {
+      "id": "cli-vector-text",
+      "boundary": "cli",
+      "mode": "vector",
+      "question": "What is asthma?"
+    },
+    {
+      "id": "http-hybrid-list",
+      "boundary": "http",
+      "path": "/ask",
+      "question": "Which genes are associated with asthma?"
+    },
+    {
+      "id": "sse-hybrid-count",
+      "boundary": "http",
+      "path": "/ask/stream",
+      "question": "How many genes are associated with asthma?"
+    }
+  ],
+  "research_graph": {
+    "counts": {
+      "nodes": {
+        "Disease": 15774,
+        "Drug": 7957,
+        "Phenotype": 9433,
+        "Gene": 9811,
+        "Document": 1264,
+        "Chunk": 4693
+      },
+      "relations": {
+        "INDICATED_FOR": 9388,
+        "CONTRAINDICATED_FOR": 30677,
+        "OFF_LABEL_FOR": 2568,
+        "INTERACTS_WITH": 1336339,
+        "HAS_SIDE_EFFECT": 64784,
+        "HAS_PHENOTYPE": 150317,
+        "ASSOCIATED_WITH": 80411,
+        "TARGETS": 25653,
+        "SUBTYPE_OF": 20626,
+        "ABOUT": 1003,
+        "MENTIONS": 45636,
+        "HAS_CHUNK": 4693
+      }
+    },
+    "indexes": [
+      {
+        "name": "chunk_embedding",
+        "state": "ONLINE"
+      },
+      {
+        "name": "ft_Chunk",
+        "state": "ONLINE"
+      },
+      {
+        "name": "ft_Disease",
+        "state": "ONLINE"
+      },
+      {
+        "name": "ft_Document",
+        "state": "ONLINE"
+      },
+      {
+        "name": "ft_Drug",
+        "state": "ONLINE"
+      },
+      {
+        "name": "ft_Gene",
+        "state": "ONLINE"
+      },
+      {
+        "name": "ft_Phenotype",
+        "state": "ONLINE"
+      },
+      {
+        "name": "ft_chunk_text",
+        "state": "ONLINE"
+      },
+      {
+        "name": "index_343aff4e",
+        "state": "ONLINE"
+      },
+      {
+        "name": "index_f7700477",
+        "state": "ONLINE"
+      },
+      {
+        "name": "uid_Chunk",
+        "state": "ONLINE"
+      },
+      {
+        "name": "uid_Disease",
+        "state": "ONLINE"
+      },
+      {
+        "name": "uid_Document",
+        "state": "ONLINE"
+      },
+      {
+        "name": "uid_Drug",
+        "state": "ONLINE"
+      },
+      {
+        "name": "uid_Gene",
+        "state": "ONLINE"
+      },
+      {
+        "name": "uid_Phenotype",
+        "state": "ONLINE"
+      }
+    ],
+    "cached_embedding_retrieval": {
+      "hybrid": {
+        "rows": 8,
+        "uids": [
+          "medlineplus:2:summary:0",
+          "medlineplus:1507:summary:0",
+          "medlineplus:2:summary:250",
+          "medlineplus:24:summary:0",
+          "medlineplus:1507:summary:500",
+          "medlineplus:1507:summary:250",
+          "medlineplus:2:summary:500",
+          "medlineplus:130:summary:0"
+        ]
+      },
+      "vector": {
+        "rows": 8,
+        "uids": [
+          "medlineplus:2:summary:0",
+          "medlineplus:1507:summary:0",
+          "medlineplus:2:summary:250",
+          "vector-primekg:HPO:12652",
+          "medlineplus:24:summary:0",
+          "medlineplus:1507:summary:500",
+          "medlineplus:1507:summary:250",
+          "medlineplus:2:summary:500"
+        ]
+      }
+    },
+    "synthetic_nodes": 0
+  },
+  "budget": {
+    "provider_ledger_start": 10201771,
+    "live_smoke_allowance": 100000,
+    "cumulative_cap": 10301771,
+    "prior_authorized_cumulative_cap": 11344304
+  },
+  "controls": {
+    "quarantined_alias_refused_without_model_call": true,
+    "sse_chunks_reconstruct_final_answer": true,
+    "count_answer_matches_context": true,
+    "source_graph_counts_unchanged": true,
+    "fixture_nodes_in_research_graph": 0
+  },
+  "repairs": [
+    "Require isolated fictional database in integration fixture",
+    "Reject unidentified nodes in synthetic import guard",
+    "Bounded owned-process teardown in local Windows test helpers"
+  ],
+  "limitations": [
+    "One original provider timeout remains; a full-group retry passed",
+    "Engineering smoke does not measure semantic accuracy or clinical effectiveness",
+    "Private raw evidence is local and unavailable from a public clone",
+    "Existing Starlette TestClient deprecation and Neo4j optional-match null aggregation notices"
+  ],
+  "clinical_validation": false,
+  "new_benchmark": false,
+  "human_labels_added": 0,
+  "downloads": 0,
+  "installations": 0,
+  "push": false,
+  "merge": false,
+  "private_evidence_sha256": {
+    ".cache/integration-2026-10-15/start.json": "2be37b83807407cfc1ea02fb71ca24ee3a90ff611ad260994758d675e6cb1f33",
+    ".cache/integration-2026-10-15/candidate-manifest.json": "e1fead54689124f261548de7e5224da20d39964f957049b5e0a66a98b4e033c9",
+    ".cache/integration-2026-10-15/completion-checks.json": "63afc8c428d302dd698e2c4f67496d33b13cabb3c37db65ef2b47b0c3b75920d",
+    ".cache/integration-2026-10-15/artifact-checks.json": "8b5ed92774ec400fa26aae6f9b5bfc40c0651f01b2ed2dd8ebffdbc7ab6ed651",
+    ".cache/integration-2026-10-15/final-service-state.json": "eb79bf95889c6250f93c56c71d21a6ff385d9e2afcfbf8d14953f75037fdbfc1",
+    ".cache/integration-2026-10-15/isolated-final-state.json": "f42c45426a1c01a988e5669b2f07ae236f23f89616ccc012358811df18f7ec19",
+    ".cache/integration-2026-10-15/fixture-guard-before.log": "9fc05d144467b6ff1214de7dd78ac5cd54b6bc134494b3fb316402b79afb50f9",
+    ".cache/integration-2026-10-15/fixture-guard-before.xml": "f02c7ceeff3d0c862cac8f377645d155073dffdcf958023b045edc746ce44988",
+    ".cache/integration-2026-10-15/isolated-final-tests.xml": "a92b0f91ad1226e158e82dd983122f9f1dd4e3400abb7b888e70d617029b7c98",
+    ".cache/integration-2026-10-15/isolated-final-tests.log": "984b1e1a2d1eb4962af8483ac014fd9bbc729386844539732226eab25c1a45fc",
+    ".cache/integration-2026-10-15/real-counts.xml": "df3501e6c87e31786fc45004d7fda575676c2085b871b629b4dbb823d60ebc30",
+    ".cache/integration-2026-10-15/unit-after-guard.xml": "5d40849a3be3ef7c2d9e8e9534ef22d8aaa71a0483df14857dbaeddacbb9ee45",
+    ".cache/integration-2026-10-15/http-cleanup-recovered.json": "e0a33d9f7a913e0460af2235c80b2d1e1e3d8f7d55cdaede484be5849f73af2b",
+    ".cache/integration-2026-10-15/isolated-cleanup.json": "788b245edbdcb4aa50a73395d4b019425b719b5b9386203afb91985530173d13",
+    ".cache/integration-2026-10-15/research-cleanup.json": "4051bfdbf389acfd06a79dbcef7ea3128e29ee6cb2458c96fe9a57aebd114369",
+    ".cache/integration-2026-10-15/isolated-final-cleanup.json": "90bc5f7750e963a3e8ee6d9664f1b6c98ac83149defd15da2b92c18db97aefec",
+    ".cache/integration-2026-10-15/live-smoke-plan.json": "3a05318f00aaf034fbc7d4efa04a0bbe28db557b2c273309f3fe1c4255605e3f",
+    ".cache/integration-2026-10-15/live-smoke-summary.json": "31819a4473cf35d4948ee2f4f78231ca80b19dad55eb670aafcaaca510070d64",
+    ".cache/integration-2026-10-15/research-before.json": "32d2e1e29700ffdc446ac6145d564f800f6a3886b62f3e6b583f297a1942bdda",
+    ".cache/integration-2026-10-15/http-controls.json": "cb64a2fc98df1c7c2d758c44177b8d9fd94c7b6816bdfc2804c6ef2162e45a6a",
+    ".cache/integration-2026-10-15/sse-events.json": "35c0fe2382abcdf4db39322a0890f353fc024475d9fac120f9b1dcba0c73ca58",
+    ".cache/integration-2026-10-15/cli-hybrid-count-response.json": "6b7b6f28dc1c8b6106d0bfacf63b28d07f2cf6f98ff45d87febb48248f103d3d",
+    ".cache/integration-2026-10-15/cli-vector-text-response.json": "b460e10110f89430e61d1a102c151ebf6630153c80de9f4ba82906558a03632d",
+    ".cache/integration-2026-10-15/http-hybrid-list-response.json": "05c95d0aedca27a1773f267ed73c125dbfc5f5289d32167939ac5d1dfce6ce98",
+    ".cache/integration-2026-10-15/sse-hybrid-count-response.json": "145d44d3a4ca4424c1540779750ff1158a1246c5071a617f547535388268c74f",
+    ".cache/integration-2026-10-15/live-retry-1/live-smoke-plan.json": "8cfab42dcf693aa416931b1f25c72d6cb38d00dddbb7aaef934f929ac5d6ee20",
+    ".cache/integration-2026-10-15/live-retry-1/live-smoke-summary.json": "3d4a816de19723565524f7c6574a5675c9e438790edca53eb82e1a6075ad3fc0",
+    ".cache/integration-2026-10-15/live-retry-1/research-before.json": "32d2e1e29700ffdc446ac6145d564f800f6a3886b62f3e6b583f297a1942bdda",
+    ".cache/integration-2026-10-15/live-retry-1/http-controls.json": "47a46a2da4c673da8c203b51ff3c56e86e804dfe6a631406adae63629a0325e9",
+    ".cache/integration-2026-10-15/live-retry-1/sse-events.json": "2c42923d11d2644489813f5037ea4ec55f679147d6c4ca5706c13e81a58e16f2",
+    ".cache/integration-2026-10-15/live-retry-1/cli-hybrid-count-response.json": "3e5a67147ab612837d1dbd51369dd5bb91e29e46f9b423bc3773d7a515e9ac6c",
+    ".cache/integration-2026-10-15/live-retry-1/cli-vector-text-response.json": "6618eeb86950f200b0fba4b355f1b136fab008a4f838ffd736c75f6b96f36856",
+    ".cache/integration-2026-10-15/live-retry-1/http-hybrid-list-response.json": "1d1c230ba8f587e46b71dc906cffb8b5a0e0be18e85b825cf5ef9b79e293b694",
+    ".cache/integration-2026-10-15/live-retry-1/sse-hybrid-count-response.json": "d1f969ec95ca7c9e817d19d74b3590c3dd81e0f2c9a58607a43d8793eccfc543",
+    ".cache/integration-2026-10-15/live-retry-1/http-cleanup.json": "a81c00ccb0635a4b376fd560a856c748de0870de78396577c3887ded65b9d857"
+  }
+}

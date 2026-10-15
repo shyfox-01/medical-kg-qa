@@ -1,13 +1,21 @@
+import json
 import os
+import subprocess
+import sys
+import uuid
 
 import pytest
+from fastapi.testclient import TestClient
 
+from eval.client import SystemClient
+from medkg.api.app import create_app
+from medkg.config import ROOT, Settings
 from medkg.graph.guard import CypherRejected
 from medkg.graph.store import GraphStore
 from medkg.llm import FakeLLM
 from medkg.qa.pipeline import Pipeline
 from medkg.retrieval import expand, fulltext, templates
-from scripts.load_synthetic import cleanup, load
+from scripts.load_synthetic import load
 
 pytestmark = pytest.mark.integration
 
@@ -17,13 +25,13 @@ def fictional():
     if not os.getenv('MEDKG_INTEGRATION'):
         pytest.skip('Set MEDKG_INTEGRATION=1')
     store = GraphStore()
-    synthetic_only = bool(os.getenv('MEDKG_SYNTHETIC_ONLY'))
-    load(store,allow_mixed=not synthetic_only)
-    store.read('CALL db.awaitIndexes(60)',timeout=70)
-    yield store
-    if not synthetic_only:
-        cleanup(store)
-    store.close()
+    try:
+        # Integration fixtures must never be mixed into the research graph.
+        load(store)
+        store.read('CALL db.awaitIndexes(60)',timeout=70)
+        yield store
+    finally:
+        store.close()
 
 
 def test_parameterized_count_and_reverse(fictional):
@@ -225,3 +233,73 @@ def test_scoped_assertion_reconciliation_and_conflict_flags(fictional):
             'WHERE r.source="openfda_extracted" DELETE r',{'a':a,'b':b})
         fictional.write('MATCH (:Drug {uid:$a})-[r:INDICATED_FOR]->(:Disease {uid:$b}) '
             'SET r.source="synthetic",r.conflict=false',{'a':a,'b':b})
+
+
+def test_public_cli_returns_a_verified_database_answer(fictional):
+    result = subprocess.run([
+        sys.executable, '-m', 'medkg.cli', 'What is Asterol indicated for?',
+        '--phase', '3', '--fake', '--json',
+    ], cwd=ROOT, capture_output=True, text=True, encoding='utf8', timeout=45)
+    assert result.returncode == 0, result.stderr
+    answer = json.loads(result.stdout)
+    assert answer['failure_stage'] is None and answer['response_status'] == 'answered'
+    assert 'Virell syndrome' in answer['answer']
+    assert answer['queries'] and any(row.get('uid') == 'synthetic:disease-a'
+                                     for row in answer['contexts'])
+
+
+def test_fixture_loader_refuses_unidentified_existing_nodes(fictional):
+    identity = uuid.uuid4().hex
+    fictional.write('CREATE (:IntegrationGuardProbe {probe_id:$id})', {'id': identity})
+    try:
+        with pytest.raises(RuntimeError, match='empty or fictional-only'):
+            load(fictional)
+        assert fictional.read('MATCH (n:IntegrationGuardProbe {probe_id:$id}) '
+                              'RETURN count(n) AS count', {'id': identity}) == [{'count': 1}]
+    finally:
+        fictional.write('MATCH (n:IntegrationGuardProbe {probe_id:$id}) DELETE n', {'id': identity})
+
+
+def test_public_stdio_preserves_conversation_focus_with_database(fictional):
+    client = SystemClient(phase=3, fake=True)
+    try:
+        first = client.ask('Which genes are associated with Virell syndrome?', [])
+        assert first['failure_stage'] is None and 'FICTGENE1' in first['answer']
+        history = [{'question': 'Which genes are associated with Virell syndrome?',
+                    'focus': first['focus'], 'intent': first['intent']}]
+        followup = client.ask('What are its symptoms?', history)
+        assert followup['failure_stage'] is None and 'Glimmer sign' in followup['answer']
+        assert followup['trace_id'] != first['trace_id']
+    finally:
+        client.close()
+
+
+def test_http_and_sse_use_database_evidence_and_consistent_final_answer(fictional):
+    settings = Settings(phase=3, cache=False, llm_api_key='synthetic',
+                        llm_model='synthetic', llm_base_url='https://example.invalid')
+    # A separate driver lets the API own its lifecycle without closing the fixture.
+    pipeline = Pipeline(settings=settings, store=GraphStore(settings), llm=FakeLLM(),
+                        entities=[row for row in fictional.entities()
+                                  if row['uid'].startswith('synthetic:')])
+    question = 'How many genes are associated with Virell syndrome?'
+    with TestClient(create_app(pipeline)) as client:
+        assert client.get('/health').status_code == 200
+        assert client.get('/ready').json()['status'] == 'ready'
+        response = client.post('/ask', json={'question': question})
+        assert response.status_code == 200
+        answer = response.json()
+        assert answer['failure_stage'] is None and 'Count: 1' in answer['answer']
+        assert answer['queries'] and any(row.get('count') == 1 for row in answer['contexts'])
+        streamed = client.post('/ask/stream', json={'question': question})
+        assert streamed.status_code == 200
+        assert streamed.headers['content-type'].startswith('text/event-stream')
+        events = []
+        for block in streamed.text.strip().split('\n\n'):
+            name, data = block.split('\n', 1)
+            events.append((name.removeprefix('event: '), json.loads(data.removeprefix('data: '))))
+        assert events[0][0] == 'status' and events[-1][0] == 'result'
+        final = events[-1][1]
+        assert final['failure_stage'] is None and final['answer'] == answer['answer']
+        chunks = [payload for name, payload in events if name == 'answer']
+        assert ''.join(chunk['text'] for chunk in chunks) == final['answer']
+        assert all(chunk['trace_id'] == final['trace_id'] for chunk in chunks)

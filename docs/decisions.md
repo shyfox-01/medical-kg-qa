@@ -1456,3 +1456,63 @@ needed. Make two explicitly staged local commits on the existing branch; no push
 merge or history change. Alternatives such as rerunning historical test responses,
 calling model judges or rewriting stored source artifacts would not validate these
 specific code repairs and are outside this round.
+
+## D079 — Verify isolated integration and bounded live public interfaces (2026-10-15)
+
+The user explicitly asks to run integration tests, confirm the complete chain and
+repair issues. Reuse the installed Neo4j/JDK and project environment. Run fixture
+writes in a newly authenticated loopback database with task-local writable paths;
+run CSV count comparison and operational smoke against the existing research
+graph with a temporary read-only configuration. Servers run sequentially on the
+same ports. Keep the installation configuration, raw data, frozen questions and
+human queues unchanged. No downloads or dependencies are needed.
+
+Add persistent tests for the public CLI, stdio conversation history and HTTP/SSE
+with a real fixture database and FakeLLM. Separately freeze four operational
+requests through CLI hybrid, CLI vector, HTTP and SSE using the existing provider.
+Use cached CPU embeddings offline, 60-second provider timeout, two-second cooldown,
+zero SDK retries, cache off and a 100,000-token incremental cap. This sits below the
+prior authorized cumulative cap of 11,344,304; starting balance is 10,201,771.
+Alternative: equate FakeLLM tests or /ready configuration with provider availability;
+rejected because neither performs a real generation request.
+
+The first live group completes three of four requests; vector generation times
+out. Preserve all responses and conservative failure charges. Register exactly one
+complete-group retry with the same inputs/settings under the same overall cap.
+All four retry requests complete. Across both groups there are eight provider
+calls, one timeout and 27,118 conservative tokens added; cumulative accounting is
+10,228,889. These are operational smoke observations, not independent QA scores,
+semantic accuracy, clinical validation or an availability guarantee. No historical
+test output is reopened or selectively repaired.
+
+## D080 — Make fixture isolation mandatory and verify owned-service cleanup (2026-10-15)
+
+Reviewing the integration path exposes an unsafe default: the fixture could opt
+into mixed imports unless MEDKG_SYNTHETIC_ONLY was set. Tests now always require an
+empty or synthetic-only database and close their driver even when setup fails.
+The importer also treats missing UID properties as non-fixture nodes; Cypher null
+semantics previously excluded them from the guard count. Reproduce this with a
+unique temporary sentinel in the isolated database: the new test first fails,
+then passes after the guard repair. Remove only that owned sentinel in finally.
+Retain the isolated database and update README to use two separate test phases.
+The standalone importer's explicit --allow-mixed option is unchanged; tests never
+use it. Alternative: rely on an optional environment flag or cleanup after mixed
+imports; rejected because setup should prevent research-graph contamination.
+
+The local test harness also needs Windows-specific cleanup corrections. Compare
+launcher timestamps at the precision retained by PowerShell JSON, still checking
+PID, command line and ancestry. Stop the live HTTP launcher and its owned process
+tree, then wait for port closure; an immediate check after launcher exit could
+precede child/socket teardown. The first run's cleanup assertion and recovered
+results remain in the private evidence. These are task-harness repairs, not changes
+to the QA service's response behavior.
+
+Final results: 18 isolated database/interface tests plus one read-only real-CSV
+comparison pass, as do all 677 non-integration tests, Ruff and nine artifact checks.
+The source count comparison passes before the fixture-only guard change; QA source
+hashes remain identical throughout both live groups. Both vector retrieval paths
+return eight cached hits, all 16 research indexes are online, count answers match
+retrieved rows, and quarantine requests use zero model calls. Research graph counts
+stay unchanged, with no synthetic nodes. Preserve 82 prior files, all failed and
+successful observations and usage accounting. Verify owned database PIDs exited
+and ports 7474, 7687 and 18080 closed. No push, merge or service autostart occurs.
