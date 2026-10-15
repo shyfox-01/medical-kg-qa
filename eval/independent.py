@@ -49,8 +49,12 @@ def question_hash(question: str) -> str:
     return hashlib.sha256(' '.join(re.findall(r'\w+', normalized)).encode()).hexdigest()
 
 
+def _parse_rows(content: bytes) -> list[dict]:
+    return [json.loads(line) for line in content.decode('utf8').splitlines() if line]
+
+
 def read_rows(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text(encoding='utf8').splitlines() if line]
+    return _parse_rows(path.read_bytes())
 
 
 def slots() -> list[dict]:
@@ -142,6 +146,22 @@ def validate_rows(rows: list[dict], known_uids: set[str], chunk_uids: set[str],
                   documents: dict[str, dict] | None = None,
                   graph_path: Path | None = None) -> list[str]:
     errors, seen = [], set()
+    if not isinstance(rows, list):
+        return ['Authoring queue must be a list of row objects']
+    seen_ids = set()
+    for index, row in enumerate(rows, start=1):
+        if not isinstance(row, dict):
+            errors.append(f'Authoring row {index} must be an object')
+            continue
+        identity = row.get('id')
+        if not nonempty(identity):
+            errors.append(f'Authoring row {index} requires a nonempty string id')
+            continue
+        if identity in seen_ids:
+            errors.append(f'Authoring queue contains duplicate slot IDs: {identity}')
+        seen_ids.add(identity)
+    if errors:
+        return errors
     expected_slots = {row['id']: row for row in slots()}
     ids = [row.get('id') for row in rows]
     if Counter(ids) != Counter(expected_slots.keys()):
@@ -228,13 +248,12 @@ def check(packet: Path, queue: Path, root: Path = ROOT) -> dict:
     current = snapshot(root)
     frozen = manifest['frozen_files']
     compared = set(current) | set(frozen) if manifest.get('schema') == 2 else set(frozen)
-    drift = sorted(name for name in compared
-                   if current.get(name) != manifest['frozen_files'].get(name))
     entities = json.loads((root / 'data/processed/entities.json').read_text(encoding='utf8'))
     chunks = read_rows(root / 'data/processed/chunks.jsonl')
     documents = read_rows(root / 'data/processed/documents.jsonl')
     queue = inside(queue, root)
-    errors = validate_rows(read_rows(queue), {row['uid'] for row in entities},
+    queue_bytes = queue.read_bytes()
+    errors = validate_rows(_parse_rows(queue_bytes), {row['uid'] for row in entities},
                            {row['uid'] for row in chunks}, set(manifest['prior_question_hashes']),
                            chunks={row['uid']: row for row in chunks},
                            documents={row['uid']: row for row in documents},
@@ -245,11 +264,19 @@ def check(packet: Path, queue: Path, root: Path = ROOT) -> dict:
     environment_drift = manifest.get('environment') != environment_snapshot()
     if environment_drift and manifest.get('schema') == 2:
         errors.append('Frozen interpreter/package environment has changed or is missing')
+    if queue.read_bytes() != queue_bytes:
+        errors.append('Authoring queue changed during validation; re-run the check')
+    final_snapshot = snapshot(root)
+    if manifest.get('schema') == 2:
+        compared |= set(final_snapshot)
+    drift = sorted(name for name in compared
+                   if current.get(name) != frozen.get(name)
+                   or final_snapshot.get(name) != frozen.get(name))
     return {'ready_for_preregistration': not errors and not drift,
             'ready_for_model_run': False, 'errors': errors, 'snapshot_drift': drift,
             'environment_drift': environment_drift, 'claim_entailment': 'unverified',
             'clinical_validation': False,
-            'queue_sha256': digest(queue), 'llm_calls': 0,
+            'queue_sha256': hashlib.sha256(queue_bytes).hexdigest(), 'llm_calls': 0,
             'note': 'Attestations do not prove authorship or medical correctness. '
                     'A separate frozen scoring, blinding and budget plan is required before calls.'}
 

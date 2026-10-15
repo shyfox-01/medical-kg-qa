@@ -19,6 +19,22 @@ from eval.score import METRIC_SEMANTICS, VERSION, Vocabulary, query_safe, score
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def code_fingerprint(source: Path, root: Path = ROOT) -> str:
+    """Bind the selected QA tree and the current evaluator's data-policy code."""
+    paths = {
+        f'system/{path.relative_to(source).as_posix()}': path
+        for module in ('medkg', 'medkg_data')
+        for path in source.glob(f'{module}/**/*.py')
+    }
+    paths.update({f'evaluator/{name}': root / name
+                  for name in ('eval/client.py', 'eval/score.py', 'eval/run.py')})
+    paths.update({f'evaluator/{path.relative_to(root).as_posix()}': path
+                  for path in (root / 'src/medkg_data').rglob('*.py')})
+    fingerprints = {name: hashlib.sha256(path.read_bytes()).hexdigest()
+                    for name, path in paths.items()}
+    return hashlib.sha256(json.dumps(fingerprints, sort_keys=True).encode('utf8')).hexdigest()
+
+
 def canonical_results(rows: list[dict]) -> set[str]:
     values = []
     for row in rows:
@@ -200,9 +216,7 @@ def main() -> None:
         'dataset_sha256':hashlib.sha256(Path(args.dataset).read_bytes()).hexdigest(),
         'vocabulary_sha256':hashlib.sha256(Path(args.vocabulary).read_bytes()).hexdigest(),
         'system_source':str(source),
-        'code_sha256':hashlib.sha256(b''.join(p.read_bytes() for p in sorted([
-            *source.glob('medkg/**/*.py'),*source.glob('medkg_data/**/*.py'),
-            ROOT/'eval/client.py',ROOT/'eval/score.py',ROOT/'eval/run.py']))).hexdigest()}
+        'code_sha256':code_fingerprint(source)}
     if checkpoint.exists():
         if not args.resume or json.loads(checkpoint.read_text(encoding='utf8'))!=fingerprint:
             parser.error('Existing checkpoint requires --resume and identical code/data/configuration')

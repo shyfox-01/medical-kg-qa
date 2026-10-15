@@ -114,6 +114,20 @@ def test_duplicates_and_missing_slots_are_rejected(evidence_root):
     assert any('slot IDs' in error for error in errors(rows, evidence_root))
 
 
+@pytest.mark.parametrize('malformed', [None, 'not a row', 3, [], {'id': []}, {'id': 3},
+                                     {'id': None}, {'id': ''}, {'id': ' '}])
+def test_malformed_authoring_rows_return_errors(malformed, evidence_root):
+    rows = completed()
+    rows[0] = malformed
+    assert errors(rows, evidence_root)
+
+
+@pytest.mark.parametrize('malformed', [None, {}, 'not a queue'])
+def test_non_list_authoring_queue_returns_an_error(malformed):
+    assert validate_rows(malformed, set(), set(), set()) == [
+        'Authoring queue must be a list of row objects']
+
+
 @pytest.mark.parametrize(('category', 'field', 'value'), [
     ('aggregation', 'expected_count', True), ('aggregation', 'expected_count', -1),
     ('graph_text', 'expected_graph', []), ('text_only', 'evidence_ids', ['absent']),
@@ -160,6 +174,65 @@ def test_packet_checks_snapshot_and_never_authorizes_calls(tmp_path):
     result = check(packet, queue, root)
     assert not result['ready_for_preregistration']
     assert result['snapshot_drift'] == ['eval/score.py']
+
+
+def test_malformed_jsonl_row_is_not_ready_without_crashing(evidence_root):
+    root = evidence_root
+    packet, queue = root / 'packet', root / 'human/queue.jsonl'
+    prepare(packet, queue, root)
+    rows = completed()
+    rows[0] = None
+    queue.write_text('\n'.join(json.dumps(row) for row in rows)+'\n')
+    result = check(packet, queue, root)
+    assert not result['ready_for_preregistration']
+    assert 'Authoring row 1 must be an object' in result['errors']
+
+
+def test_queue_hash_identifies_validated_bytes_and_concurrent_edit_blocks_readiness(
+        evidence_root, monkeypatch):
+    root = evidence_root
+    packet, queue = root / 'packet', root / 'human/queue.jsonl'
+    prepare(packet, queue, root)
+    queue.write_text('\n'.join(json.dumps(row) for row in completed())+'\n')
+    validated_bytes = queue.read_bytes()
+
+    def edit_during_validation(*args, **kwargs):
+        result = validate_rows(*args, **kwargs)
+        assert result == []
+        queue.write_text('\n'.join(json.dumps(row) for row in slots())+'\n')
+        return result
+
+    monkeypatch.setattr('eval.independent.validate_rows', edit_during_validation)
+    result = check(packet, queue, root)
+    assert not result['ready_for_preregistration']
+    assert result['queue_sha256'] == hashlib.sha256(validated_bytes).hexdigest()
+    assert result['queue_sha256'] != hashlib.sha256(queue.read_bytes()).hexdigest()
+    assert any('queue changed during validation' in error for error in result['errors'])
+
+
+@pytest.mark.parametrize('initial_drift', [False, True])
+def test_source_edit_during_validation_checks_both_snapshots(
+        evidence_root, monkeypatch, initial_drift):
+    root = evidence_root
+    packet, queue = root / 'packet', root / 'human/queue.jsonl'
+    prepare(packet, queue, root)
+    queue.write_text('\n'.join(json.dumps(row) for row in completed())+'\n')
+    graph = root / 'data/raw/kg.csv'
+    original = graph.read_bytes()
+    changed = original+b'unapproved_relation,fiction,unused,fiction,unused\n'
+    if initial_drift:
+        graph.write_bytes(changed)
+
+    def edit_during_validation(*args, **kwargs):
+        result = validate_rows(*args, **kwargs)
+        assert result == []
+        graph.write_bytes(original if initial_drift else changed)
+        return result
+
+    monkeypatch.setattr('eval.independent.validate_rows', edit_during_validation)
+    result = check(packet, queue, root)
+    assert not result['ready_for_preregistration']
+    assert result['snapshot_drift'] == ['data/raw/kg.csv']
 
 
 def test_existing_files_and_outside_paths_are_preserved(tmp_path):

@@ -16,6 +16,12 @@ GRAPH_RELATIONS = frozenset({
     'indication', 'contraindication', 'off-label use', 'drug_drug', 'drug_effect',
     'disease_phenotype_positive', 'disease_protein', 'drug_protein', 'disease_disease',
 })
+CATEGORY_KINDS = {
+    'single_hop': 'list', 'reverse': 'list', 'aggregation': 'count',
+    'multi_hop': 'list', 'lexical_variation': 'list', 'text_only': 'text',
+    'graph_text': 'text', 'out_of_scope': 'refusal', 'safety': 'safety',
+    'adversarial': 'refusal',
+}
 
 
 def nonempty(value: object) -> bool:
@@ -177,7 +183,12 @@ def _derive_many(selections: list[dict], graph_path: Path) -> list[list[str]]:
 
 def validate_evidence_rows(rows: list[dict], chunks: dict[str, dict],
                            documents: dict[str, dict], graph_path: Path | None = None) -> dict:
-    """Reusable AI/human evidence lane, with no authorship or review attestations."""
+    """Reusable AI/human evidence lane, with no authorship or review attestations.
+
+    A recognized benchmark category requires its declared kind. Generic kind-only
+    rows remain supported; safety/refusal rows have no text or graph evidence to
+    verify and are reported with zero checked evidence rows.
+    """
     errors, graph_rows, selections, seen = [], [], [], set()
     verified_text_rows = verified_graph_rows = checked_text_rows = 0
     if not isinstance(rows, list) or not rows:
@@ -194,6 +205,11 @@ def validate_evidence_rows(rows: list[dict], chunks: dict[str, dict],
         prefix = f'{row.get("id", "<missing id>")}: '
         if row.get('kind') not in ('text', 'list', 'count', 'safety', 'refusal'):
             errors.append(prefix+'kind must be text, list, count, safety or refusal')
+            continue
+        category = row.get('category')
+        required_kind = CATEGORY_KINDS.get(category) if isinstance(category, str) else None
+        if required_kind is not None and row['kind'] != required_kind:
+            errors.append(prefix+f'{category} category requires kind {required_kind}')
             continue
         if row.get('kind') == 'text' or row.get('category') in ('text_only', 'graph_text'):
             checked_text_rows += 1

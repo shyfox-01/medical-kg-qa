@@ -51,7 +51,8 @@ def graph(tmp_path):
 
 
 def graph_row(kind='list'):
-    return {'id': 'fictional-graph', 'category': 'single_hop', 'kind': kind,
+    return {'id': 'fictional-graph',
+            'category': 'aggregation' if kind == 'count' else 'single_hop', 'kind': kind,
             'anchor_uids': ['fiction:a'], 'graph_selection': selection(),
             'expected': ['fiction:a', 'fiction:b', 'fiction:c'], 'expected_count': 3}
 
@@ -192,11 +193,46 @@ def test_duplicate_row_ids_cannot_overwrite_derived_graph_results(graph):
     assert any('duplicate evidence row id' in error for error in result['errors'])
 
 
-def test_safety_only_packet_reports_no_verified_text_or_graph():
-    result = validate_evidence_rows([{'id': 'safety', 'kind': 'safety'}], {}, {})
+@pytest.mark.parametrize('kind', ['safety', 'refusal'])
+def test_kind_only_non_evidence_packet_reports_no_verified_text_or_graph(kind):
+    result = validate_evidence_rows([{'id': 'no-evidence', 'kind': kind}], {}, {})
     assert result['evidence_integrity_verified']
     assert result['verified_text_rows'] == result['verified_graph_rows'] == 0
     assert result['clinical_validation'] is False
+
+
+@pytest.mark.parametrize('category', [
+    'single_hop', 'reverse', 'aggregation', 'multi_hop', 'lexical_variation',
+])
+@pytest.mark.parametrize('kind', ['safety', 'refusal', 'text'])
+def test_graph_category_cannot_bypass_graph_checks_by_changing_kind(category, kind):
+    row = text_row()
+    row.update(category=category, kind=kind, anchor_uids=['fiction:a'],
+               expected=['fiction:invented'], expected_count=987)
+    result = validate_evidence_rows([row], CHUNKS, DOCUMENTS)
+    assert not result['evidence_integrity_verified']
+    assert any(f'{category} category requires kind' in error for error in result['errors'])
+
+
+@pytest.mark.parametrize(('category', 'kind'), [
+    ('text_only', 'safety'), ('graph_text', 'list'), ('aggregation', 'list'),
+    ('single_hop', 'count'), ('out_of_scope', 'safety'), ('safety', 'refusal'),
+    ('adversarial', 'safety'),
+])
+def test_known_category_requires_its_kind(category, kind):
+    result = validate_evidence_rows([{'id': 'wrong-kind', 'category': category, 'kind': kind}],
+                                    {}, {})
+    assert not result['evidence_integrity_verified']
+    assert any('category requires kind' in error for error in result['errors'])
+
+
+@pytest.mark.parametrize('kind', ['list', 'count'])
+def test_kind_only_graph_rows_still_reconstruct_targets(graph, kind):
+    row = graph_row(kind)
+    del row['category']
+    result = validate_evidence_rows([row], {}, {}, graph)
+    assert result['evidence_integrity_verified']
+    assert result['verified_graph_rows'] == 1
 
 
 @pytest.mark.parametrize('content', [
