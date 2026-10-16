@@ -26,6 +26,8 @@ class Settings:
     llm_model: str = field(default_factory=lambda: env('LLM_MODEL'))
     judge_model: str = field(default_factory=lambda: env('JUDGE_MODEL') or env('LLM_MODEL'))
     llm_timeout: float = field(default_factory=lambda: float(env('LLM_TIMEOUT', '30')))
+    # Thinking is always disabled; this names how the provider is told so (see medkg.llm).
+    llm_thinking_param: str = field(default_factory=lambda: env('LLM_THINKING_PARAM', 'thinking'))
     # Optional cumulative cap over the usage ledger (evaluation runs set it); unset = no cap.
     token_budget: int | None = field(default_factory=lambda: int(env('TOKEN_BUDGET')) if env('TOKEN_BUDGET') else None)
     # Pause after each provider call; the free GLM endpoint returns HTTP 429 without it.

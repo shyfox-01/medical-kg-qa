@@ -14,6 +14,10 @@ from medkg.config import ROOT, Settings
 from medkg.tracing import span
 
 MAX_PROVIDER_BACKOFF = 60.0
+# Request bodies that disable thinking. A local qwen3.5 with thinking left on spends
+# the whole completion budget reasoning and returns empty content.
+THINKING_OFF = {'thinking': {'thinking': {'type': 'disabled'}},  # GLM
+                'reasoning_effort': {'reasoning_effort': 'none'}}  # OpenAI-style, Ollama
 
 
 def provider_backoff(exc: Exception, failures: int) -> float:
@@ -111,6 +115,8 @@ class LLMClient:
     def __init__(self, settings: Settings | None = None, model: str | None = None):
         self.settings = settings or Settings()
         self.settings.require(llm=True)
+        if self.settings.llm_thinking_param not in THINKING_OFF:
+            raise ValueError('LLM_THINKING_PARAM must be one of: '+', '.join(THINKING_OFF))
         self.model = model or self.settings.llm_model
         self.client = OpenAI(api_key=self.settings.llm_api_key, base_url=self.settings.llm_base_url,
                              timeout=self.settings.llm_timeout, max_retries=0)
@@ -178,7 +184,7 @@ class LLMClient:
                     time.sleep(wait)
                 try:
                     response = self.client.chat.completions.create(**kwargs,
-                        extra_body={'thinking': {'type': 'disabled'}})
+                        extra_body=THINKING_OFF[self.settings.llm_thinking_param])
                 except Exception as exc:
                     failures = min(pacing['failures']+1,4)
                     delay = provider_backoff(exc,failures)

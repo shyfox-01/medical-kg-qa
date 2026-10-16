@@ -9,6 +9,7 @@ import statistics
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 from neo4j import READ_ACCESS, GraphDatabase
@@ -33,6 +34,17 @@ def code_fingerprint(source: Path, root: Path = ROOT) -> str:
     fingerprints = {name: hashlib.sha256(path.read_bytes()).hexdigest()
                     for name, path in paths.items()}
     return hashlib.sha256(json.dumps(fingerprints, sort_keys=True).encode('utf8')).hexdigest()
+
+
+def llm_identity(fake: bool) -> dict | None:
+    """Model and endpoint host of the system under test (never the key), so summaries
+    say which model they measured and a checkpoint cannot resume on another one."""
+    if fake:
+        return None
+    url = urlsplit(os.getenv('LLM_BASE_URL','').strip())
+    host = f'{url.hostname}:{url.port}' if url.port else url.hostname
+    return {'model':os.getenv('LLM_MODEL','').strip(),'endpoint_host':host,
+            'thinking_param':os.getenv('LLM_THINKING_PARAM','thinking').strip()}
 
 
 def canonical_results(rows: list[dict]) -> set[str]:
@@ -188,6 +200,8 @@ def main() -> None:
         parser.error('Rounds and category cap must be positive')
     if args.fail_on_redline_regression and not args.baseline:
         parser.error('Redline regression gate requires --baseline')
+    load_dotenv(ROOT/'.env')
+    load_dotenv(ROOT.parent/'.env')
     os.environ['CACHE'] = 'false'
     os.environ['MEDKG_RUN_ID'] = Path(args.output).stem
     rows = [json.loads(line) for line in Path(args.dataset).read_text(encoding='utf8').splitlines()]
@@ -215,7 +229,7 @@ def main() -> None:
         'rounds':args.rounds,'case_ids':[c['id'] for c in cases],
         'dataset_sha256':hashlib.sha256(Path(args.dataset).read_bytes()).hexdigest(),
         'vocabulary_sha256':hashlib.sha256(Path(args.vocabulary).read_bytes()).hexdigest(),
-        'system_source':str(source),
+        'system_source':str(source),'llm':llm_identity(args.fake),
         'code_sha256':code_fingerprint(source)}
     if checkpoint.exists():
         if not args.resume or json.loads(checkpoint.read_text(encoding='utf8'))!=fingerprint:
@@ -251,6 +265,7 @@ def main() -> None:
                    code_sha256=fingerprint['code_sha256'],
                    vocabulary_sha256=hashlib.sha256(Path(args.vocabulary).read_bytes()).hexdigest(),
                    system='FakeLLM synthetic CI' if args.fake else args.mode,phase=args.phase,
+                   llm=fingerprint['llm'],
                    system_source=str(source.relative_to(ROOT)) if source.is_relative_to(ROOT) else str(source),
                    split=args.split,rounds=args.rounds,dataset=args.dataset,
                    total_available=sum(r.get('split')==args.split for r in rows),

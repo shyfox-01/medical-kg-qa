@@ -1,0 +1,12 @@
+# Local LLM for medical-kg-qa: qwen3.5:9b with
+# - a context window for the longest planner/answer prompts (~8.3k tokens measured)
+#   plus the 1,400-token completion cap; Ollama's default 4,096 silently truncates
+#   longer prompts. 12,288 keeps ~86% of layers on an 8 GB GPU (16,384 kept 84%);
+# - no presence penalty. The upstream default (1.5) penalises every token already
+#   used, which works against JSON plans and entity lists. The client already sends
+#   temperature 0, matching the cloud runs' greedy, penalty-free decoding.
+#   ollama pull qwen3.5:9b
+#   ollama create medkg-qwen3.5-9b -f ollama/Modelfile
+FROM qwen3.5:9b
+PARAMETER num_ctx 12288
+PARAMETER presence_penalty 0
