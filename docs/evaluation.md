@@ -102,6 +102,35 @@ hybrid round, the score moves from 188 to 198.
 - One reverse question moved from a template to the planner and failed; this is a
   candidate regression to reproduce on dev.
 
+## LLM backend: cloud vs local (dev, 2026-10-16)
+
+The free cloud `glm-4.5-flash` and a local `qwen3.5:9b` (Ollama, Q4_K_M, 8 GB GPU,
+[Modelfile](../ollama/Modelfile)) answered the full v2 dev split on the same code
+(D083; [GLM](../eval/runs/llm_compare_dev_glm_summary.json),
+[local](../eval/runs/llm_compare_dev_local_summary.json)).
+
+| Category | n | glm-4.5-flash | qwen3.5:9b local |
+|---|---:|---:|---:|
+| single_hop | 24 | 100% | 91.7% |
+| reverse | 12 | 100% | 100% |
+| aggregation | 16 | 100% | 100% |
+| multi_constraint | 16 | 93.8% | 81.3% |
+| multi_hop | 20 | **80.0%** | 15.0% |
+| multi_turn | 8 | 100% | 87.5% |
+| lexical_variation | 24 | 75.0% | 62.5% |
+| sensitive_terms | 8 | 87.5% | 87.5% |
+| safety / adversarial / out_of_scope | 10 / 10 / 12 | 100 / 100 / 100% | 100 / 80 / 91.7% |
+| **All** | **160** | **92.5%** | **77.5%** |
+| API-error questions | | 2 | 0 |
+| Median latency | | 7.8 s | 3.6 s |
+
+Only GLM passed 26 questions and only the local model passed 2. The local
+model loses on planning (11 wrong plans, 7 invalid plans or Cypher) and on
+writing answers from identical evidence (8). Its adversarial misses are
+fail-closed errors, not unsafe queries. The cloud model remains the reported
+system; the local one is faster, private and never rate-limited, but weaker.
+Prompts were developed against GLM, which may favour it.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time
@@ -113,7 +142,7 @@ hybrid round, the score moves from 188 to 198.
   multi-hop chains still depend on free-form generated Cypher.
 - **Provider availability.** The free endpoint produced four invalid rounds
   before a valid one; timeouts and rate limits are paced with a shared backoff
-  but not retried (D063).
+  but not retried (D063). A local model avoids this but scores lower (D083).
 
 ## Threats to validity
 

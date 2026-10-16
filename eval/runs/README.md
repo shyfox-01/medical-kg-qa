@@ -12,6 +12,8 @@ The ones that matter now:
 | `v2_test_hybrid_final_summary.json` | Final v2 test round of the current code (85.0%) |
 | `v2_test_*_retry*_rescored_v37_summary.json` | The two first-round runs rescored offline by the final evaluator (unchanged) |
 | `next_round_summary.json` | Complete 160-question v2 dev run (87.5%) |
+| `llm_compare_dev_glm_summary.json` | Full v2 dev, current code, cloud glm-4.5-flash (92.5%) |
+| `llm_compare_dev_local_summary.json` | Full v2 dev, same code, local qwen3.5:9b via Ollama (77.5%) |
 | `usage_log.jsonl` | Token ledger for every provider call (local only) |
 
 Rounds that failed the API-error rule are kept locally under their original names

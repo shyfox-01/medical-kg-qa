@@ -88,7 +88,8 @@ retrieves from the same text plus one paragraph per entity:
 | Safety and prompt-injection controls (30) | 100% | 96.7% |
 
 Both rounds are scored by the same evaluator (`deterministic-3.7`). Between them,
-all changes were developed on the dev split only.
+all changes were developed on the dev split only. The LLM is the free cloud
+`glm-4.5-flash` at temperature 0 with thinking off.
 
 The gap is largest where structure matters: exact counts, intersections and
 multi-hop chains such as *"Which drugs used for major depressive disorder
@@ -133,6 +134,29 @@ curl -X POST localhost:8000/ask -H "content-type: application/json" \
 
 `POST /ask/stream` streams the same answer as server-sent events. `GET /ready`
 checks the database and LLM configuration.
+
+### Local LLM (optional)
+
+Any OpenAI-compatible endpoint works. To run without a cloud API, use
+[Ollama](https://ollama.com) with the provided Modelfile (12k context, no
+presence penalty) and set these in `.env`:
+
+```bash
+ollama pull qwen3.5:9b
+ollama create medkg-qwen3.5-9b -f ollama/Modelfile
+```
+
+```text
+LLM_BASE_URL=http://127.0.0.1:11434/v1
+LLM_API_KEY=ollama
+LLM_MODEL=medkg-qwen3.5-9b
+LLM_THINKING_PARAM=reasoning_effort
+LLM_COOLDOWN_S=0
+```
+
+On the v2 dev split it is about twice as fast as the cloud model and never
+rate-limited, but scores lower: 77.5% vs 92.5%, mostly on multi-hop planning
+([comparison](docs/evaluation.md#llm-backend-cloud-vs-local-dev-2026-10-16)).
 
 ## Evaluate
 
@@ -179,7 +203,8 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
   true. Answers have not been reviewed by people or clinicians.
 - Gold comes from PrimeKG, so it inherits that source's gaps and errors.
 - Free-form generated Cypher still fails on some complex questions, and the free
-  LLM endpoint used here times out and rate-limits under load.
+  LLM endpoint used here times out and rate-limits under load. A local 9B model
+  avoids that but plans multi-hop questions much worse.
 
 ## Documentation
 

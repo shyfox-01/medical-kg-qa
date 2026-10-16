@@ -26,6 +26,7 @@ system and its evaluation today.
 | Benchmark | Vector control paragraphs include catalog synonyms | D051 |
 | Measurement | API-error rule: rerun whole rounds, never single questions | D054, D058 |
 | Scoring | Entity support is reported separately from (unevaluated) semantic support | D073 |
+| LLM | Keep the cloud model as default; a local Ollama model is supported but scores lower on dev | D083 |
 
 ## D001 — Environment and scope
 
@@ -1579,3 +1580,47 @@ Verified on dev only. Offline, routing changes for exactly the 11 dev intersecti
 questions and no other question. Live, the 16 dev multi-constraint questions go
 from 11/16 (previous full dev run) to 16/16; the four former syntax errors pass.
 The test split is not rerun for this change.
+
+## D083 — Local LLM backend, compared on dev; cloud model stays default (2026-10-16)
+
+Question: would the local `qwen3.5:9b` (Ollama, RTX 5060 Laptop 8 GB) be a better
+LLM than the free cloud `glm-4.5-flash`? It would remove rate limits, timeouts and
+the cooldown, keep questions on the machine and pin the weights by digest.
+
+Making it runnable needed three changes. `LLM_THINKING_PARAM` selects how thinking
+is disabled (`thinking` for GLM, unchanged default; `reasoning_effort` for
+OpenAI-style providers and Ollama); with thinking on, qwen3.5 spent the whole
+1,400-token budget reasoning and returned empty content. `ollama/Modelfile` builds
+`medkg-qwen3.5-9b` with a 12,288-token context (Ollama's default 4,096 would
+silently truncate the 7% of logged prompts above it; maximum 8,295) and presence
+penalty 0 (upstream default 1.5, which penalises every repeated token; the cloud
+runs use greedy, penalty-free decoding). Run summaries and checkpoints now record
+model, endpoint host and thinking parameter, never the key.
+
+Both models then ran the full v2 dev split (160 questions) on the same commit and
+code hash, phase 3, one round each:
+
+| | glm-4.5-flash | medkg-qwen3.5-9b (Q4_K_M) |
+|---|---:|---:|
+| Passed | **148/160 (92.5%)** | 124/160 (77.5%) |
+| API-error questions | 2 (timeouts) | 0 |
+| Median / p90 latency | 7.8 s / 27.0 s | **3.6 s / 11.1 s** |
+| Wall time | 33.7 min | **12.6 min** |
+
+Discordant pairs: 26 questions only GLM passed, 2 only the local model passed (one
+of them a GLM timeout). The local model's losses are in planning (11 different
+plans, mostly empty results on multi-hop chains; multi-hop 3/20 versus 16/20), 7
+invalid plans or Cypher (fail-closed errors, including 3 out-of-scope/injection
+questions that should have been refused politely; no unsafe query ran), and 8
+cases with identical retrieved evidence where it wrote a wrong answer (for example
+stating that brand name Tyzavan was absent instead of answering for vancomycin).
+Templates, counts and safety were unaffected (aggregation, reverse and safety
+100% for both).
+
+Decision: keep `glm-4.5-flash` as the default and the reported model; the local
+backend is documented as a supported, private, faster but weaker alternative. The
+test split is not used. Caveat: prompts were developed against GLM, so the gap
+may partly be prompt fit; the 27B model (17 GB) does not fit the GPU. Options if
+a local model is needed later: thinking on for the planner only, prompt
+adaptation on dev, or fine-tuning the planner on dev-style plans, each measured
+on dev first.
