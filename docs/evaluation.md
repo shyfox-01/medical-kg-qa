@@ -97,7 +97,8 @@ hybrid round, the score moves from 188 to 198.
   cannot separate a code effect from model variance.
 - **Persistent Cypher errors:** all 7 syntax errors are "drugs indicated for both
   A and B" intersections (6 of them failed the same way in the first round). A
-  deterministic intersection template is the obvious next fix, to be built on dev.
+  deterministic intersection template was added afterwards (D082): on dev,
+  multi-constraint questions go from 11/16 to 16/16. It has not been run on test.
 - One reverse question moved from a template to the planner and failed; this is a
   candidate regression to reproduce on dev.
 
@@ -108,8 +109,8 @@ hybrid round, the score moves from 188 to 198.
   MedlinePlus sources (D049, D060). Typo matching covers one edit in long drug
   names (D065).
 - **Generated Cypher and plans.** Invalid plans fell from 10 to 0 after boolean
-  normalisation (D062), but free-form Cypher still breaks on intersection
-  questions (7 syntax errors in the final round).
+  normalisation (D062). Intersections now use a template (D082); exclusions and
+  multi-hop chains still depend on free-form generated Cypher.
 - **Provider availability.** The free endpoint produced four invalid rounds
   before a valid one; timeouts and rate limits are paced with a shared backoff
   but not retried (D063).

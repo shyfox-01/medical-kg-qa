@@ -5,6 +5,7 @@ from medkg.qa.linker import Candidate, label_choices, normalize
 from medkg.retrieval.templates import SPECS
 
 DRUG_WORDS = r'\b(?:drugs?|medications?|medicines?)\b'
+SHARED = r'\b(?:both|in common|share|shared|common)\b'
 TARGET_WORDS = (('Drug', r'drugs?|medications?|medicines?'),
                 ('Disease', r'diseases?|conditions?|disorders?'),
                 ('Phenotype', r'symptoms?|phenotypes?|features?|signs?|side'),
@@ -43,14 +44,11 @@ def route(question: str, candidates: list[Candidate], previous: str | None = Non
     return next(iter(options)) if len(options)==1 else None
 
 
-def _route(question: str, candidates: list[Candidate], previous: str | None = None) -> str | None:
-    if not candidates or any(c.ambiguous for c in candidates):
-        return None
-    labels = {c.label for c in candidates}
+def _without_anchors(question: str, candidates: list[Candidate]) -> str:
+    """The question with anchor names removed. An entity name containing "drug",
+    "gene" or "common" (common cold) is not itself a requested relation or cue."""
     tokens = re.findall(r'\w+',question)
     masked = set()
-    # Match intent against the question with anchor names removed. An entity name
-    # containing "drug" or "gene" is not itself a requested relation.
     for candidate in sorted(candidates,key=lambda c:len(c.mention or c.name),reverse=True):
         if candidate.span and normalize(' '.join(tokens[slice(*candidate.span)]))==normalize(
                 candidate.mention or candidate.name):
@@ -61,8 +59,24 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
     for candidate in candidates:
         if candidate.uid not in masked:
             q = re.sub(r'(?<!\w)'+re.escape(candidate.name)+r'(?!\w)',' ',q,flags=re.I)
-    q = normalize(q)
-    if re.search(r'\b(both|shared|common|and also|but not|that target|through|explain|why|warning|summary|according to|compare)\b', q):
+    return normalize(q)
+
+
+def wants_shared(question: str, anchors: list[Candidate]) -> bool:
+    """Two anchors of one label plus an intersection cue ("both", "in common")."""
+    return (len(anchors)==2 and len({c.label for c in anchors})==1
+            and bool(re.search(SHARED, _without_anchors(question, anchors))))
+
+
+def _route(question: str, candidates: list[Candidate], previous: str | None = None) -> str | None:
+    if not candidates or any(c.ambiguous for c in candidates):
+        return None
+    labels = {c.label for c in candidates}
+    q = _without_anchors(question, candidates)
+    shared = bool(re.search(SHARED, q))
+    if shared and not (len(candidates)==2 and len(labels)==1):
+        return None
+    if re.search(r'\b(and also|but not|that target|through|explain|why|warning|summary|according to|compare)\b', q):
         return None
     # A single-hop template cannot preserve two requested relation families.
     # Entity-type words alone are not relations ("drugs for a disease" is simple).
@@ -86,9 +100,10 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
         return None
     if previous in SPECS and re.match(r'\s*what about\b', q):
         return previous if SPECS[previous][0] in labels else None
-    # Multiple explicit anchors may express an intersection or comparison. Only
-    # the pairwise interaction question has an unambiguous template meaning.
-    if len(candidates)>1 and not ('Drug' in labels and re.search('interact',q)):
+    # Multiple explicit anchors may express an intersection or comparison. Only a
+    # two-anchor intersection ("both", "in common") or the pairwise interaction
+    # question has an unambiguous template meaning; the pipeline sets shared=True.
+    if len(candidates)>1 and not shared and not ('Drug' in labels and re.search('interact',q)):
         return None
     if 'Drug' in labels:
         for pattern, intent in [('interact','interactions'), ('side effect|adverse effect','side_effects'),

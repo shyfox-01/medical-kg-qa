@@ -10,7 +10,7 @@ from medkg.graph.store import GraphStore
 from medkg.llm import LLMClient
 from medkg.qa import answer, planner, safety, scope, session
 from medkg.qa.linker import Linker
-from medkg.qa.router import is_count, route
+from medkg.qa.router import is_count, route, wants_shared
 from medkg.retrieval import templates, text2cypher
 from medkg.tracing import request_trace, span
 
@@ -88,10 +88,11 @@ class Pipeline:
                     elif intent:
                         label = templates.SPECS[intent][0]
                         # The route may have chosen one label of a same-name pair.
-                        result['focus'] = [c.name for c in candidates if c.label==label][:2]
+                        anchors = [c for c in candidates if c.label==label]
+                        result['focus'] = [c.name for c in anchors][:2]
                         steps = [planner.Step(tool='template',args={'intent':intent,
-                                  'uids':[c.uid for c in candidates if c.label==label],
-                                  'count':is_count(resolved)})]
+                                  'uids':[c.uid for c in anchors],'count':is_count(resolved),
+                                  'shared':wants_shared(resolved,anchors)})]
                         result['route'] = 'template'
                     else:
                         planned = planner.plan(self.llm,resolved,result['candidates'],self.settings.phase)

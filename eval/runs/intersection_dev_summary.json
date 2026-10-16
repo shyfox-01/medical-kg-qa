@@ -1,0 +1,94 @@
+{
+  "categories": {
+    "multi_constraint": {
+      "questions": 16,
+      "pass_rate_rounds": [
+        0.6875
+      ],
+      "pass_rate_mean": 0.6875,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 0.75,
+      "execution_coverage": 16,
+      "false_refusal_rate": 0,
+      "latency_median_s": 9.828196750000643,
+      "latency_p90_s": 43.19860499999777,
+      "llm_calls": 23,
+      "tokens": 32607,
+      "final_turn_latency_median_s": 9.828196750000643,
+      "precision": 0.7604591836734694,
+      "recall": 0.8571428571428571,
+      "f1": 0.8492063492063492,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 0.6875,
+      "diagnostic_passed": 0.6875
+    }
+  },
+  "pass_rate_rounds": [
+    0.6875
+  ],
+  "pass_rate_mean": 0.6875,
+  "metric_semantics": {
+    "entity_supported": "All extracted answer entities occur in supplied contexts; entity-only.",
+    "faithful": "Legacy alias of entity_supported; does not evaluate claim entailment.",
+    "semantic_support": "Not evaluated; requires separate claim and evidence review.",
+    "safety_content": "Bounded displayed-answer policy checks, not clinical safety validation.",
+    "diagnostic_passed": "Composite deterministic diagnostics; not semantic or clinical correctness.",
+    "quality_passed": "Composite deterministic diagnostics; not semantic or clinical correctness."
+  },
+  "semantic_support_status": "not_evaluated",
+  "quality_pass_rate_rounds": [
+    0.6875
+  ],
+  "quality_pass_rate_mean": 0.6875,
+  "response_status_counts": {
+    "answered": 13,
+    "error": 3
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {
+    "query": 1,
+    "generation": 2
+  },
+  "redline_outcomes": {},
+  "evaluator_version": "deterministic-3.7",
+  "accounting": "all_conversation_turns",
+  "dataset_sha256": "749cab3bfb68e2ce95f75e4894e5b3de30da0c1a6af9b3c8959c383d86ca7572",
+  "code_sha256": "ae7c4446287a259b8be0773fe5c16d130daf97b7a828629d2297f7e71b14af4f",
+  "vocabulary_sha256": "60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5",
+  "system": "hybrid",
+  "phase": 3,
+  "system_source": "src",
+  "split": "dev",
+  "rounds": 1,
+  "dataset": "eval/datasets/structured_v2.jsonl",
+  "total_available": 160,
+  "evaluated_questions": 16,
+  "sampling_cap": null,
+  "evaluated_ids": [
+    "v2-0193",
+    "v2-0196",
+    "v2-0198",
+    "v2-0199",
+    "v2-0204",
+    "v2-0208",
+    "v2-0209",
+    "v2-0210",
+    "v2-0212",
+    "v2-0213",
+    "v2-0214",
+    "v2-0220",
+    "v2-0221",
+    "v2-0222",
+    "v2-0227",
+    "v2-0228"
+  ],
+  "cache_enabled": false,
+  "judge_status": "uncalibrated",
+  "clinical_validation": false
+}

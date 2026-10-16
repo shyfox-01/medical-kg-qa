@@ -1,0 +1,79 @@
+{
+  "categories": {
+    "multi_constraint": {
+      "questions": 5,
+      "pass_rate_rounds": [
+        1
+      ],
+      "pass_rate_mean": 1,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 0.8,
+      "execution_coverage": 5,
+      "false_refusal_rate": 0,
+      "latency_median_s": 19.847129399997357,
+      "latency_p90_s": 19.969796000001224,
+      "llm_calls": 18,
+      "tokens": 22278,
+      "final_turn_latency_median_s": 19.847129399997357,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 1,
+      "diagnostic_passed": 1
+    }
+  },
+  "pass_rate_rounds": [
+    1
+  ],
+  "pass_rate_mean": 1,
+  "metric_semantics": {
+    "entity_supported": "All extracted answer entities occur in supplied contexts; entity-only.",
+    "faithful": "Legacy alias of entity_supported; does not evaluate claim entailment.",
+    "semantic_support": "Not evaluated; requires separate claim and evidence review.",
+    "safety_content": "Bounded displayed-answer policy checks, not clinical safety validation.",
+    "diagnostic_passed": "Composite deterministic diagnostics; not semantic or clinical correctness.",
+    "quality_passed": "Composite deterministic diagnostics; not semantic or clinical correctness."
+  },
+  "semantic_support_status": "not_evaluated",
+  "quality_pass_rate_rounds": [
+    1
+  ],
+  "quality_pass_rate_mean": 1,
+  "response_status_counts": {
+    "answered": 5
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {},
+  "redline_outcomes": {},
+  "evaluator_version": "deterministic-3.7",
+  "accounting": "all_conversation_turns",
+  "dataset_sha256": "749cab3bfb68e2ce95f75e4894e5b3de30da0c1a6af9b3c8959c383d86ca7572",
+  "code_sha256": "a585ef48dbc353dc1fcf05eee65bae878bffd45f82768f1effb355cbc8b61509",
+  "vocabulary_sha256": "60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5",
+  "system": "hybrid",
+  "phase": 3,
+  "system_source": "src",
+  "split": "dev",
+  "rounds": 1,
+  "dataset": "eval/datasets/structured_v2.jsonl",
+  "total_available": 160,
+  "evaluated_questions": 5,
+  "sampling_cap": null,
+  "evaluated_ids": [
+    "v2-0220",
+    "v2-0221",
+    "v2-0222",
+    "v2-0227",
+    "v2-0228"
+  ],
+  "cache_enabled": false,
+  "judge_status": "uncalibrated",
+  "clinical_validation": false
+}

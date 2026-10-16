@@ -18,7 +18,7 @@ class Step(BaseModel):
     @model_validator(mode='after')
     def validate_arguments(self):
         allowed = {
-            'template': {'intent','uids','count'}, 'text2cypher': {'question'},
+            'template': {'intent','uids','count','shared'}, 'text2cypher': {'question'},
             'vector_search': {'query','source','uids'}, 'fulltext': {'query','label'},
             'expand': {'uids','hops'}, 'out_of_scope': {'reason'},
         }
@@ -41,15 +41,18 @@ class Step(BaseModel):
             from medkg.retrieval.templates import SPECS
             # Accept only unambiguous boolean encodings, never an arbitrary count
             # or Python truthiness ("false" would otherwise become True).
-            count = self.args.get('count',False)
-            if count is None:
-                self.args.pop('count')
-            elif type(count) is int and count in (0,1):
-                self.args['count'] = bool(count)
-            elif isinstance(count,str) and count.strip().casefold() in ('true','false'):
-                self.args['count'] = count.strip().casefold()=='true'
-            if self.args['intent'] not in SPECS or not isinstance(self.args.get('count',False),bool):
-                raise ValueError('Unknown template intent or invalid count flag')
+            for flag in ('count','shared'):
+                value = self.args.get(flag,False)
+                if value is None:
+                    self.args.pop(flag)
+                elif type(value) is int and value in (0,1):
+                    self.args[flag] = bool(value)
+                elif isinstance(value,str) and value.strip().casefold() in ('true','false'):
+                    self.args[flag] = value.strip().casefold()=='true'
+                if not isinstance(self.args.get(flag,False),bool):
+                    raise ValueError(f'Invalid {flag} flag')
+            if self.args['intent'] not in SPECS:
+                raise ValueError('Unknown template intent')
         if self.tool=='expand' and self.args.get('hops',2) not in (1,2):
             raise ValueError('Expansion is bounded to two hops')
         if 'source' in self.args:

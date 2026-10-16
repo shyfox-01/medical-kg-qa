@@ -21,17 +21,25 @@ SPECS = {
 }
 
 
-def query(intent: str, uids: list[str], count: bool = False) -> tuple[str, dict]:
+def query(intent: str, uids: list[str], count: bool = False, shared: bool = False) -> tuple[str, dict]:
+    """Parameterized relation lookup from one or more anchors.
+
+    With several anchors the default is a union. shared=True returns only targets
+    connected to every anchor ("drugs indicated for both A and B"), never an anchor
+    itself; generated Cypher for these intersections often failed to parse (D082).
+    """
     if (intent not in SPECS or not isinstance(uids,list) or not uids or len(uids)>25
             or any(not isinstance(uid,str) or not uid for uid in uids)):
         raise ValueError('Template requires an allowed intent and anchor uid')
     uids = list(dict.fromkeys(uids))
-    if intent=='interactions' and len(uids)>2:
-        raise ValueError('Interactions require one anchor or exactly two drugs')
     source, target, relation, reverse = SPECS[intent]
     arrow = '<-[r:'+relation+']-' if reverse is True else '-[r:'+relation+']->'
     if reverse is None:
         arrow = '-[r:'+relation+']-'
+    if shared:
+        return _shared(source, target, arrow, uids, count)
+    if intent=='interactions' and len(uids)>2:
+        raise ValueError('Interactions require one anchor or exactly two drugs')
     where = 'a.uid = $uid'
     params = {'uid':uids[0], 'other':uids[1] if len(uids)>1 else ''}
     if intent == 'interactions' and len(uids)>1:
@@ -46,3 +54,18 @@ def query(intent: str, uids: list[str], count: bool = False) -> tuple[str, dict]
     statement = f'MATCH (a:{source}){arrow}(b:{target}) WHERE {where} RETURN {result}'
     statement += ' LIMIT 25' if count else ' ORDER BY name LIMIT 25'
     return statement, params
+
+
+def _shared(source: str, target: str, arrow: str, uids: list[str], count: bool) -> tuple[str, dict]:
+    if len(uids) < 2:
+        raise ValueError('Shared targets need at least two anchors')
+    statement = (f'MATCH (a:{source}){arrow}(b:{target}) WHERE a.uid IN $uids AND NOT b.uid IN $uids '
+                 'WITH b, collect(DISTINCT a.uid) AS anchor_uids, collect(DISTINCT r.source) AS sources, '
+                 'max(CASE WHEN r.conflict THEN 1 ELSE 0 END) AS flagged '
+                 'WHERE size(anchor_uids) = size($uids) ')
+    if count:
+        statement += 'RETURN count(b) AS count LIMIT 25'
+    else:
+        statement += ('RETURN b.uid AS uid, b.name AS name, b.synonyms AS synonyms, sources, '
+                      'flagged = 1 AS conflict, anchor_uids ORDER BY name LIMIT 25')
+    return statement, {'uids': uids}

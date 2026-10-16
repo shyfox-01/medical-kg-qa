@@ -1560,3 +1560,22 @@ add a key-decisions table here, and rewrite the README as a one-page entry point
 Alternatives: build a fresh human-authored test set first (deferred: needs people
 the project does not have) or keep publishing round-by-round reports in the README
 (rejected: the main result was buried).
+
+## D082 — Deterministic intersection template (2026-10-16)
+
+All seven Cypher syntax errors in the final v2 test round were "drugs indicated for
+both A and B" questions, which the LLM planner sent to free-form Text2Cypher.
+`templates.query(..., shared=True)` now returns targets linked to every anchor
+(aggregating per target and requiring all anchors), never an anchor itself. The
+router uses it when a question has exactly two anchors of one label and an
+intersection cue (both, in common, shared, common) outside the entity names
+("common cold" is not a cue). Exclusions ("but not") and mixed-label questions
+stay with the planner. The planner accepts a boolean `shared` argument but its
+prompt is unchanged: a first version that advertised `shared` in the prompt made
+the planner chain templates for exclusion questions, dropping the NOT EXISTS
+constraint (dev exclusions 0/5); restoring the prompt restored them (5/5).
+
+Verified on dev only. Offline, routing changes for exactly the 11 dev intersection
+questions and no other question. Live, the 16 dev multi-constraint questions go
+from 11/16 (previous full dev run) to 16/16; the four former syntax errors pass.
+The test split is not rerun for this change.
