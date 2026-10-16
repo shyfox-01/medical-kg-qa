@@ -1661,3 +1661,43 @@ test split is not used. Two changes would address most local losses and are
 measured on dev before any adoption: rendering template entity lists
 deterministically instead of relying on the model to copy every row, and
 schema-constrained planner output.
+
+## D085 — Explicit name mappings and query meaning in answer evidence (2026-10-17)
+
+Gemma 4 26B-A4B (Apache 2.0, MoE with ~4B active parameters, QAT 4-bit,
+`ollama/gemma4-26b.Modelfile`) was chosen as the strongest local candidate that
+runs stably on the 8 GB GPU / 32 GB RAM laptop (qwen3.6-35B-A3B at 24 GB leaves no
+memory headroom during an evaluation run). On the D083 code it scored 127/160: 21
+of its 24 losses were answers claiming "no evidence" over rows that answered the
+question. It did not accept that a brand name in the question (Arikayce, Gocovri)
+refers to the canonical entity in the rows, or that shared-target rows already are
+the requested intersection.
+
+Change (all models): the answer evidence carries `question_entities` (each mention,
+the entity, uid and type it was linked to), and each template query carries a
+one-sentence description of its rows (`templates.describe`). The prompt explains
+both. Full v2 dev, one round each, same code hash:
+
+| | before (D083/D084 code) | after (D085) | fixed | regressed |
+|---|---:|---:|---:|---:|
+| glm-4.5-flash, cloud | 148/160 | 146/160 | 1 | 3 |
+| Gemma 4 26B-A4B, local | 127/160 | **140/160** | 13 | 0 |
+| GLM-4.7-Flash, local | 132/160 | 135/160 | 8 | 5 |
+
+Per-question ledgers, not totals, decide whether a fix worked. Of the 8
+regressions, 5 are planner outputs that changed although the planner's prompt and
+input did not: both the cloud and the local models vary between runs at
+temperature 0. Single-round comparisons therefore carry a noise of a few
+questions; a repeated identical run to measure it was started and paused
+(29/160, checkpoint kept). GLM-4.7 re-downloaded with the identical blob digest
+recorded in D084.
+
+Agreed next steps: a stage-wise evaluator (linking, routing, retrieval, generation,
+and the first failing stage per question) from the gold fields the v2 dataset
+already has; an oracle-evidence mode that scores generation alone; the noise
+baseline; then a second round of fixes on the chosen local model (strict faithful
+reporting, deterministic entity lists, schema-constrained plans), each verified per
+question. The answer layer reports the knowledge base faithfully; knowledge-base
+errors are a separate data-quality metric, estimated first by sampling against FDA
+labels. The final comparison uses each system's best configuration on a fresh
+held-out v3 test split.

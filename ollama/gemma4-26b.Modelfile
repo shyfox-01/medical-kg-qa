@@ -1,0 +1,9 @@
+# Open-weight Gemma 4 26B-A4B (Apache 2.0, MoE with ~4B active parameters), the
+# quantization-aware-trained 4-bit build, for medical-kg-qa on an 8 GB GPU with 32 GB
+# RAM. Same 12,288-token context as the other Modelfiles (longest logged prompt
+# ~8.3k tokens plus the 1,400-token completion cap). Upstream sets no presence
+# penalty; the client sends temperature 0.
+#   ollama pull gemma4:26b-a4b-it-qat
+#   ollama create medkg-gemma4-26b -f ollama/gemma4-26b.Modelfile
+FROM gemma4:26b-a4b-it-qat
+PARAMETER num_ctx 12288
