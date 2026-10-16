@@ -17,6 +17,10 @@ PROMPT = ('Answer the English medical knowledge question using only the evidence
           'the result rows. Use their parameters to understand the relationship, shared-target '
           'or path constraints satisfied by those rows. Do not refuse solely because a result row '
           'does not repeat the relationship in prose. Distinguish query metadata from result entities. '
+          'question_entities maps each name used in the question to the graph entity it was '
+          'linked to; a brand name, lay term or misspelling refers to that entity, so answer about it. '
+          'A query description states in plain words what the rows of that query are; rows of a '
+          'query linked to every one of several entities already satisfy that shared constraint. '
           'Graph associations are not treatment recommendations.')
 
 
@@ -66,12 +70,17 @@ def bound_queries(queries: list[dict],max_chars: int = 6000) -> tuple[list[dict]
     return bounded,False
 
 
-def messages(question: str, rows: list[dict], feedback: str = '',queries: list[dict] | None = None) -> list[dict]:
+def messages(question: str, rows: list[dict], feedback: str = '',queries: list[dict] | None = None,
+             entities: list[dict] | None = None) -> list[dict]:
+    """entities: question mentions and the graph entities they were linked to (D085)."""
     def encode(obj):
         return json.dumps(obj).replace('<','\\u003c').replace('>','\\u003e')
+    evidence = {'rows':rows,'executed_graph_queries':queries or []}
+    if entities:
+        evidence['question_entities'] = entities
     return [{'role':'system','content':PROMPT+('\nVerification feedback: '+feedback if feedback else '')},
             {'role':'user','content':'<question>'+encode(question)+'</question>\n<evidence>'+encode(
-                {'rows':rows,'executed_graph_queries':queries or []})+'</evidence>'}]
+                evidence)+'</evidence>'}]
 
 
 def finalize(answer: str, rows: list[dict], truncated: bool) -> str:

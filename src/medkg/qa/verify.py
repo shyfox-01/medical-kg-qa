@@ -35,12 +35,13 @@ def unsupported(answer: str,rows: list[dict],linker) -> set[str]:
     return entities_in_text(answer,linker)-supported
 
 
-def verify_answer(llm,question: str,answer: str,rows: list[dict],linker,queries: list[dict] | None = None) -> str:
+def verify_answer(llm,question: str,answer: str,rows: list[dict],linker,queries: list[dict] | None = None,
+                  entities: list[dict] | None = None) -> str:
     missing = unsupported(answer,rows,linker)
     if not missing:
         return answer
     names = [linker.entities[uid]['name'] for uid in sorted(missing)]
-    revised = llm.chat(messages(question,rows,'Remove unsupported entities: '+json.dumps(names),queries))
+    revised = llm.chat(messages(question,rows,'Remove unsupported entities: '+json.dumps(names),queries,entities))
     missing = unsupported(revised,rows,linker)
     if not missing:
         return revised

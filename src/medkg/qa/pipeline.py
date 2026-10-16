@@ -113,12 +113,15 @@ class Pipeline:
                                 'An exact count is unavailable because an earlier retrieval was incomplete.',
                                 rows,True),refused=True)
                             return self._finish(result,start,before)
-                        params = {}
+                        params,description = {},None
                         if step.tool=='out_of_scope':
                             result.update(answer='I cannot answer this from the supported medical knowledge base. Please clarify ambiguous entities if applicable.',refused=True)
                             return self._finish(result,start,before)
                         if step.tool=='template':
                             query,params = templates.query(**args)
+                            description = templates.describe(args['intent'],[
+                                self.linker.entities.get(uid,{}).get('name',uid) for uid in args['uids']],
+                                bool(args.get('count')),bool(args.get('shared')))
                             retrieved = self.store.run_generated(query,params)
                         elif step.tool=='text2cypher':
                             retrieved = text2cypher.retrieve(self.store,self.llm,args.get('question',resolved),result['candidates'])
@@ -128,7 +131,8 @@ class Pipeline:
                         attrs['rows'] = len(retrieved.rows)
                         if retrieved.stmt:
                             result['cypher'].append(retrieved.stmt)
-                            result['queries'].append({'cypher':retrieved.stmt,'params':params})
+                            result['queries'].append({'cypher':retrieved.stmt,'params':params,
+                                                      **({'description':description} if description else {})})
                         outputs.append(retrieved.rows)
                         rows.extend(retrieved.rows)
                         result['truncated'] |= retrieved.truncated
@@ -165,17 +169,22 @@ class Pipeline:
                 result['contexts'] = rows + [{'uid':c.uid,'name':c.name,'role':'anchor'} for c in candidates]
                 if query_evidence:
                     result['contexts'].append({'role':'executed_graph_queries','queries':query_evidence})
+                # Brand names, lay terms and typos are linked to canonical entities; say so
+                # explicitly rather than rely on the answer model knowing the mapping (D085).
+                entities = [{'mention':c.mention or c.name,'entity':c.name,'uid':c.uid,'type':c.label}
+                            for c in candidates if not c.ambiguous]
                 if not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
                 else:
                     with span('generation'):
-                        result['answer'] = self.llm.chat(answer.messages(resolved,rows,queries=query_evidence))
+                        result['answer'] = self.llm.chat(answer.messages(resolved,rows,queries=query_evidence,
+                                                                         entities=entities))
                     if self.settings.phase>=3:
                         stage = 'verification'
                         with span('verification'):
                             from medkg.qa.verify import verify_answer
                             result['answer'] = verify_answer(self.llm,resolved,result['answer'],result['contexts'],self.linker,
-                                                             query_evidence)
+                                                             query_evidence,entities)
                     with span('output_safety'):
                         violation = safety.output_violation(result['answer'])
                         if violation:

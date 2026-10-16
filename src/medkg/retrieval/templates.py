@@ -21,6 +21,47 @@ SPECS = {
 }
 
 
+# What the rows of each template are, in words. Some answer models do not infer this
+# from Cypher and parameters (they reported "no drugs for both A and B" over rows that
+# were exactly that intersection); D085.
+PHRASES = {
+    'indications': 'diseases for which {a} is indicated',
+    'drugs_for': 'drugs indicated for {a}',
+    'side_effects': 'side effects (phenotypes) recorded for {a}',
+    'drugs_with_side_effect': 'drugs that have {a} as a recorded side effect',
+    'phenotypes': 'phenotypes (symptoms and clinical features) of {a}',
+    'contraindications': 'diseases in which {a} is contraindicated',
+    'contraindicated_drugs': 'drugs contraindicated in {a}',
+    'interactions': 'drugs that interact with {a}',
+    'diseases_for': 'diseases that have {a} as a phenotype',
+    'genes': 'genes associated with {a}',
+    'targets': 'genes or proteins targeted by {a}',
+    'parents': 'parent disease classes of {a}',
+    'subtypes': 'subtypes of {a}',
+    'off_label': 'diseases for which {a} is used off-label',
+    'off_label_drugs': 'drugs used off-label for {a}',
+    'targeting_drugs': 'drugs that target {a}',
+    'associated_diseases': 'diseases associated with {a}',
+}
+
+
+def describe(intent: str, names: list[str], count: bool = False, shared: bool = False) -> str:
+    """One sentence stating what a template query's rows are."""
+    if len(names) > 3:
+        anchors = f'{len(names)} entities retrieved by an earlier step'
+    else:
+        anchors = names[0] if len(names) == 1 else ', '.join(names[:-1]) + ' and ' + names[-1]
+    if intent == 'interactions' and len(names) == 2 and not shared:
+        phrase = f'the recorded interaction between {names[0]} and {names[1]}, if any'
+    else:
+        if shared:
+            anchors = 'every one of ' + anchors + ' (each row is linked to all of them)'
+        elif len(names) > 1:
+            anchors = 'any of ' + anchors
+        phrase = PHRASES[intent].format(a=anchors)
+    return ('The rows give the number of ' if count else 'The rows are ') + phrase + '.'
+
+
 def query(intent: str, uids: list[str], count: bool = False, shared: bool = False) -> tuple[str, dict]:
     """Parameterized relation lookup from one or more anchors.
 
