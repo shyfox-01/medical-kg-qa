@@ -14,6 +14,7 @@ The ones that matter now:
 | `next_round_summary.json` | Complete 160-question v2 dev run (87.5%) |
 | `llm_compare_dev_glm_summary.json` | Full v2 dev, current code, cloud glm-4.5-flash (92.5%) |
 | `llm_compare_dev_local_summary.json` | Full v2 dev, same code, local qwen3.5:9b via Ollama (77.5%) |
+| `llm_compare_dev_glm47_local_summary.json` | Full v2 dev, same code, local open-weight GLM-4.7-Flash via Ollama (82.5%) |
 | `usage_log.jsonl` | Token ledger for every provider call (local only) |
 
 Rounds that failed the API-error rule are kept locally under their original names

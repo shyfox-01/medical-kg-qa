@@ -104,32 +104,39 @@ hybrid round, the score moves from 188 to 198.
 
 ## LLM backend: cloud vs local (dev, 2026-10-16)
 
-The free cloud `glm-4.5-flash` and a local `qwen3.5:9b` (Ollama, Q4_K_M, 8 GB GPU,
-[Modelfile](../ollama/Modelfile)) answered the full v2 dev split on the same code
-(D083; [GLM](../eval/runs/llm_compare_dev_glm_summary.json),
-[local](../eval/runs/llm_compare_dev_local_summary.json)).
+The free cloud `glm-4.5-flash` and two local open-weight models in Ollama
+answered the full v2 dev split on the same code (D083, D084):
+[GLM-4.7-Flash](../ollama/glm-4.7-flash.Modelfile) (MIT, 30B/3B-active MoE, Q4_K_M,
+weights pinned by digest) and [qwen3.5:9b](../ollama/qwen3.5-9b.Modelfile) (Q4_K_M).
+Summaries: [cloud](../eval/runs/llm_compare_dev_glm_summary.json),
+[GLM-4.7 local](../eval/runs/llm_compare_dev_glm47_local_summary.json),
+[qwen local](../eval/runs/llm_compare_dev_local_summary.json).
 
-| Category | n | glm-4.5-flash | qwen3.5:9b local |
-|---|---:|---:|---:|
-| single_hop | 24 | 100% | 91.7% |
-| reverse | 12 | 100% | 100% |
-| aggregation | 16 | 100% | 100% |
-| multi_constraint | 16 | 93.8% | 81.3% |
-| multi_hop | 20 | **80.0%** | 15.0% |
-| multi_turn | 8 | 100% | 87.5% |
-| lexical_variation | 24 | 75.0% | 62.5% |
-| sensitive_terms | 8 | 87.5% | 87.5% |
-| safety / adversarial / out_of_scope | 10 / 10 / 12 | 100 / 100 / 100% | 100 / 80 / 91.7% |
-| **All** | **160** | **92.5%** | **77.5%** |
-| API-error questions | | 2 | 0 |
-| Median latency | | 7.8 s | 3.6 s |
+| Category | n | glm-4.5-flash cloud | GLM-4.7-Flash local | qwen3.5:9b local |
+|---|---:|---:|---:|---:|
+| single_hop | 24 | 100% | 79.2% | 91.7% |
+| reverse | 12 | 100% | 100% | 100% |
+| aggregation | 16 | 100% | 100% | 100% |
+| multi_constraint | 16 | 93.8% | 93.8% | 81.3% |
+| multi_hop | 20 | **80.0%** | 60.0% | 15.0% |
+| multi_turn | 8 | 100% | 75.0% | 87.5% |
+| lexical_variation | 24 | 75.0% | 58.3% | 62.5% |
+| sensitive_terms | 8 | 87.5% | 75.0% | 87.5% |
+| safety / adversarial / out_of_scope | 10 / 10 / 12 | 100 / 100 / 100% | 100 / 100 / 100% | 100 / 80 / 91.7% |
+| **All** | **160** | **92.5%** | **82.5%** | **77.5%** |
+| API-error questions | | 2 | 0 | 0 |
+| Median latency | | 7.8 s | 3.3 s | 3.6 s |
 
-Only GLM passed 26 questions and only the local model passed 2. The local
-model loses on planning (11 wrong plans, 7 invalid plans or Cypher) and on
-writing answers from identical evidence (8). Its adversarial misses are
+Against the cloud model, GLM-4.7-Flash loses 20 questions and wins 4; qwen3.5:9b
+loses 26 and wins 2. GLM-4.7 plans multi-hop questions far better than the 9B
+model (12/20 vs 3/20). Both local models lose about eight questions where the
+retrieved evidence was identical to the cloud run but the written answer left out
+entities, and some to invalid plans. The 9B model's adversarial misses are
 fail-closed errors, not unsafe queries. The cloud model remains the reported
-system; the local one is faster, private and never rate-limited, but weaker.
-Prompts were developed against GLM, which may favour it.
+system; the local ones are faster, private, never rate-limited and pinned by
+weight digest, but weaker. Prompts were developed against GLM-4.5, which may
+favour it. The free cloud endpoint of GLM-4.7-Flash was too overloaded to measure
+(3 of 21 calls succeeded).
 
 ## Known failure modes
 

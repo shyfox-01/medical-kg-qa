@@ -26,7 +26,7 @@ system and its evaluation today.
 | Benchmark | Vector control paragraphs include catalog synonyms | D051 |
 | Measurement | API-error rule: rerun whole rounds, never single questions | D054, D058 |
 | Scoring | Entity support is reported separately from (unevaluated) semantic support | D073 |
-| LLM | Keep the cloud model as default; a local Ollama model is supported but scores lower on dev | D083 |
+| LLM | Keep the cloud model as default; local open-weight models are supported and measured on dev | D083, D084 |
 
 ## D001 — Environment and scope
 
@@ -1590,7 +1590,7 @@ the cooldown, keep questions on the machine and pin the weights by digest.
 Making it runnable needed three changes. `LLM_THINKING_PARAM` selects how thinking
 is disabled (`thinking` for GLM, unchanged default; `reasoning_effort` for
 OpenAI-style providers and Ollama); with thinking on, qwen3.5 spent the whole
-1,400-token budget reasoning and returned empty content. `ollama/Modelfile` builds
+1,400-token budget reasoning and returned empty content. `ollama/qwen3.5-9b.Modelfile` builds
 `medkg-qwen3.5-9b` with a 12,288-token context (Ollama's default 4,096 would
 silently truncate the 7% of logged prompts above it; maximum 8,295) and presence
 penalty 0 (upstream default 1.5, which penalises every repeated token; the cloud
@@ -1624,3 +1624,40 @@ may partly be prompt fit; the 27B model (17 GB) does not fit the GPU. Options if
 a local model is needed later: thinking on for the planner only, prompt
 adaptation on dev, or fine-tuning the planner on dev-style plans, each measured
 on dev first.
+
+## D084 — Open-weight GLM-4.7-Flash as the reproducible local option (2026-10-17)
+
+Goal: a free LLM whose exact weights can be pinned. `glm-4.7-flash` is listed as
+free on Z.ai and its weights are public (MIT, 30B total / ~3B active MoE,
+`zai-org/GLM-4.7-Flash`). Its free cloud endpoint was unusable for measurement:
+on the evening of 2026-10-16 only 3 of 21 calls succeeded (HTTP 429, code 1305,
+"model overloaded"), while a valid round needs about 94% (D054). The same weights
+run locally instead: Ollama `glm-4.7-flash:q4_K_M`, blob
+`sha256:9eba2761cf0b88b8bc11a065a7b5b47f1b13ce820e8e492cb1010b450f9ec950`
+(19,019,269,280 bytes), wrapped by `ollama/glm-4.7-flash.Modelfile` (12,288-token
+context; upstream has no presence penalty). On the 8 GB laptop GPU with 32 GB RAM
+it runs 31% on GPU and 69% on CPU at about 41 tokens/s, because only ~3B
+parameters are active per token.
+
+Full v2 dev split, same commit and code hash as D083, one round:
+
+| | glm-4.5-flash (cloud) | GLM-4.7-Flash (local) | qwen3.5:9b (local) |
+|---|---:|---:|---:|
+| Passed | **148/160 (92.5%)** | 132/160 (82.5%) | 124/160 (77.5%) |
+| Multi-hop | 16/20 | 12/20 | 3/20 |
+| API-error questions | 2 | 0 | 0 |
+| Median latency | 7.8 s | **3.3 s** | 3.6 s |
+
+Against the cloud model: 20 questions only the cloud model passed, 4 only the
+local GLM passed. The 20 are 8 different (wrong) plans, 4 invalid plans
+(validation errors) and 8 answers written from evidence identical to the cloud
+run but incomplete (one of nine indications for Tyzavan; "Count: N" applied to
+list questions). Safety, injection, counts and reverse lookups are 100%.
+
+Decision: the cloud `glm-4.5-flash` stays the default and reported model. Among
+local options, GLM-4.7-Flash replaces qwen3.5:9b as the recommended one when 32 GB
+RAM is available (qwen3.5:9b remains the option that fits an 8 GB GPU alone). The
+test split is not used. Two changes would address most local losses and are
+measured on dev before any adoption: rendering template entity lists
+deterministically instead of relying on the model to copy every row, and
+schema-constrained planner output.

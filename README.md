@@ -138,24 +138,26 @@ checks the database and LLM configuration.
 ### Local LLM (optional)
 
 Any OpenAI-compatible endpoint works. To run without a cloud API, use
-[Ollama](https://ollama.com) with the provided Modelfile (12k context, no
-presence penalty) and set these in `.env`:
+[Ollama](https://ollama.com) with one of the provided Modelfiles (12k context)
+and set these in `.env`:
 
 ```bash
-ollama pull qwen3.5:9b
-ollama create medkg-qwen3.5-9b -f ollama/Modelfile
+ollama pull glm-4.7-flash:q4_K_M          # 19 GB; needs ~32 GB RAM with an 8 GB GPU
+ollama create medkg-glm-4.7-flash -f ollama/glm-4.7-flash.Modelfile
 ```
 
 ```text
 LLM_BASE_URL=http://127.0.0.1:11434/v1
 LLM_API_KEY=ollama
-LLM_MODEL=medkg-qwen3.5-9b
+LLM_MODEL=medkg-glm-4.7-flash
 LLM_THINKING_PARAM=reasoning_effort
 LLM_COOLDOWN_S=0
 ```
 
-On the v2 dev split it is about twice as fast as the cloud model and never
-rate-limited, but scores lower: 77.5% vs 92.5%, mostly on multi-hop planning
+On the v2 dev split, the open-weight GLM-4.7-Flash scores 82.5% against 92.5%
+for the cloud model, at less than half the latency and with no rate limits. The
+smaller `qwen3.5:9b` ([Modelfile](ollama/qwen3.5-9b.Modelfile), fits an 8 GB GPU)
+scores 77.5%, mostly losing on multi-hop planning
 ([comparison](docs/evaluation.md#llm-backend-cloud-vs-local-dev-2026-10-16)).
 
 ## Evaluate
@@ -203,8 +205,8 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
   true. Answers have not been reviewed by people or clinicians.
 - Gold comes from PrimeKG, so it inherits that source's gaps and errors.
 - Free-form generated Cypher still fails on some complex questions, and the free
-  LLM endpoint used here times out and rate-limits under load. A local 9B model
-  avoids that but plans multi-hop questions much worse.
+  LLM endpoint used here times out and rate-limits under load. Local open-weight
+  models avoid that but score 10–15 points lower on dev.
 
 ## Documentation
 

@@ -1,0 +1,8 @@
+# Open-weight GLM-4.7-Flash (MIT, 30B-A3B MoE) for medical-kg-qa, run locally so the
+# exact weights are pinned by digest. Same 12,288-token context as the qwen Modelfile
+# (longest logged prompt ~8.3k tokens plus the 1,400-token completion cap). Upstream
+# has no presence penalty; the client sends temperature 0.
+#   ollama pull glm-4.7-flash:q4_K_M
+#   ollama create medkg-glm-4.7-flash -f ollama/glm-4.7-flash.Modelfile
+FROM glm-4.7-flash:q4_K_M
+PARAMETER num_ctx 12288
