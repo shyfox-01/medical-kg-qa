@@ -41,8 +41,8 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: python -m scripts.load_synthetic
       - run: pytest -m integration
-      - run: python -m eval.run --dataset tests/fixtures/questions.jsonl --vocabulary tests/fixtures/entities.json --split test --rounds 3 --phase 3 --fake --output eval/runs/ci_summary.json
-      - run: python -m eval.run --dataset tests/fixtures/questions.jsonl --vocabulary tests/fixtures/entities.json --split test --rounds 3 --phase 3 --fake --output eval/runs/ci_gate_summary.json --baseline tests/fixtures/redline_baseline.json --fail-on-redline-regression
+      - run: python -m eval.run --dataset tests/fixtures/questions.jsonl --vocabulary tests/fixtures/entities.json --split test --rounds 3 --phase 3 --fake --output "$RUNNER_TEMP/ci_summary.json"
+      - run: python -m eval.run --dataset tests/fixtures/questions.jsonl --vocabulary tests/fixtures/entities.json --split test --rounds 3 --phase 3 --fake --output "$RUNNER_TEMP/ci_gate_summary.json" --baseline tests/fixtures/redline_baseline.json --fail-on-redline-regression
   container:
     runs-on: ubuntu-latest
     env:

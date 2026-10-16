@@ -164,7 +164,7 @@ def fake_client(llm):
 def test_runtime_client_has_no_lifetime_token_cap_unless_configured(monkeypatch,tmp_path):
     monkeypatch.delenv('TOKEN_BUDGET',raising=False)
     settings = Settings(llm_api_key='fictional',llm_model='fictional',llm_base_url='http://127.0.0.1:9',
-                        llm_cooldown=0)
+                        llm_cooldown=0,neo4j_password='fictional')
     assert settings.token_budget is None
     llm = LLMClient(settings)
     llm.ledger = tmp_path/'usage_log.jsonl'
