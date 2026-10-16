@@ -17,6 +17,7 @@ eval/datasets/structured*.jsonl
 eval/datasets/text_graph_gold.jsonl
 eval/runs/*
 !eval/runs/*_summary.json
+!eval/runs/README.md
 eval/human_labels/*.jsonl
 /runs/
 *.log
