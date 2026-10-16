@@ -3,7 +3,7 @@
 These 28 mappings have positive source evidence against exact identity. This is
 an engineering exclusion, not clinical validation. The 66 uncertain mappings are
 unchanged. Original catalog/source bytes remain available for a later review.
-See docs/reports/ai-review-2026-10-09.md and decision D072.
+See docs/history/reports/ai-review-2026-10-09.md and decision D072.
 """
 
 from medkg_data.lexicon import normalize

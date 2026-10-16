@@ -81,7 +81,7 @@ verification.
 
 ## Evidence and preserved state
 
-The [aggregate record](../../eval/runs/integration_2026_10_15_summary.json) indexes
+The [aggregate record](../../../eval/runs/integration_2026_10_15_summary.json) indexes
 test XML, both smoke groups, fixture regression evidence, graph checks, hashes and
 shutdown records. Private logs, local configurations and the isolated database
 remain under `.cache/integration-2026-10-15/`; they are not available from a fresh

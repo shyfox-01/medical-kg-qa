@@ -61,7 +61,7 @@ using the project interpreter outside that wrapper. No dependency was installed.
 
 ## Independent evaluation preparation
 
-The [protocol](../evaluation/independent-evaluation.md) fixes 100 blank slots:
+The [protocol](../../evaluation/independent-evaluation.md) fixes 100 blank slots:
 28 graph, 12 lexical, 15 text-only, 15 graph-plus-text, 10 out-of-scope, 10 safety
 and 10 adversarial. Source/code fingerprints and hashes of prior question wording
 are saved before authoring. No new question, gold answer, author identity or human
@@ -172,9 +172,9 @@ database and all old human queues are retained. Every original frozen input hash
 matches its pre-run value. Work stops at the human-authoring/review boundary in
 task section 4; automated preparation is complete, not human validation.
 
-Evidence: [complete dev summary](../../eval/runs/next_full_dev_hybrid_summary.json),
-[implementation/check aggregates](../../eval/runs/next_round_summary.json),
-[decisions D065-D069](../decisions.md#d065--repair-drug-mention-extraction-and-bounded-spelling-variants-2026-10-08).
+Evidence: [complete dev summary](../../../eval/runs/next_full_dev_hybrid_summary.json),
+[implementation/check aggregates](../../../eval/runs/next_round_summary.json),
+[decisions D065-D069](../../decisions.md#d065--repair-drug-mention-extraction-and-bounded-spelling-variants-2026-10-08).
 Raw responses, audit files, process identities and budget checks remain local under
 `.cache/next-round-2026-10-08/` and `eval/runs/`.
 

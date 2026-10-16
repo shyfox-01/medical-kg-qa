@@ -76,7 +76,7 @@ No old queue is rewritten, and readiness never authorizes a model call.
 
 ## Blind review and revised pilot
 
-The [blind-review guide](../evaluation/blind-review.md) documents concrete offline
+The [blind-review guide](../../evaluation/blind-review.md) documents concrete offline
 commands and schemas. Public packets omit system metadata, timings and automatic
 scores. Private mappings, input/code/environment hashes and a saved preparation
 receipt bind returned labels to the reviewed artifacts. Labels distinguish AI
@@ -113,10 +113,10 @@ does not claim question blindness or a new independent evaluation.
 
 ## Delivery and remaining limits
 
-The [aggregate verification record](../../eval/runs/review_implementation_2026_10_15_summary.json)
+The [aggregate verification record](../../../eval/runs/review_implementation_2026_10_15_summary.json)
 contains final tests, artifact checks, preservation hashes and resource accounting.
 Private evidence and scripts live in `.cache/review-implementation-2026-10-15/`.
-The revised [readable pilot](../../.cache/review-implementation-2026-10-15/pilot-r2/pilot.csv)
+The revised [readable pilot](../../../.cache/review-implementation-2026-10-15/pilot-r2/pilot.csv)
 is local-only; it is not available from a fresh public clone.
 
 All original human queues, frozen datasets, stored catalog/vector/source artifacts

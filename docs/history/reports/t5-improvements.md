@@ -103,9 +103,9 @@ merge. The evaluator and the owned Neo4j server/launcher have exited; ports 7474
 and 7687 were verified closed. Existing invalid runs, raw records, backups and
 manual-review queues remain in place. No dependency or global setting changed.
 
-Evidence: [dev summary](../../eval/runs/t5_dev_smoke_summary.json),
-[implementation/check aggregates](../../eval/runs/t5_improvements_summary.json),
-and [decisions D060–D064](../decisions.md#d060--resume-t5-with-cached-source-aliases-and-bounded-index-refresh-2026-10-08).
+Evidence: [dev summary](../../../eval/runs/t5_dev_smoke_summary.json),
+[implementation/check aggregates](../../../eval/runs/t5_improvements_summary.json),
+and [decisions D060–D064](../../decisions.md#d060--resume-t5-with-cached-source-aliases-and-bounded-index-refresh-2026-10-08).
 Raw records, source previews and process/budget audits remain local under
 `.cache/t5-improvements-2026-10-08/` and `eval/runs/`.
 

@@ -18,9 +18,9 @@ are preserved.
 | All frozen test cases | 240 | 194/240 (80.83%) | 78/240 (32.50%) |
 | Paired, neither system has an API error | 233 | 194/233 (83.26%) | 76/233 (32.62%) |
 
-Sources: [hybrid summary](../../eval/runs/v2_test_hybrid_retry3_summary.json),
-[vector summary](../../eval/runs/v2_test_vector_retry1_summary.json), and
-[paired/category aggregates](../../eval/runs/v2_comparison_summary.json).
+Sources: [hybrid summary](../../../eval/runs/v2_test_hybrid_retry3_summary.json),
+[vector summary](../../../eval/runs/v2_test_vector_retry1_summary.json), and
+[paired/category aggregates](../../../eval/runs/v2_comparison_summary.json).
 Each accepted run contains all 240 distinct frozen test IDs once, with saved
 60/120/180/240-question milestones. The first valid attempt of each system is
 accepted by the API-error rule, without selecting a higher-scoring attempt.
@@ -210,7 +210,7 @@ old corpus, matrix and progress file remain in `.cache/vector-corpus-pre-v2/`.
 | Synonym corpus | `1bedffcb6a8f4268f8e63a97ae46bcb9726159cd016629afe79d9697e350fe8f` |
 | 47,668 x 384 embedding matrix | `081bc9f5a8fe9ed4cd3d9ffcc93bcdea97c2b1a1260335bc2ad263f92747690c` |
 
-The [artifact summary](../../eval/runs/v2_artifact_check_summary.json) has all nine
+The [artifact summary](../../../eval/runs/v2_artifact_check_summary.json) has all nine
 checks passing; a final recheck gives the same result. V1/v2 dataset, catalog,
 synonym ledger and QA/evaluator hashes remain unchanged after the test freeze.
 The matrix is finite and normalized. All seven human-review queues are unchanged.

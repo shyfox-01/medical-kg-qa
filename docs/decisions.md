@@ -2,6 +2,31 @@
 
 Each entry records a decision, its reason, and alternatives. All runtime and data artifacts remain local.
 
+## Key decisions at a glance
+
+The log below is chronological and long; these are the entries that shape the
+system and its evaluation today.
+
+| Area | Decision | Entry |
+|---|---|---|
+| Graph | Orient Disease→Disease edges only from MONDO `is_a`; drop reciprocal CSV duplicates | D004 |
+| Evaluation | Black-box process boundary; gold computed from the CSV transform, not the graph | D008 |
+| Retrieval | Bound rows, hops, anchors and evidence size; disclose truncation | D015 |
+| Service | SSE streams only the verified final answer; metadata-only OpenTelemetry spans | D019 |
+| Provenance | Keep both sides of PrimeKG/FDA conflicts, each with its source | D021 |
+| Extraction | FDA assertions only between existing entities, each backed by a verbatim quote | D024, D028 |
+| Safety | Refuse first-person crises, doses and diagnoses; answer impersonal knowledge questions | D047, D061 |
+| Retrieval | Expansion rows carry relation type and direction | D047 |
+| Linking | Common-word aliases need upper case; same-name Disease/Phenotype resolved by the asked relation | D047, D048 |
+| Retrieval | Empty single-template result falls back to documents about the anchor | D048 |
+| Vocabulary | Brand and lay names from MeSH, openFDA and MedlinePlus with collision rules | D049, D060 |
+| Linking | One-edit typo matching for long drug names | D065 |
+| Vocabulary | Quarantine 28 alias mappings rejected by source review, reversibly at query time | D072 |
+| Benchmark | v2: common entities, natural wording, clinical multi-hop, sensitive terms | D050 |
+| Benchmark | Vector control paragraphs include catalog synonyms | D051 |
+| Measurement | API-error rule: rerun whole rounds, never single questions | D054, D058 |
+| Scoring | Entity support is reported separately from (unevaluated) semantic support | D073 |
+
 ## D001 — Environment and scope
 
 Use Python 3.12 in the repository `.venv`. Store pip, model, and temporary caches inside the repository to respect the write boundary. Do not alter the parent application's environment. Alternative: a shared E-drive environment; rejected because task scope permits no writes there.
@@ -923,7 +948,7 @@ Update README with the v2 results table first, four limitations and one historic
 v1 paragraph linking archived reports. Correct its old 24-paraphrase statement to
 distinguish v1 from v2's 28 rewordings. Append the v2 snapshot to the delivery
 summary; preserve historical sections and record all invalid attempts, runtime
-deviations and costs in `docs/reports/v2-results.md`. Alternative: replace archived
+deviations and costs in `docs/history/reports/v2-results.md`. Alternative: replace archived
 measurements or compare v1/v2 headline rates as a matched experiment; rejected
 because the cases and scoring differ. Commit only accepted aggregates and docs.
 
@@ -1059,7 +1084,7 @@ additional task charges become 4,465,963 of the approved 6,000,000, leaving 1,53
 There are no new unsettled reservations. Two observed ten-second backoffs confirm
 that the live pacing path was exercised; they do not prove an availability gain.
 
-Publish development-only aggregates and `docs/reports/t5-improvements.md`, linking
+Publish development-only aggregates and `docs/history/reports/t5-improvements.md`, linking
 them from README and the historical v2 report. Keep every prior test score and
 annotation intact; explicitly mark the measured table as the pre-improvement
 snapshot. Vocabulary, prompts and scheduling changed together, so a dev score
@@ -1516,3 +1541,22 @@ retrieved rows, and quarantine requests use zero model calls. Research graph cou
 stay unchanged, with no synthetic nodes. Preserve 82 prior files, all failed and
 successful observations and usage accounting. Verify owned database PIDs exited
 and ports 7474, 7687 and 18080 closed. No push, merge or service autostart occurs.
+
+## D081 — Final v2 test round and documentation consolidation (2026-10-16)
+
+The work after the first accepted v2 round (D059–D080) was developed on dev only.
+Run the current code once on the v2 test split with the accepted settings (60 s
+provider timeout, 2 s cooldown, cache off) and report it beside the first round,
+both scored by `deterministic-3.7`: hybrid 204/240 (85.0%) versus 194/240 (80.8%);
+8 API-error questions (valid), no safety or injection regression. Multi-hop and
+reverse lose a few cases (partly provider timeouts); intersection questions keep
+failing on generated Cypher syntax. This is the second use of the test split and
+is disclosed as such; no change is tuned on these answers.
+
+Stop extending the evaluation-governance tooling: the benchmark, scorer and
+review tools are sufficient for the project's claims. Move process reports to
+`docs/history/` with an index, add `docs/evaluation.md` as the single results page,
+add a key-decisions table here, and rewrite the README as a one-page entry point.
+Alternatives: build a fresh human-authored test set first (deferred: needs people
+the project does not have) or keep publishing round-by-round reports in the README
+(rejected: the main result was buried).

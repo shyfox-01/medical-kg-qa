@@ -60,7 +60,7 @@ cumulative tokens; Codex agent work is separate AI usage. Changes stay local on
 ## Evidence
 
 The aggregate record is
-[`independent_review_2026_10_15_summary.json`](../../eval/runs/independent_review_2026_10_15_summary.json).
+[`independent_review_2026_10_15_summary.json`](../../../eval/runs/independent_review_2026_10_15_summary.json).
 Raw before/after probes, cross-review records and validation outputs are retained
 locally under `.cache/independent-review-2026-10-15/` and are unavailable from a
 fresh public clone. The earlier [implementation report](review-implementation-2026-10-15.md)

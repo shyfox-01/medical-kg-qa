@@ -152,7 +152,7 @@ mechanisms are implemented and measured; this run does not justify claiming
 that hybrid retrieval improves overall answer accuracy. The vector control's
 redline outcomes are a diagnostic, not a deployable fallback approval.
 '''
-    (ROOT/'docs/reports/phase-3.md').write_text(phase3,encoding='utf8')
+    (ROOT/'docs/history/reports/phase-3.md').write_text(phase3,encoding='utf8')
     if not args.final:
         print('Wrote phase-3 report from completed aggregate summaries')
         return
@@ -233,13 +233,13 @@ report distinguishes endpoint/tracing/fixture checks from research accuracy.
 This system is not clinically validated and must not guide diagnosis, dosage or
 treatment. No upstream institution endorses it.
 '''
-    (ROOT/'docs/reports/summary.md').write_text(summary,encoding='utf8')
+    (ROOT/'docs/history/reports/summary.md').write_text(summary,encoding='utf8')
     overview = '| Stage/model | Structured sample | Mean pass / std |\n|---|---:|---|\n'
     overview += '\n'.join(f"| {name} | {m['evaluated_questions']}/{m['total_available']} x 3 | "
         f"{pct(m['pass_rate_mean'])} / {100*m['pass_rate_std']:.2f} pp |" for name,m in models.items())
     overview += (f"\n| Phase 4 hybrid | {phase4['evaluated_questions']}/{phase4['total_available']} x 3 | "
                  f"{pct(phase4['pass_rate_mean'])} / {100*phase4['pass_rate_std']:.2f} pp |")
-    (ROOT/'docs/reports/overview_table.md').write_text(overview+'\n',encoding='utf8')
+    (ROOT/'docs/history/reports/overview_table.md').write_text(overview+'\n',encoding='utf8')
     print('Wrote phase-3 report, final comparison and overview table from completed summaries')
 
 
