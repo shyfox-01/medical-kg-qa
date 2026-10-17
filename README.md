@@ -71,25 +71,32 @@ More detail: [architecture](docs/architecture.md) and the
 ## Results
 
 Frozen v2 test split, 240 questions, graph hybrid vs a pure-vector control that
-retrieves from the same text plus one paragraph per entity:
+retrieves from the same text plus one paragraph per entity, all scored by
+`deterministic-3.8` (saved outputs rescored offline, D089):
 
 | Round | Graph hybrid | Pure vector |
 |---|---:|---:|
-| First accepted round (2026-10-08) | 194/240 (80.8%) | 78/240 (32.5%) |
-| Final round, current code (2026-10-16) | **204/240 (85.0%)** | — |
+| First accepted round (2026-10-08) | 197/240 (82.1%) | 80/240 (33.3%) |
+| Final test round (code of 2026-10-16) | **209/240 (87.1%)** | — |
 
 | Category (final round) | Graph hybrid | Pure vector (first round) |
 |---|---:|---:|
-| Single relation (36) | 97.2% | 36.1% |
+| Single relation (36) | 100% | 38.9% |
 | Exact counts (24) | 100% | 29.2% |
 | Multi-hop chains (30) | 73.3% | 3.3% |
 | Intersections / exclusions (24) | 66.7% | 8.3% |
-| Brand names, lay terms, typos (36) | 69.4% | 0% |
+| Brand names, lay terms, typos (36) | 72.2% | 0% |
 | Safety and prompt-injection controls (30) | 100% | 96.7% |
 
-Both rounds are scored by the same evaluator (`deterministic-3.7`). Between them,
-all changes were developed on the dev split only. The LLM is the free cloud
-`glm-4.5-flash` at temperature 0 with thinking off.
+Between the rounds, all changes were developed on the dev split only. The LLM is
+the free cloud `glm-4.5-flash` at temperature 0 with thinking off.
+
+Since that test round, a stage-wise failure analysis (linking, routing, retrieval,
+generation; D085–D088) fixed answers that denied correct evidence, routing gaps and
+incomplete lists. On dev, on identical code, the cloud model scores 154/160
+(96.3%) and a local open-weight Gemma 4 26B-A4B 155/160 (96.9%); each remaining
+Gemma failure is a catalog gap or a scorer limit. These are dev numbers after tuning
+on dev: the current code has not yet been measured on held-out questions.
 
 The gap is largest where structure matters: exact counts, intersections and
 multi-hop chains such as *"Which drugs used for major depressive disorder
@@ -142,30 +149,36 @@ Any OpenAI-compatible endpoint works. To run without a cloud API, use
 and set these in `.env`:
 
 ```bash
-ollama pull glm-4.7-flash:q4_K_M          # 19 GB; needs ~32 GB RAM with an 8 GB GPU
-ollama create medkg-glm-4.7-flash -f ollama/glm-4.7-flash.Modelfile
+ollama pull gemma4:26b-a4b-it-qat          # 16 GB; ~32 GB RAM with an 8 GB GPU
+ollama create medkg-gemma4-26b -f ollama/gemma4-26b.Modelfile
 ```
 
 ```text
 LLM_BASE_URL=http://127.0.0.1:11434/v1
 LLM_API_KEY=ollama
-LLM_MODEL=medkg-glm-4.7-flash
+LLM_MODEL=medkg-gemma4-26b
 LLM_THINKING_PARAM=reasoning_effort
 LLM_COOLDOWN_S=0
 ```
 
-On the v2 dev split, the open-weight GLM-4.7-Flash scores 82.5% against 92.5%
-for the cloud model, at less than half the latency and with no rate limits. The
-smaller `qwen3.5:9b` ([Modelfile](ollama/qwen3.5-9b.Modelfile), fits an 8 GB GPU)
-scores 77.5%, mostly losing on multi-hop planning
-([comparison](docs/evaluation.md#llm-backend-cloud-vs-local-dev-2026-10-16)).
+Gemma 4 26B-A4B (Apache 2.0, about 4B active parameters, quantization-aware 4-bit)
+matches the cloud model on the v2 dev split after the D085–D088 fixes: 155/160
+against 154/160, median latency 4.0 s against 6.9 s, no rate limits, and weights
+pinned by digest. Earlier measured options were GLM-4.7-Flash and the smaller
+`qwen3.5:9b` ([Modelfile](ollama/qwen3.5-9b.Modelfile), fits an 8 GB GPU)
+([comparison](docs/evaluation.md#stage-wise-diagnosis-and-fix-rounds-dev-2026-10-17)).
 
 ## Evaluate
 
 ```bash
 ruff check . && pytest -m "not integration"
 python -m eval.run --dataset eval/datasets/structured_v2.jsonl --split dev --phase 3 --max-per-category 3
+python -m eval.stages eval/runs/<run>_round1.jsonl --baseline eval/runs/<earlier>_round1.jsonl
 ```
+
+`eval.stages` attributes each failing question to the first stage that failed
+(linking, routing, retrieval or generation) from the dataset's per-stage gold and,
+given an earlier run, lists which questions were fixed, still fail or regressed.
 
 Datasets are generated once from the source CSV (`python -m eval.generate_v2`) and
 frozen by hash. Tune on `dev`; run `test` once per system version. Integration tests
@@ -205,8 +218,10 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
   true. Answers have not been reviewed by people or clinicians.
 - Gold comes from PrimeKG, so it inherits that source's gaps and errors.
 - Free-form generated Cypher still fails on some complex questions, and the free
-  LLM endpoint used here times out and rate-limits under load. Local open-weight
-  models avoid that but score 10–15 points lower on dev.
+  LLM endpoint used here times out and rate-limits under load. The local Gemma 4
+  setup avoids that and matches it on dev, but needs about 32 GB of RAM.
+- The scorer ignores names shorter than three characters (gene symbols such as AR),
+  and an acronym shared by several entities stays ambiguous.
 
 ## Documentation
 

@@ -85,6 +85,11 @@ evaluator (`deterministic-3.7`), which leaves them unchanged
 | safety / adversarial / out_of_scope | 15 / 15 / 18 | 100 / 100 / 94.4% | 100 / 100 / 100% | 100 / 93.3 / 88.9% |
 | **All** | **240** | **80.8%** | **85.0%** | **32.5%** |
 
+These numbers use `deterministic-3.7`. Rescored offline by `deterministic-3.8`
+(D089, a shared name credits only the entity whose own name it is), the same saved
+outputs give 209/240 (87.1%) final, 197/240 (82.1%) first hybrid and 80/240
+(33.3%) vector ([final](../eval/runs/v2_test_hybrid_final_rescored_v38_summary.json)).
+
 The final round has 8 API-error questions (valid under the rule) and no safety
 or injection regression. On the 226 questions without an API error in either
 hybrid round, the score moves from 188 to 198.
@@ -138,6 +143,47 @@ weight digest, but weaker. Prompts were developed against GLM-4.5, which may
 favour it. The free cloud endpoint of GLM-4.7-Flash was too overloaded to measure
 (3 of 21 calls succeeded).
 
+## Stage-wise diagnosis and fix rounds (dev, 2026-10-17)
+
+A pass rate says how often an answer is right, not where a wrong one failed.
+`eval/stages.py` scores each recorded question per stage from gold the v2 dataset
+already carries (anchor uids, template intent, expected entities and counts),
+without model calls, and attributes a failure to generation when the evidence
+contained the gold entities, otherwise to the first failing earlier stage. A fix
+counts only through the per-question ledger (fixed / still failing / regressed); a
+repeated identical Gemma 4 run had no pass/fail flips, so its ledgers measure the
+changes rather than noise.
+
+Each round below was diagnosed on dev and applied to every model; scores use
+`deterministic-3.8` (D089).
+
+| Round | What the diagnosis found | Change | Cloud GLM-4.5 | Local Gemma 4 |
+|---|---|---|---:|---:|
+| D083 code | — | — | 151 | 129 |
+| D085 | brand names and intersections denied | name mapping and query descriptions in the evidence | 149 | 141 |
+| D086 | generated-query rows denied; relation words blocked templates | descriptions for generated queries; faithful-reporting rule; linker | 150 | 146 |
+| D087–D088 | incomplete lists; truncated group labels; "drugs that cause X" and "when not to use" routing | completeness guaranteed in code; routing fixes | **154** | **155** |
+
+Final stage metrics on identical code:
+
+| Stage | Cloud GLM-4.5 | Local Gemma 4 |
+|---|---:|---:|
+| Linking (gold anchors linked) | 99.2% | 99.2% |
+| Routing (gold template intent, 92 questions) | 98.9% | 98.9% |
+| Evidence sufficient | 98.4% | 99.2% |
+| Answer correct given sufficient evidence | 96.8% | 96.9% |
+| Passed | 154/160 | 155/160 |
+| Median latency | 6.9 s | 4.0 s |
+
+Remaining Gemma failures: a brand name absent from the catalog (Rubraca), two
+answers naming two-character gene symbols the scorer cannot extract (AR, F2), an
+acronym shared by two diseases (CHS), and one list completed after the run by the
+uid-based check (offline replay: 156/160). The cloud model fails the same three
+catalog/scorer questions plus a Cypher syntax error, one denied answer and a
+provider timeout. None of Gemma's remaining failures is a model error, but the 160
+dev questions were used for every round: the comparison needs a fresh held-out
+split.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time
@@ -152,6 +198,9 @@ favour it. The free cloud endpoint of GLM-4.7-Flash was too overloaded to measur
   but not retried (D063). A local model avoids this but scores lower (D083).
 
 ## Threats to validity
+
+- Every fix round in D085–D088 was diagnosed on the same 160 dev questions; dev
+  scores after these rounds overstate performance on new questions.
 
 - One round per system version; no repeated-run variance on test.
 - The final run is the second use of the test split. All changes between the

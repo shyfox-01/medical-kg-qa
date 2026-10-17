@@ -1771,3 +1771,18 @@ cloud D086 147 -> 150, Gemma 4 D086 144 -> 146. Known scorer limits that remain:
 two-character gene symbols (AR, F2) are never extracted (aliases shorter than three
 characters are ignored to avoid false matches), and an acronym shared by several
 entities (CHS) stays ambiguous when an answer echoes synonyms.
+
+## D090 — Final dev measurement of the round-3 code: local matches cloud (2026-10-17)
+
+On identical code (hash d679e567…, scorer 3.8) the cloud glm-4.5-flash scores
+154/160 (1 provider timeout) and the local Gemma 4 26B-A4B 155/160, median latency
+6.9 s against 4.0 s. The uid-based completeness check committed afterwards changes
+one saved Gemma answer (v2-0151) from fail to pass in an offline replay. Every
+remaining Gemma failure is a catalog gap or a scorer limit; the cloud model's
+remaining failures add a Cypher syntax error, a denied answer and a timeout. The
+cloud model remains the configured default until the next step, a fresh v3 test
+split generated from the CSV with disjoint entities and run once per system, which
+also decides whether the local model becomes the reported one. Unfixed and
+recorded: brand coverage (an FDA or RxNorm brand-name source rather than
+per-question aliases), two-character gene symbols and shared acronyms in the scorer,
+and run-to-run variation of the cloud planner.
