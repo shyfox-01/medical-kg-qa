@@ -4,9 +4,15 @@ import json
 import re
 
 from medkg_data.alias_policy import EXCLUDED_ALIASES, allowed_names
-from medkg_data.lexicon import GENERIC_ANCHORS, ambiguous_word
+from medkg_data.lexicon import (
+    GENERIC_ANCHORS,
+    LIST_BREAK,
+    ambiguous_word,
+    crosses_break,
+    list_breaks,
+)
 
-VERSION = 'deterministic-3.10'
+VERSION = 'deterministic-3.11'
 METRIC_SEMANTICS = {
     'entity_supported': 'All extracted answer entities occur in supplied contexts; entity-only.',
     'faithful': 'Legacy alias of entity_supported; does not evaluate claim entailment.',
@@ -219,6 +225,7 @@ class Vocabulary:
         # "GAPDH" is GAPDH, not GAPDHS, which normalizes to the same key (3.8).
         self.owners: dict[str, set[str]] = {}
         self.short_symbols: dict[str, set[str]] = {}
+        self.separated: set[str] = set()   # keys whose own spelling has a comma or semicolon
         self.excluded_by_key: dict[str, set[str]] = {}
         present = {entity['uid'] for entity in entities}
         for uid in present & EXCLUDED_ALIASES.keys():
@@ -235,6 +242,8 @@ class Vocabulary:
                 excluded = entity['uid'] in self.excluded_by_key.get(key, set())
                 if len(key)>=3 and (canonical or not excluded):
                     self.aliases.setdefault(key,set()).add(entity['uid'])
+                    if LIST_BREAK.search(alias):
+                        self.separated.add(key)
                     # A truncated PrimeKG group label ("nephrotic syndrome,") is not how
                     # anyone writes that name; it owns nothing (as in the linker, D088).
                     if canonical and not (entity['uid'].startswith('MONDO_grouped')
@@ -249,6 +258,7 @@ class Vocabulary:
     def extract(self, text: str) -> set[str]:
         words = normalize(text).split()
         original = re.findall(r'\w+',text)
+        breaks = list_breaks(text)
         result,occupied = set(),set()
         for size in self.alias_sizes:
             if size>len(words):
@@ -263,10 +273,14 @@ class Vocabulary:
                 # upper-case acronyms.
                 if key in GENERIC_ANCHORS or ambiguous_word(key,' '.join(original[start:start+size])):
                     continue
+                if key in self.aliases and crosses_break(start,size,breaks) and key not in self.separated:
+                    continue   # a list separator splits this span into two names (3.11)
                 if key in self.aliases:
                     uids = self.aliases[key]
                     owners = uids & self.owners.get(' '.join(original[start:start+size]).casefold(),set())
-                    result.update(owners if len(uids)>1 and len(owners)==1 else uids)
+                    # A name that is some entities' own name denotes those entities, not
+                    # others that merely list it as a synonym (3.11; one owner in 3.8).
+                    result.update(owners if len(uids)>1 and owners else uids)
                     occupied |= positions
                 elif key in self.quarantined_keys:
                     # A rejected full phrase cannot fall through to a shorter

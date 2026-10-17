@@ -51,6 +51,8 @@ class Linker:
         self.written_owners: dict[str, set[str]] = {}
         for e in entities:
             self.written_owners.setdefault(' '.join(re.findall(r'\w+', e['name'].casefold())), set()).add(e['uid'])
+        # Keys whose own spelling has a comma or semicolon may span a list separator.
+        self.separated = {normalize(a) for e in entities for a in allowed_names(e) if re.search(r'[,;]', a)}
         self.embedder, self.vectors, self.vector_aliases = embedder, vectors, vector_aliases
         self.excluded_by_key: dict[str, set[str]] = {}
         for uid in self.entities.keys() & EXCLUDED_ALIASES.keys():

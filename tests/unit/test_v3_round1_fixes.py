@@ -67,6 +67,7 @@ def test_language_is_judged_by_function_words_not_diacritics(question,is_english
     ('What broader condition is Rigel disorder a form of?','parents'),
     ('Which diseases are a form of Orion fever?','subtypes'),
     ('Which diseases are subtypes of Lyra disorder?','subtypes'),
+    ('What specific forms of Orion fever are recorded?','subtypes'),
     ('Which medicines are known to trigger Amber spots?','drugs_with_side_effect'),
 ])
 def test_relation_wordings_route_to_their_template(question,intent):

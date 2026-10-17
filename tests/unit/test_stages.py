@@ -101,3 +101,20 @@ def test_truncated_group_labels_own_no_name():
     vocabulary = Vocabulary([{'uid':'fiction:d','label':'Disease','name':'Orion fever','synonyms':[]},
                              {'uid':'MONDO_grouped:1_2','label':'Disease','name':'Orion fever,','synonyms':[]}])
     assert vocabulary.extract('Orion fever') == {'fiction:d'}
+
+
+def test_a_name_owned_by_several_entities_never_credits_a_synonym_holder():
+    vocabulary = Vocabulary([{'uid':'fiction:d','label':'Disease','name':'Orion fever','synonyms':[]},
+                             {'uid':'fiction:p','label':'Phenotype','name':'Orion fever','synonyms':[]},
+                             {'uid':'fiction:s','label':'Phenotype','name':'Orion fever/rash','synonyms':['Orion fever']}])
+    assert vocabulary.extract('Orion fever') == {'fiction:d','fiction:p'}
+
+
+def test_list_separators_split_names_unless_the_name_has_them():
+    vocabulary = Vocabulary([{'uid':'fiction:a','label':'Phenotype','name':'Amber spots','synonyms':[]},
+                             {'uid':'fiction:b','label':'Phenotype','name':'Rash','synonyms':[]},
+                             {'uid':'fiction:c','label':'Phenotype','name':'Amber spots/rash','synonyms':[]},
+                             {'uid':'fiction:d','label':'Disease','name':'Orion fever, classic type','synonyms':[]}])
+    assert vocabulary.extract('Also recorded: Amber spots, Rash.') == {'fiction:a','fiction:b'}
+    assert vocabulary.extract('Amber spots/rash') == {'fiction:c'}
+    assert vocabulary.extract('Orion fever, classic type') == {'fiction:d'}

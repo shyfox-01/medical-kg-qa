@@ -14,7 +14,7 @@ SIDE = r'side effect|adverse (?:effect|reaction|event)|unwanted effect|undesirab
 INTERACT = r'interact|\bcombin(?:e|ed|ing) with\b|\btaken together\b'
 TARGET = r'target|protein|gene|\bact(?:s)? on\b|\bmolecular\b|\bbind(?:s|ing)?\b'
 PARENT = r'\b(?:parent|supertype|belong(?:s)? to|categor\w*|broader|classified (?:as|under))\b'
-SUBTYPE = r'\b(?:subtype|subclass\w*|children|a (?:form|type|kind) of)\b'
+SUBTYPE = r'\b(?:subtype|subclass\w*|children|a (?:form|type|kind) of|(?:specific |different )?form of)\b'
 # Explicit relation cues that settle a same-name Disease/Phenotype tie.
 EXPLICIT = {'subtypes': SUBTYPE, 'parents': PARENT, 'genes': r'\bgenes?\b', 'targets': TARGET}
 SHARED = r'\b(?:both|in common|share|shared|common)\b'
@@ -133,14 +133,14 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
         # Drug->Disease causation template exists (D088).
         if re.search(DRUG_WORDS,q) and re.search(r'\b(?:caus|induc|trigger)\w*\b',q):
             return None
-        if re.search(SUBTYPE,q) or re.search(PARENT,q):
+        if (re.search(SUBTYPE,q) or re.search(PARENT,q)) and not re.search(DRUG_WORDS,q):
             if re.search(PARENT,q):
                 return 'parents'
             # "subtypes of X" / "diseases that are a form of X" ask for subtypes; "X is
             # a form of what?" asks for the parent. The marker's position decides.
             original_words = re.findall(r'\w+',question.casefold())
             marker = next((i for i,w in enumerate(original_words[:-1]) if
-                w in ('subtype','subtypes','subclass','subclasses','form','type','kind') and original_words[i+1]=='of'),None)
+                w in ('subtype','subtypes','subclass','subclasses','form','forms','type','kind') and original_words[i+1]=='of'),None)
             if marker is not None and candidates[0].span:
                 return 'subtypes' if candidates[0].span[0]>marker else 'parents'
             return 'subtypes' if re.search(r'\b(?:subtypes|subclasses|children)\b',question,re.I) else 'parents'

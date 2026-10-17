@@ -62,6 +62,21 @@ world area areas case cases group groups problem problems question questions fac
 # common cold is still matched by its multi-word aliases ("common cold").
 
 
+LIST_BREAK = re.compile(r'[,;\n\u2022]')
+
+
+def list_breaks(text: str) -> set[int]:
+    """Indices of word tokens followed by a list separator (comma, semicolon, line
+    break, bullet) before the next token. "Arthralgia, Arthritis" is two names, not
+    the alias "arthralgia arthritis" of a third entity."""
+    spans = [m.span() for m in re.finditer(r'\w+', text)]
+    return {i for i in range(len(spans) - 1) if LIST_BREAK.search(text[spans[i][1]:spans[i + 1][0]])}
+
+
+def crosses_break(start: int, size: int, breaks: set[int]) -> bool:
+    return any(j in breaks for j in range(start, start + size - 1))
+
+
 def normalize(text: str) -> str:
     """Alias key: case-folded words without punctuation, with a crude plural strip."""
     words = re.sub(r'[^\w\s]', ' ', text.casefold()).split()

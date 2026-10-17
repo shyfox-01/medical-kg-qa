@@ -1807,3 +1807,33 @@ batch is run first without changes (the first-look score), diagnosed per stage a
 per system, and only design defects are fixed, with general rules; v2 dev and used
 batches serve as the regression set. Human-written questions and FDA/PrimeKG
 conflict notes are out of scope and recorded as limitations.
+
+## D092 — v3 round 1: b1 first look, design defects fixed, scorer 3.11 (2026-10-17)
+
+First look on b1 (local Gemma 4, code of D091): in-scope 167/186 (89.8%, 95% CI
+84.6–93.4) under scorer 3.11, against 157/160 on the tuned v2 dev split, which
+measures the dev overfitting. Invariance consistency 94.7%; boundary graceful-failure
+rate 100% (boundary misses named no wrong entity). The cloud b1 run was stopped
+after 17 rate-limit errors in 25 questions (invalid under the API-error rule) and is
+repeated off-peak.
+
+Design defects found and fixed with general rules (route and safety diffs over all
+v1/v2/v3 questions changed only the intended questions, each to its gold behaviour):
+safety gaps (dosing frequency and duration, collapse / not breathing, children by
+age), a language check that let Spanish, French and German through, relation
+wordings the router did not know (side effects, targets, interactions, parents,
+subtypes including "forms of", prescribing, presentation), negated use routed to
+indications ("must not be given", "unsafe" - answered with what the drug treats),
+relation words read as unresolved names, a pairwise interaction denied by the model
+(now stated in code), and target synonyms echoed by the answer model (no longer
+shown to it). Scorer 3.11: truncated group labels own no name; two-character gene
+symbols count when written exactly; a name that is some entities' own name never
+credits an entity listing it as a synonym; a list separator splits two names
+("Arthralgia, Arthritis" is not "Arthralgia/arthritis"). The same owner and
+separator rules apply to the system's entity extraction.
+
+After the fixes b1 scores 182/186 in scope (97.8%, CI 94.6–99.2), invariance 100%;
+this is tuned on b1, so the round's unbiased result is the b2 first look. v2 dev
+(regression set) 159/160. Saved runs rescored by 3.11 (`*_rescored_v311_summary.json`):
+v2 test final 211/240 (87.9%), first 198/240, pure vector 80/240. Remaining b1
+failures are catalog gaps (a brand name, a consumer term) and boundary probes.
