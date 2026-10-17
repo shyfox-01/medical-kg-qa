@@ -27,6 +27,8 @@ system and its evaluation today.
 | Measurement | API-error rule: rerun whole rounds, never single questions | D054, D058 |
 | Scoring | Entity support is reported separately from (unevaluated) semantic support | D073 |
 | LLM | Keep the cloud model as default; local open-weight models are supported and measured on dev | D083, D084 |
+| Evaluation | Stage-wise diagnosis and per-question ledgers decide whether a fix worked | D086, D089 |
+| Answer | Rows of the final graph query are always reported; the model words, code completes | D087 |
 
 ## D001 — Environment and scope
 
@@ -1701,3 +1703,71 @@ question. The answer layer reports the knowledge base faithfully; knowledge-base
 errors are a separate data-quality metric, estimated first by sampling against FDA
 labels. The final comparison uses each system's best configuration on a fresh
 held-out v3 test split.
+
+## D086 — Stage-wise diagnosis; generated-query descriptions and faithful reporting (2026-10-17)
+
+`eval/stages.py` scores a recorded run per stage from gold the v2 dataset already
+carries (anchor_uids, intent, expected, expected_count), without model calls:
+linking, routing (template intent), retrieval (the evidence contains the gold
+entities, mirroring the scorer's recall rule) and generation. Each failing
+question is attributed to generation when its evidence sufficed, otherwise to the
+first failing earlier stage; with a baseline it prints the per-question ledger
+(fixed / still failing / regressed). A repeated identical Gemma 4 run gave the same
+140/160 with the same 20 failures at the same stages (no pass/fail flips), so its
+ledgers are not dominated by run-to-run noise; the cloud model and GLM-4.7 did show
+planner variation.
+
+On the D085 runs retrieval was sufficient for 98% of Gemma's answerable questions;
+12 of its 20 failures were answers denying evidence that contained the gold
+entities, including multi-hop questions whose own generated Cypher returned exactly
+the gold set. Changes: generated queries carry a description (the question they
+were generated for; each row satisfies all of its constraints); the answer prompt
+states that rows returned by an executed graph query are the knowledge graph's
+answer, never to be denied or rejected with outside knowledge; relation phrasing
+("linked to", "reported for", "present with") no longer counts as an unresolved
+name, which had blocked template routing (single-turn dev routing with a gold
+intent 71/84 -> 82/84). Dev: Gemma 140 -> 144 (6 fixed, all targeted; 2 regressed:
+one incomplete long list, one scorer alias collision), cloud 146 -> 147 (2
+regressions were provider timeouts).
+
+## D087 — The final graph query's results are always reported (2026-10-17)
+
+Faithful reporting is enforced in code. When the final graph query step (the only
+graph step, or one chained on earlier outputs) returned entity rows, names the
+answer omits are appended ("Also recorded in the knowledge graph: ..."); an answer
+naming none of them is replaced by the list. Names are matched longest first so a
+name inside a longer reported name does not count. Counts and two independent lists
+left for the model to intersect are not touched, and an output-safety refusal (e.g.
+a dose instruction) takes precedence: the safety check runs first. An explicit
+model refusal over returned rows is therefore reported as those rows.
+
+## D088 — Linking and routing corrections found by the stage diagnosis (2026-10-17)
+
+- PrimeKG grouped nodes with a truncated label ("nephrotic syndrome,", "Meckel
+  syndrome,", "Carney complex,") shadowed the MONDO disease of that name; such a
+  label is no longer a linkable name when another entity of the same label has it.
+- "Which drugs cause X?" was routed, in the Disease reading, to drugs_for (the
+  treatments for X). Drug words with a causation verb no longer take a Disease
+  template.
+- "When should <drug> not be used?" matched no contraindication pattern and went to
+  the planner; the router's contraindication wording now covers it.
+Route diffs over all 400 v2 questions changed only the intended questions, each to
+its gold intent. The remaining dev routing miss is a brand name absent from the
+catalog (Rubraca); it is not patched per question: brand coverage is a separate
+data task.
+
+## D089 — Scorer 3.8: a shared name credits the entity it names (2026-10-17)
+
+Entity extraction credited every entity sharing an alias key: "GAPDH" also counted
+GAPDHS (whose symbol normalizes to the same key through the plural strip), and a
+subtype name listed as a synonym of its grouped parent counted the parent too. When
+several entities share a key, the scorer now credits only the entity whose own
+canonical name is the text as written (case and punctuation folded, no plural
+strip); otherwise the name stays ambiguous. The rule does not consult gold and
+moves scores in both directions. All saved runs were rescored offline
+(`*_rescored_v38_summary.json`, no model calls): v2 test final 204 -> 209/240
+(87.1%), first round 194 -> 197 (82.1%), pure-vector control 78 -> 80 (33.3%); dev
+cloud D086 147 -> 150, Gemma 4 D086 144 -> 146. Known scorer limits that remain:
+two-character gene symbols (AR, F2) are never extracted (aliases shorter than three
+characters are ignored to avoid false matches), and an acronym shared by several
+entities (CHS) stays ambiguous when an answer echoes synonyms.
