@@ -102,6 +102,10 @@ class Pipeline:
                         result['route'] = 'planner'
                     attrs.update(route=result['route'],steps=len(steps))
                 rows,outputs = [],[]
+                # Result rows of the final graph query step, when they are the answer: the only
+                # graph step, or one chained on earlier outputs. Two independent lists left
+                # for the model to intersect are not (D087).
+                answer_rows,graph_steps = [],0
                 stage = 'query'
                 for number,step in enumerate(steps,1):
                     with span('tool.'+step.tool,step=number) as attrs:
@@ -136,6 +140,12 @@ class Pipeline:
                             result['queries'].append({'cypher':retrieved.stmt,'params':params,
                                                       **({'description':description} if description else {})})
                         outputs.append(retrieved.rows)
+                        if step.tool in ('template','text2cypher'):
+                            graph_steps += 1
+                            chained = '"$step' in json.dumps(step.args)
+                            answer_rows = list(retrieved.rows) if graph_steps==1 or chained else []
+                        else:
+                            answer_rows = []
                         rows.extend(retrieved.rows)
                         result['truncated'] |= retrieved.truncated
                         if (step.tool=='template' and not retrieved.rows and len(steps)==1
@@ -191,6 +201,13 @@ class Pipeline:
                         violation = safety.output_violation(result['answer'])
                         if violation:
                             result.update(answer=violation.message,safety=violation.category,refused=True)
+                    # A safety refusal stands; otherwise the answer rows must be reported.
+                    if not result['refused'] and answer_rows and not any('count' in r for r in answer_rows):
+                        names = [row.get('name') or self.linker.entities.get(row.get('uid'),{}).get('name')
+                                 for row in answer_rows]
+                        result['answer'],completed = answer.ensure_reported(result['answer'],names)
+                        if completed:
+                            result['answer_completed'] = completed
                 result['answer'] = answer.finalize(result['answer'],rows,result['truncated'])
             except Exception as exc:
                 result.update(answer='The request could not be completed. Please retry or simplify the question.',

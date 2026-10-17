@@ -143,8 +143,17 @@ def test_composite_quality_rejects_correct_list_with_unsafe_completion():
 
 
 def test_generated_explicit_refusal_has_consistent_public_status(monkeypatch):
+    # Rows returned by the final graph query are reported even if the model refuses (D087).
     result = app(monkeypatch,Model(text='I cannot answer this from the provided evidence.')).ask(
         'What is Asterol indicated for?')
+    assert result['answer_completed']=='replaced' and result['response_status']=='answered'
+    assert 'Asterol' in result['answer'] and not result['refused']
+    # Without such rows (two independent lists), an explicit refusal stays unsupported.
+    plan = {'steps':[{'tool':'template','args':{'intent':'indications','uids':['fiction:drug-a']}},
+                     {'tool':'template','args':{'intent':'indications','uids':['fiction:drug-b']}}]}
+    result = app(monkeypatch,Model(text='I cannot answer this from the provided evidence.',plan=plan)).ask(
+        'Explain how Asterol and Brinex compare.')
+    assert result['route']=='planner' and 'answer_completed' not in result
     assert result['refused'] and result['response_status']=='unsupported'
 
 
