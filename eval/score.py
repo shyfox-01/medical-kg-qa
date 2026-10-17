@@ -6,7 +6,7 @@ import re
 from medkg_data.alias_policy import EXCLUDED_ALIASES, allowed_names
 from medkg_data.lexicon import GENERIC_ANCHORS, ambiguous_word
 
-VERSION = 'deterministic-3.7'
+VERSION = 'deterministic-3.8'
 METRIC_SEMANTICS = {
     'entity_supported': 'All extracted answer entities occur in supplied contexts; entity-only.',
     'faithful': 'Legacy alias of entity_supported; does not evaluate claim entailment.',
@@ -196,10 +196,19 @@ def normalize(text: str) -> str:
                     for w in words)
 
 
+def written(name: str) -> str:
+    """A name as written: case-folded word tokens, without plural stripping."""
+    return ' '.join(re.findall(r'\w+',name.casefold()))
+
+
 class Vocabulary:
     def __init__(self, entities: list[dict]):
         self.aliases = {}
         self.labels = {}
+        # Canonical names as written (case and punctuation folded, no plural strip).
+        # A name shared by several entities denotes the one whose own name it is:
+        # "GAPDH" is GAPDH, not GAPDHS, which normalizes to the same key (3.8).
+        self.owners: dict[str, set[str]] = {}
         self.excluded_by_key: dict[str, set[str]] = {}
         present = {entity['uid'] for entity in entities}
         for uid in present & EXCLUDED_ALIASES.keys():
@@ -216,6 +225,8 @@ class Vocabulary:
                 excluded = entity['uid'] in self.excluded_by_key.get(key, set())
                 if len(key)>=3 and (canonical or not excluded):
                     self.aliases.setdefault(key,set()).add(entity['uid'])
+                    if canonical:
+                        self.owners.setdefault(written(entity['name']),set()).add(entity['uid'])
         self.alias_sizes = sorted({len(key.split()) for key in
                                    self.aliases.keys() | self.quarantined_keys},reverse=True)
 
@@ -237,7 +248,9 @@ class Vocabulary:
                 if key in GENERIC_ANCHORS or ambiguous_word(key,' '.join(original[start:start+size])):
                     continue
                 if key in self.aliases:
-                    result.update(self.aliases[key])
+                    uids = self.aliases[key]
+                    owners = uids & self.owners.get(' '.join(original[start:start+size]).casefold(),set())
+                    result.update(owners if len(uids)>1 and len(owners)==1 else uids)
                     occupied |= positions
                 elif key in self.quarantined_keys:
                     # A rejected full phrase cannot fall through to a shorter

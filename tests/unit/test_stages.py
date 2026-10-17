@@ -76,3 +76,15 @@ def test_summary_rates_and_per_question_ledger():
     assert ledger(before,after)=={'fixed':[('a','generation:denied_evidence',None)],
                                   'still_failing':[('c','linking','linking')],
                                   'regressed':[('b',None,'generation:extra_entities')]}
+
+
+def test_shared_name_denotes_its_canonical_owner():
+    entities = [{'uid':'fiction:g1','label':'Gene','name':'ORX1','synonyms':[]},
+                {'uid':'fiction:g2','label':'Gene','name':'ORX1S','synonyms':['ORX1']},
+                {'uid':'fiction:d1','label':'Disease','name':'Lyra disease','synonyms':['Vela syndrome']},
+                {'uid':'fiction:d2','label':'Disease','name':'Rigel disease','synonyms':['Vela syndrome']}]
+    vocabulary = Vocabulary(entities)
+    assert vocabulary.extract('Genes: ORX1')=={'fiction:g1'}
+    assert vocabulary.extract('Genes: ORX1S')=={'fiction:g2'}
+    # Without a canonical owner a shared synonym stays ambiguous.
+    assert vocabulary.extract('Vela syndrome')=={'fiction:d1','fiction:d2'}

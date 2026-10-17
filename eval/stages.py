@@ -24,7 +24,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from eval.score import Vocabulary
+from eval.score import Vocabulary, score
 
 REFUSAL_KINDS = {'refusal', 'safety'}
 REFUSED = re.compile(r'\b(?:no (?:evidence|information|supporting|drugs|medications|genes|shared|symptoms|results)'
@@ -125,9 +125,16 @@ def ledger(before: dict[str, dict], after: dict[str, dict]) -> dict[str, list[tu
     return groups
 
 
-def load(dataset: Path, run: Path, vocabulary: Vocabulary) -> dict[str, dict]:
+def load(dataset: Path, run: Path, vocabulary: Vocabulary, rescore: bool = False) -> dict[str, dict]:
     cases = {c['id']: c for c in (json.loads(line) for line in dataset.read_text(encoding='utf8').splitlines())}
     records = [json.loads(line) for line in run.read_text(encoding='utf8').splitlines()]
+    if rescore:
+        # Saved outputs scored by the current evaluator version (no model calls).
+        for r in records:
+            executed = [s for t in r.get('turns', []) for s in t['result'].get('executed_statements',
+                        t['result'].get('cypher', []))]
+            r['score'] = score(cases[r['id']], {**r['result'], 'failure_stage': r.get('failure_stage'),
+                                               **({'executed_statements': executed} if executed else {})}, vocabulary)
     return {r['id']: verdict(cases[r['id']], r, vocabulary) for r in records}
 
 
@@ -138,13 +145,14 @@ def main() -> None:
     parser.add_argument('--dataset', default='eval/datasets/structured_v2.jsonl')
     parser.add_argument('--vocabulary', default='data/processed/entities.json')
     parser.add_argument('--output', help='Write per-question verdicts and the summary as JSON')
+    parser.add_argument('--rescore', action='store_true', help='Score saved outputs with the current evaluator')
     args = parser.parse_args()
     vocabulary = Vocabulary(json.loads(Path(args.vocabulary).read_text(encoding='utf8')))
-    after = load(Path(args.dataset), Path(args.run), vocabulary)
+    after = load(Path(args.dataset), Path(args.run), vocabulary, args.rescore)
     report = {'run': args.run, 'summary': summarize(list(after.values()))}
     print(json.dumps(report['summary'], indent=2))
     if args.baseline:
-        before = load(Path(args.dataset), Path(args.baseline), vocabulary)
+        before = load(Path(args.dataset), Path(args.baseline), vocabulary, args.rescore)
         report['baseline'] = args.baseline
         report['ledger'] = ledger(before, after)
         for name, rows in report['ledger'].items():
