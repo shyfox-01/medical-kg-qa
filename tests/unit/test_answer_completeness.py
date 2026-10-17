@@ -54,3 +54,26 @@ def test_count_answers_are_not_completed(monkeypatch):
 def test_safety_refusal_is_not_overridden(monkeypatch):
     result = app(monkeypatch,Model(text='Take two tablets of Asterol daily.')).ask('What is Asterol indicated for?')
     assert result['refused'] and result['safety']=='dosage' and 'answer_completed' not in result
+
+
+def test_uid_mentions_decide_completeness():
+    from medkg.qa.linker import Linker
+    from medkg.qa.verify import entities_in_text
+    entities = [{'uid':'fiction:group','label':'Disease','name':'Orion fever',
+                 'synonyms':['late onset Orion fever']},
+                {'uid':'fiction:late','label':'Disease','name':'late onset Orion fever',
+                 'synonyms':['Orion fever caused by ORX1']},
+                {'uid':'fiction:lyra','label':'Disease','name':'Lyra disease','synonyms':['LD-7 syndrome']}]
+    linker = Linker(entities)
+    # A shared name credits the entity whose own name it is; an echoed synonym that
+    # contains "Orion fever" does not report the group.
+    answer = '- late onset Orion fever (Orion fever caused by ORX1)\n- LD-7 syndrome'
+    mentioned = entities_in_text(answer,linker)
+    assert mentioned=={'fiction:late','fiction:lyra'}
+    text,done = ensure_reported(answer,['Orion fever','late onset Orion fever','Lyra disease'],
+                                ['fiction:group','fiction:late','fiction:lyra'],mentioned)
+    assert done=='appended' and text.endswith('Also recorded in the knowledge graph: Orion fever.')
+
+
+def test_short_symbols_fall_back_to_text_matching():
+    assert ensure_reported('- AR\n- ORX1',['AR','ORX1'],['fiction:ar','fiction:orx1'],{'fiction:orx1'})[1] is None

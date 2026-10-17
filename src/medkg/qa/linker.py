@@ -46,6 +46,11 @@ class Linker:
                 if key:
                     self.aliases.setdefault(key, []).append(e['uid'])
                     self.by_label.setdefault(e['label'], {}).setdefault(key, []).append(e['uid'])
+        # Canonical names as written (case-folded word tokens, no plural strip): a name
+        # shared by several entities denotes the one whose own name it is (D087).
+        self.written_owners: dict[str, set[str]] = {}
+        for e in entities:
+            self.written_owners.setdefault(' '.join(re.findall(r'\w+', e['name'].casefold())), set()).add(e['uid'])
         self.embedder, self.vectors, self.vector_aliases = embedder, vectors, vector_aliases
         self.excluded_by_key: dict[str, set[str]] = {}
         for uid in self.entities.keys() & EXCLUDED_ALIASES.keys():

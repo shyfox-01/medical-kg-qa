@@ -203,9 +203,12 @@ class Pipeline:
                             result.update(answer=violation.message,safety=violation.category,refused=True)
                     # A safety refusal stands; otherwise the answer rows must be reported.
                     if not result['refused'] and answer_rows and not any('count' in r for r in answer_rows):
+                        from medkg.qa.verify import entities_in_text
                         names = [row.get('name') or self.linker.entities.get(row.get('uid'),{}).get('name')
                                  for row in answer_rows]
-                        result['answer'],completed = answer.ensure_reported(result['answer'],names)
+                        result['answer'],completed = answer.ensure_reported(
+                            result['answer'],names,[row.get('uid') for row in answer_rows],
+                            entities_in_text(result['answer'],self.linker))
                         if completed:
                             result['answer_completed'] = completed
                 result['answer'] = answer.finalize(result['answer'],rows,result['truncated'])

@@ -88,27 +88,37 @@ def messages(question: str, rows: list[dict], feedback: str = '',queries: list[d
                 evidence)+'</evidence>'}]
 
 
-def ensure_reported(answer: str, names: list[str]) -> tuple[str, str | None]:
+def ensure_reported(answer: str, names: list[str], uids: list[str | None] | None = None,
+                    mentioned: set[str] | None = None) -> tuple[str, str | None]:
     """Guarantee that the final graph query's result entities appear in the answer (D087).
 
     The answer model words the reply; completeness is checked in code rather than
     trusted to the model. Missing names are appended. If the answer names none of
     them (it denied rows that the query returned), the rows are listed instead.
-    Returns the answer and what was done: None, 'appended' or 'replaced'.
+    With `mentioned` (entity uids the linker finds in the answer), a row with a uid is
+    reported exactly when its uid was named, so synonyms count and a name inside a
+    longer name or an echoed synonym does not. Otherwise names are matched as text,
+    longest first. Returns the answer and what was done: None, 'appended' or 'replaced'.
     """
-    names = list(dict.fromkeys(n for n in names if n and n.strip()))
-    if not names:
+    uids = list(uids) if uids is not None else [None] * len(names)
+    items = list(dict.fromkeys((u, n) for u, n in zip(uids, names) if n and n.strip()))
+    if not items:
         return answer, None
     text = ' ' + normalize(answer) + ' '
     found = set()
-    # Longest names first, each consuming its mention, so that "Parkinson disease"
-    # inside "late onset Parkinson disease" does not count as reported.
-    for name in sorted(names, key=lambda n: len(normalize(n)), reverse=True):
+    for uid, name in sorted(items, key=lambda item: len(normalize(item[1])), reverse=True):
+        # Names shorter than three characters (gene symbols such as AR) are below the
+        # linker's extraction threshold; they fall back to text matching.
+        if uid is not None and mentioned is not None and len(normalize(name)) >= 3:
+            if uid in mentioned:
+                found.add((uid, name))
+            continue
         key = ' ' + normalize(name) + ' '
         if key in text:
-            found.add(name)
+            found.add((uid, name))
             text = text.replace(key, ' | ', 1)
-    missing = [n for n in names if n not in found]
+    names = list(dict.fromkeys(n for _, n in items))
+    missing = list(dict.fromkeys(n for u, n in items if (u, n) not in found))
     if not missing:
         return answer, None
     if len(missing) == len(names):

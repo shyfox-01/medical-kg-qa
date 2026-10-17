@@ -21,7 +21,10 @@ def entities_in_text(text: str,linker) -> set[str]:
             if alias in GENERIC_ANCHORS or ambiguous_word(alias,' '.join(original[start:start+size])):
                 continue
             if len(alias)>=3 and alias in linker.aliases:
-                found.update(linker.aliases[alias])
+                uids = set(linker.aliases[alias])
+                written = ' '.join(original[start:start+size]).casefold()
+                owners = uids & getattr(linker,'written_owners',{}).get(written,set())
+                found.update(owners if len(uids)>1 and len(owners)==1 else uids)
                 occupied |= positions
             elif alias in linker.quarantined_keys:
                 # Match the linker's whole-span quarantine: a rejected name must
