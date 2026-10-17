@@ -1786,3 +1786,24 @@ also decides whether the local model becomes the reported one. Unfixed and
 recorded: brand coverage (an FDA or RxNorm brand-name source rather than
 per-question aliases), two-character gene symbols and shared acronyms in the scorer,
 and run-to-run variation of the cloud planner.
+
+## D091 — Benchmark v3: capability coverage, perturbations and a sealed test (2026-10-17)
+
+Several promised functions had no v2 questions (six relation intents, yes/no
+interactions, "the graph records none", unknown and ambiguous names, non-English
+questions), and the 160 v2 dev questions were used for every fix round. v3
+(`docs/evaluation/v3-design.md`) is a CheckList-style suite: minimum-functionality
+tests per promised capability, invariance and directional perturbations, and
+boundary probes reported as a graceful-failure rate; scorer 3.9 adds the kinds
+none, yesno and clarify. Anchors are disjoint from v1, v2 and between the parts:
+diagnosis batches b1 and b2 (195 questions each) and a sealed test (272) in its own
+file whose contents are not inspected and which runs once per system with `--final`.
+The sealed questions were reworded by qwen3.5:9b, a model independent of both
+systems under test (71 reworded and validated, 42 returned unchanged, 3 rejected);
+a first attempt through the free cloud endpoint was rate-limited (6 of 11 calls
+failed) and was discarded before any use. Template-worded and reworded sealed
+questions are reported separately to measure wording overfitting. Protocol: each
+batch is run first without changes (the first-look score), diagnosed per stage and
+per system, and only design defects are fixed, with general rules; v2 dev and used
+batches serve as the regression set. Human-written questions and FDA/PrimeKG
+conflict notes are out of scope and recorded as limitations.

@@ -12,6 +12,7 @@ The sealed test is written to its own file; only its hash and counts are printed
 
 import argparse
 import json
+import os
 import random
 import re
 from collections import Counter, defaultdict
@@ -92,6 +93,48 @@ FOREIGN = ['¿Para qué se usa {drug}?', 'Quels sont les effets secondaires de {
 SYLLABLES = ['zor', 'vex', 'qua', 'lim', 'trax', 'nol', 'pry', 'dex', 'mir', 'kel', 'vant', 'rho', 'syl', 'xan']
 UNKNOWN_DRUG = ['What is {a} used for?', 'What are the side effects of {a}?', 'Which drugs interact with {a}?']
 UNKNOWN_DISEASE = ['Which drugs are used to treat {a}?', 'What are the symptoms of {a}?']
+
+
+REWORD = ('Rewrite each question so that it asks exactly the same thing in different words, as a patient or '
+          'clinician might phrase it. Change the sentence structure; do not return the original wording. Keep every '
+          'anchor string verbatim (including misspellings and capitalisation), keep the question a single English '
+          'sentence ending with "?", and keep words such as both, not, interact, contraindicated and how many when '
+          'present. Return JSON {"questions":[{"id":"...","question":"..."}]}.')
+
+
+def reword(rows: list[dict], share: float, llm=None, seed: int = SEED, batch: int = 6) -> None:
+    """LLM rewording of sealed questions with the v2 validation rule, a different-wording
+    requirement and one retry per failed batch. The research model should be independent
+    of the systems under test (the paraphrase model is recorded in the manifest)."""
+    from eval.client import ResearchLLM
+    rng = random.Random(seed)
+    selected = [r for r in rows if rng.random() < share]
+    own = llm is None
+    llm = llm or ResearchLLM()
+    try:
+        for i in range(0, len(selected), batch):
+            group = selected[i:i+batch]
+            payload = {'questions': [{'id': r['id'], 'question': r['question'], 'anchors': r['anchors']} for r in group]}
+            mapping = {}
+            for _ in range(2):
+                try:
+                    response = llm.json(REWORD, payload, 900)
+                    mapping = {q.get('id'): q.get('question', '') for q in response.get('questions', [])}
+                    break
+                except (RuntimeError, KeyError, ValueError, AttributeError, TimeoutError):
+                    continue
+            for row in group:
+                text = (mapping.get(row['id']) or '').strip()
+                if text.casefold().rstrip('?') == row['question'].casefold().rstrip('?'):
+                    row['paraphrase_status'] = 'llm_unchanged'
+                elif v2.valid_paraphrase(row, text):
+                    row.update(question=text, question_template=row['question'], paraphrase_status='llm_validated')
+                else:
+                    row['paraphrase_status'] = 'template_after_failed_validation'
+            print(f'Reworded {min(i+batch, len(selected))}/{len(selected)}', flush=True)
+    finally:
+        if own:
+            llm.close()
 
 
 class Graph(v2.Graph):
@@ -563,7 +606,7 @@ def main() -> None:
     builder = Builder(Graph(nodes, edges), catalog, documents, additions, seed=SEED,
                       qualifiers=v2.hpo_qualifiers(load_obo(raw/'hp.obo')), brands=v2.fda_brands(raw/'openfda'),
                       lay=v2.lay_names(raw/'medlineplus.xml', documents), excluded=excluded)
-    parts = build_parts(builder, None if args.dry_run else v2.paraphrase)
+    parts = build_parts(builder, None if args.dry_run else reword)
     summary = {part: {'rows': len(rows), 'test_types': dict(Counter(r['test_type'] for r in rows)),
                       'capabilities': len({r['capability'] for r in rows})} for part, rows in parts.items()}
     print(json.dumps(summary, indent=2))
@@ -580,6 +623,7 @@ def main() -> None:
                 'dataset_sha256': v2.digest(DATASET), 'sealed_sha256': v2.digest(SEALED),
                 'kg_sha256': v2.digest(raw/'kg.csv'), 'catalog_sha256': v2.digest(processed/'entities.json'),
                 'excluded_v1_v2_anchors': len(excluded), 'sealed_paraphrase_share': SEALED_PARAPHRASE_SHARE,
+                'paraphrase_model': os.getenv('LLM_MODEL', ''),
                 'paraphrases_sealed': dict(Counter(r['paraphrase_status'] for r in parts['test']))}
     MANIFEST.write_text(json.dumps(manifest, indent=2), encoding='utf8')
     print(json.dumps({k: v for k, v in manifest.items() if k != 'parts'}, indent=2))

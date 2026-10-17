@@ -1,0 +1,49 @@
+{
+  "generator_version": "structured-3.0",
+  "seed": 3031,
+  "parts": {
+    "b1": {
+      "rows": 195,
+      "test_types": {
+        "MFT": 155,
+        "DIR": 12,
+        "BOUNDARY": 9,
+        "INV": 19
+      },
+      "capabilities": 67
+    },
+    "b2": {
+      "rows": 195,
+      "test_types": {
+        "MFT": 155,
+        "DIR": 12,
+        "BOUNDARY": 9,
+        "INV": 19
+      },
+      "capabilities": 66
+    },
+    "test": {
+      "rows": 272,
+      "test_types": {
+        "MFT": 218,
+        "DIR": 16,
+        "BOUNDARY": 12,
+        "INV": 26
+      },
+      "capabilities": 67
+    }
+  },
+  "dataset_sha256": "067a623b378acac8d75030bc16c5c0eae80e414a03d7f1e804d3b0abf433f841",
+  "sealed_sha256": "4b07704cfff8e5cf2e190ca69912bfa35962d7cafb8c299f4f0b0e361ec98deb",
+  "kg_sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+  "catalog_sha256": "60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5",
+  "excluded_v1_v2_anchors": 341,
+  "sealed_paraphrase_share": 0.6,
+  "paraphrase_model": "medkg-qwen3.5-9b",
+  "paraphrases_sealed": {
+    "template": 156,
+    "llm_validated": 71,
+    "llm_unchanged": 42,
+    "template_after_failed_validation": 3
+  }
+}

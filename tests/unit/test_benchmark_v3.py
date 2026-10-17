@@ -195,3 +195,28 @@ def test_sealed_questions_need_the_final_flag(tmp_path):
     done = subprocess.run([sys.executable, '-m', 'eval.run', '--dataset', str(dataset), '--split', 'test', '--fake',
                            '--output', str(tmp_path / 'out_summary.json')], capture_output=True, text=True)
     assert done.returncode == 2 and 'Sealed questions run only with --final' in done.stderr
+
+
+class FakeReworder:
+    def __init__(self, replies):
+        self.replies, self.calls = list(replies), 0
+
+    def json(self, system, payload, max_tokens):
+        self.calls += 1
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return {'questions': [{'id': q['id'], 'question': reply.get(q['id'], q['question'])} for q in payload['questions']]}
+
+
+def test_reword_validates_requires_new_wording_and_retries_once():
+    rows = [{'id': 'r1', 'question': 'Which drugs treat Orion fever?', 'anchors': ['Orion fever'], 'kind': 'list'},
+            {'id': 'r2', 'question': 'Which drugs treat Lyra disease?', 'anchors': ['Lyra disease'], 'kind': 'list'},
+            {'id': 'r3', 'question': 'Which drugs treat Vega syndrome?', 'anchors': ['Vega syndrome'], 'kind': 'list'}]
+    llm = FakeReworder([RuntimeError('rate limited'),
+                        {'r1': 'What medicines are prescribed for Orion fever?', 'r3': 'Is it treatable?'}])
+    v3.reword(rows, 1.0, llm=llm)
+    assert llm.calls == 2
+    assert rows[0]['paraphrase_status'] == 'llm_validated' and rows[0]['question_template'] == 'Which drugs treat Orion fever?'
+    assert rows[1]['paraphrase_status'] == 'llm_unchanged'
+    assert rows[2]['paraphrase_status'] == 'template_after_failed_validation' and rows[2]['question'].endswith('syndrome?')
