@@ -151,7 +151,11 @@ class Linker:
         stops = cues | {'interact','interacts','target','targets','treat','treats','is',
                         'are','has','have','associated','recorded','indicated','cause','causes',
                         'side','effects','phenotypes','symptoms','contraindicated','indications',
-                        'be','been','being','used','using','prescribed'}
+                        'be','been','being','used','using','prescribed',
+                        # Relation phrasing, not names: "genes linked to X", "effects
+                        # reported for X", "conditions that present with X" (D086).
+                        'linked','link','links','reported','report','reports','present',
+                        'presents','presenting','related','connected','implicated','involved'}
         generic = {'the','a','an','what','which','it','its','their','that','drug','drugs',
                    'disease','diseases','condition','conditions','gene','genes','protein',
                    'proteins','symptom','symptoms','phenotype','phenotypes','other','both',

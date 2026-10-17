@@ -21,6 +21,9 @@ PROMPT = ('Answer the English medical knowledge question using only the evidence
           'linked to; a brand name, lay term or misspelling refers to that entity, so answer about it. '
           'A query description states in plain words what the rows of that query are; rows of a '
           'query linked to every one of several entities already satisfy that shared constraint. '
+          'Rows returned by an executed graph query are the knowledge graph\'s answer to it: report '
+          'them, never state that nothing was found or listed, and do not reject them using outside '
+          'knowledge. '
           'Graph associations are not treatment recommendations.')
 
 

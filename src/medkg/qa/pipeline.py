@@ -124,8 +124,10 @@ class Pipeline:
                                 bool(args.get('count')),bool(args.get('shared')))
                             retrieved = self.store.run_generated(query,params)
                         elif step.tool=='text2cypher':
-                            retrieved = text2cypher.retrieve(self.store,self.llm,args.get('question',resolved),result['candidates'])
+                            asked = args.get('question',resolved)
+                            retrieved = text2cypher.retrieve(self.store,self.llm,asked,result['candidates'])
                             params = getattr(retrieved,'params',{})
+                            description = text2cypher.describe(asked)
                         else:
                             retrieved = self._hybrid_tool(step.tool,args)
                         attrs['rows'] = len(retrieved.rows)
