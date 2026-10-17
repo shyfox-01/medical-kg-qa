@@ -185,11 +185,23 @@ class Pipeline:
                 # explicitly rather than rely on the answer model knowing the mapping (D085).
                 entities = [{'mention':c.mention or c.name,'entity':c.name,'uid':c.uid,'type':c.label}
                             for c in candidates if not c.ambiguous]
+                # "Does A interact with B?" answered by the pairwise template: a returned row
+                # is a recorded interaction, stated in code rather than worded by the model,
+                # which denied returned rows (D092).
+                pair = steps[0].args.get('uids',[]) if result['route']=='template' and len(steps)==1 else []
+                recorded = (intent=='interactions' and len(pair)==2 and not steps[0].args.get('count')
+                            and not steps[0].args.get('shared') and bool(answer_rows))
                 if not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
+                elif recorded:
+                    first,second = (self.linker.entities.get(uid,{}).get('name',uid) for uid in pair)
+                    result['answer'] = f'Yes. The knowledge graph records an interaction between {first} and {second}.'
                 else:
+                    # Target synonyms stay in the contexts (scoring, verification) but are not
+                    # shown to the answer model, which echoed them as extra entities (D092).
+                    shown = [{k:v for k,v in row.items() if k!='synonyms'} for row in rows]
                     with span('generation'):
-                        result['answer'] = self.llm.chat(answer.messages(resolved,rows,queries=query_evidence,
+                        result['answer'] = self.llm.chat(answer.messages(resolved,shown,queries=query_evidence,
                                                                          entities=entities))
                     if self.settings.phase>=3:
                         stage = 'verification'

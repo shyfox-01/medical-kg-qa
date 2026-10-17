@@ -6,7 +6,17 @@ from medkg.retrieval.templates import SPECS
 
 DRUG_WORDS = r'\b(?:drugs?|medications?|medicines?)\b'
 # Contraindication wording, including "when should it not be used" (D088).
-CONTRA = r'contraindicat|should.*avoid|must.*avoid|\b(?:should|must)\b.*\bnot be used\b|\bnot to be used\b'
+CONTRA = (r'contraindicat|should.*avoid|must.*avoid|\b(?:should|must)\b.*\bnot be used\b|\bnot to be used\b|'
+          # Negated use is never an indication question ("must not be given", D092).
+          r'\bnot be (?:used|given|taken)\b|\bmust not\b|\bunsafe\b|\bshould not (?:be )?(?:used|given|taken)\b')
+# Relation wordings, matched on the normalized question (plural "s" stripped; D092).
+SIDE = r'side effect|adverse (?:effect|reaction|event)|unwanted effect|undesirable effect'
+INTERACT = r'interact|\bcombin(?:e|ed|ing) with\b|\btaken together\b'
+TARGET = r'target|protein|gene|\bact(?:s)? on\b|\bmolecular\b|\bbind(?:s|ing)?\b'
+PARENT = r'\b(?:parent|supertype|belong(?:s)? to|categor\w*|broader|classified (?:as|under))\b'
+SUBTYPE = r'\b(?:subtype|subclass\w*|children|a (?:form|type|kind) of)\b'
+# Explicit relation cues that settle a same-name Disease/Phenotype tie.
+EXPLICIT = {'subtypes': SUBTYPE, 'parents': PARENT, 'genes': r'\bgenes?\b', 'targets': TARGET}
 SHARED = r'\b(?:both|in common|share|shared|common)\b'
 TARGET_WORDS = (('Drug', r'drugs?|medications?|medicines?'),
                 ('Disease', r'diseases?|conditions?|disorders?'),
@@ -43,6 +53,10 @@ def route(question: str, candidates: list[Candidate], previous: str | None = Non
     if len(options)>1:
         target = requested_target(question)
         options = {intent:label for intent,label in options.items() if SPECS[intent][1]==target}
+    if len(options)>1:
+        q = normalize(question)
+        explicit = {i for i in options if i in EXPLICIT and re.search(EXPLICIT[i],q)}
+        options = {i:options[i] for i in explicit} if len(explicit)==1 else options
     return next(iter(options)) if len(options)==1 else None
 
 
@@ -83,17 +97,17 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
     # A single-hop template cannot preserve two requested relation families.
     # Entity-type words alone are not relations ("drugs for a disease" is simple).
     families = (
-        r'interact', r'side effect|adverse effect|phenotype|symptom|feature',
-        CONTRA, r'target|protein|gene',
+        INTERACT, SIDE+r'|phenotype|symptom|feature',
+        CONTRA, TARGET,
         r'(?<!contra)indicat|used for|treat',
     )
     if sum(bool(re.search(pattern,q)) for pattern in families)>1:
         return None
     # Reverse side-effect lookup: one phenotype anchor, drugs requested.
     if (labels=={'Phenotype'} and len(candidates)==1 and re.search(DRUG_WORDS,q)
-            and re.search(r'side effect|adverse (?:effect|reaction)|\bcause',q)):
+            and re.search(SIDE+r'|\bcause|\btrigger|\binduc',q)):
         return 'drugs_with_side_effect'
-    if re.search(r'side effect|adverse effect|phenotype|symptom|feature',q) and re.search(r'\bdrugs?|medications?|medicines?\b',q):
+    if re.search(SIDE+r'|phenotype|symptom|feature',q) and re.search(r'\bdrugs?|medications?|medicines?\b',q):
         return None
     if re.search(r'\b(?:genes?|proteins?)\b',q) and re.search(
             r'\b(?:drugs?|medications?|medicines?|diseases?|conditions?)\b',q):
@@ -105,13 +119,13 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
     # Multiple explicit anchors may express an intersection or comparison. Only a
     # two-anchor intersection ("both", "in common") or the pairwise interaction
     # question has an unambiguous template meaning; the pipeline sets shared=True.
-    if len(candidates)>1 and not shared and not ('Drug' in labels and re.search('interact',q)):
+    if len(candidates)>1 and not shared and not ('Drug' in labels and re.search(INTERACT,q)):
         return None
     if 'Drug' in labels:
-        for pattern, intent in [('interact','interactions'), ('side effect|adverse effect','side_effects'),
+        for pattern, intent in [(INTERACT,'interactions'), (SIDE,'side_effects'),
             (CONTRA,'contraindications'),
             ('off label','off_label'),
-            ('target|protein|gene','targets'), ('indicat|used for|treat|condition|disease','indications')]:
+            (TARGET,'targets'), ('indicat|used for|treat|condition|disease','indications')]:
             if re.search(pattern,q):
                 return intent
     if 'Disease' in labels:
@@ -119,19 +133,21 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
         # Drug->Disease causation template exists (D088).
         if re.search(DRUG_WORDS,q) and re.search(r'\b(?:caus|induc|trigger)\w*\b',q):
             return None
-        if re.search(r'\b(?:subtype|subclass|parent|supertype|children)\b',q):
-            if re.search(r'\b(?:parent|supertype)\b',q):
+        if re.search(SUBTYPE,q) or re.search(PARENT,q):
+            if re.search(PARENT,q):
                 return 'parents'
+            # "subtypes of X" / "diseases that are a form of X" ask for subtypes; "X is
+            # a form of what?" asks for the parent. The marker's position decides.
             original_words = re.findall(r'\w+',question.casefold())
             marker = next((i for i,w in enumerate(original_words[:-1]) if
-                w in ('subtype','subtypes','subclass','subclasses') and original_words[i+1]=='of'),None)
-            if marker is not None and candidates[0].span and candidates[0].span[0]>marker:
-                return 'subtypes'
+                w in ('subtype','subtypes','subclass','subclasses','form','type','kind') and original_words[i+1]=='of'),None)
+            if marker is not None and candidates[0].span:
+                return 'subtypes' if candidates[0].span[0]>marker else 'parents'
             return 'subtypes' if re.search(r'\b(?:subtypes|subclasses|children)\b',question,re.I) else 'parents'
-        for pattern, intent in [('contraindicat|drug.*avoid|medication.*avoid','contraindicated_drugs'),
+        for pattern, intent in [(CONTRA+'|drug.*avoid|medication.*avoid','contraindicated_drugs'),
             ('off label','off_label_drugs'),
-            ('drug|medication|medicine|treatment','drugs_for'), ('gene|protein','genes'),
-            ('phenotype|symptom|feature','phenotypes')]:
+            ('drug|medication|medicine|treatment|prescri|therap','drugs_for'), ('gene|protein','genes'),
+            (r'phenotype|symptom|feature|\bpresent(?:s|ation)?\b|\bsign\b','phenotypes')]:
             if re.search(pattern,q):
                 return intent
     if 'Phenotype' in labels and re.search(r'disease|condition',q):

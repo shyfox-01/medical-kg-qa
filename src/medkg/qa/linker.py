@@ -171,6 +171,11 @@ class Linker:
                         # reported for X", "conditions that present with X" (D086).
                         'linked','link','links','reported','report','reports','present',
                         'presents','presenting','related','connected','implicated','involved'}
+        # Relation and category words found by the v3 diagnosis (D092), in raw and
+        # normalized form ("categories" normalizes to "categorie").
+        relation_words = ('subtype subtypes subclass subclasses parent parents category categories '
+                          'belong belongs broader unsafe safe combined combine trigger triggers molecular')
+        stops = stops | {w for word in relation_words.split() for w in (word, normalize(word))}
         generic = {'the','a','an','what','which','it','its','their','that','drug','drugs',
                    'disease','diseases','condition','conditions','gene','genes','protein',
                    'proteins','symptom','symptoms','phenotype','phenotypes','other','both',

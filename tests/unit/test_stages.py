@@ -88,3 +88,16 @@ def test_shared_name_denotes_its_canonical_owner():
     assert vocabulary.extract('Genes: ORX1S')=={'fiction:g2'}
     # Without a canonical owner a shared synonym stays ambiguous.
     assert vocabulary.extract('Vela syndrome')=={'fiction:d1','fiction:d2'}
+
+
+def test_short_gene_symbols_count_only_when_written_exactly():
+    vocabulary = Vocabulary([{'uid':'fiction:ar','label':'Gene','name':'AR','synonyms':[]},
+                             {'uid':'fiction:g1','label':'Gene','name':'ORX1','synonyms':[]}])
+    assert vocabulary.extract('Genes: AR, ORX1') == {'fiction:ar','fiction:g1'}
+    assert vocabulary.extract('Genes are listed') == set() and vocabulary.extract('ar') == set()
+
+
+def test_truncated_group_labels_own_no_name():
+    vocabulary = Vocabulary([{'uid':'fiction:d','label':'Disease','name':'Orion fever','synonyms':[]},
+                             {'uid':'MONDO_grouped:1_2','label':'Disease','name':'Orion fever,','synonyms':[]}])
+    assert vocabulary.extract('Orion fever') == {'fiction:d'}

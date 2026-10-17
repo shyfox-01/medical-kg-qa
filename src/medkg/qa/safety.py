@@ -37,11 +37,13 @@ CRISIS_EXPLICIT = (r"\b(?:kill(?:ing)? myself|end(?:ing)? my life|take my own li
                    r"how (?:to|do i|can i) (?:die|kill)|lethal (?:dose|amount))\b")
 CRISIS_TERM = r'\b(?:suicid\w*|self[- ]?harm\w*)'
 EMERGENCY_TERM = (r"\b(?:chest pain|cannot breathe|can't breathe|can not breathe|trouble breathing|"
+                  r"(?:is|was|isn't|is not|not|stopped|stop) breathing|collapsed|passed out|fainted|"
                   r"stroke symptoms|severe bleeding|bleeding heavily|unconscious|unresponsive|"
-                  r"heart attack|having a seizure)\b")
+                  r"heart attack|having a seizure|overdosed)\b")
 POPULATION = (r'\b(?:pregnant|(?:during|in|while in|throughout) pregnancy|breast-?feed\w*|'
               r'nursing (?:mother|baby|infant)s?|infants?|newborns?|bab(?:y|ies)|child|children|'
-              r'kids?|toddlers?|elderly|older adults?|seniors?)\b')
+              r'kids?|toddlers?|elderly|older adults?|seniors?|'
+              r'\d+[- ](?:years?|months?|weeks?)[- ]old)\b')
 MEDICATION_CONTEXT = (r'\b(?:safe|safely|safety|take|taking|use|using|give|giving|drugs?|medicines?|'
                       r'medications?|meds|treatments?|treat|therapy|recommend\w*|prescri\w*|'
                       r'dose|dosage)\b')
@@ -69,6 +71,8 @@ RULES = {
         re.search(PERSONAL,q,re.I) or re.search(SITUATION,q,re.I))),
     'dosage': lambda q: bool(re.search(
         r'\b(dosage|dose|how (much|many).*(take|mg|tablets)|milligrams|dosing)\b|'
+        # Frequency and duration of use are dosing questions too (D092).
+        r'\bhow (?:often|frequently|long)\b[^.?!]{0,60}\b(?:take|taken|use|used|give|given|inject\w*)\b|'
         +DOSE_AMOUNT+'|'+DOSE_ARTICLE+'|'+DOSE_SCHEDULE,q,re.I)),
     'special_population': population_advice,
     'diagnosis_request': lambda q: bool(re.search(
@@ -106,11 +110,27 @@ def assess(question: str, region: str = 'US') -> Assessment:
     return Assessment()
 
 
+# Function words of the questions' language. Entity names (Sjögren, de Quervain) carry
+# diacritics or isolated foreign words, so a question counts as foreign only when such
+# words outnumber the English ones (D092).
+ENGLISH_WORDS = frozenset('the what which who is are of for with does do can could should how many '
+                          'much in to and a an used use treat drugs drug side effects symptoms genes '
+                          'there any recorded associated interact'.split())
+FOREIGN_WORDS = frozenset('qué que para se usa usan cuáles cuales son es los las el la del efectos '
+                          'secundarios sirve tratar medicamentos quels quelles sont les des de du est '
+                          'une pour effets secondaires médicaments traiter wofür wofur wird werden '
+                          'verwendet was ist welche die der das und für nebenwirkungen medikamente '
+                          'quais são servem os um uma'.split())
+
+
 def english(question: str) -> bool:
     foreign = r'\b(cu[aá]les|qu[eé] medicamentos|quel(?:s|les)? m[eé]dicaments|quels sont|welche medikamente|was ist|quais medicamentos)\b'
-    return bool(re.search('[A-Za-z]', question)) and not re.search(
-        r'[\u0400-\u052f\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]', question
-    ) and not re.search(foreign,question,re.I)
+    if not re.search('[A-Za-z]', question) or re.search(
+            r'[\u0400-\u052f\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af¿¡]', question):
+        return False
+    words = re.findall(r'[^\W\d_]+', question.casefold())
+    native, other = sum(w in ENGLISH_WORDS for w in words), sum(w in FOREIGN_WORDS for w in words)
+    return not re.search(foreign,question,re.I) and not (other >= 2 and other > native)
 
 
 def output_violation(text: str) -> Assessment | None:

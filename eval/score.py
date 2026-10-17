@@ -6,7 +6,7 @@ import re
 from medkg_data.alias_policy import EXCLUDED_ALIASES, allowed_names
 from medkg_data.lexicon import GENERIC_ANCHORS, ambiguous_word
 
-VERSION = 'deterministic-3.9'
+VERSION = 'deterministic-3.10'
 METRIC_SEMANTICS = {
     'entity_supported': 'All extracted answer entities occur in supplied contexts; entity-only.',
     'faithful': 'Legacy alias of entity_supported; does not evaluate claim entailment.',
@@ -218,6 +218,7 @@ class Vocabulary:
         # A name shared by several entities denotes the one whose own name it is:
         # "GAPDH" is GAPDH, not GAPDHS, which normalizes to the same key (3.8).
         self.owners: dict[str, set[str]] = {}
+        self.short_symbols: dict[str, set[str]] = {}
         self.excluded_by_key: dict[str, set[str]] = {}
         present = {entity['uid'] for entity in entities}
         for uid in present & EXCLUDED_ALIASES.keys():
@@ -234,8 +235,14 @@ class Vocabulary:
                 excluded = entity['uid'] in self.excluded_by_key.get(key, set())
                 if len(key)>=3 and (canonical or not excluded):
                     self.aliases.setdefault(key,set()).add(entity['uid'])
-                    if canonical:
+                    # A truncated PrimeKG group label ("nephrotic syndrome,") is not how
+                    # anyone writes that name; it owns nothing (as in the linker, D088).
+                    if canonical and not (entity['uid'].startswith('MONDO_grouped')
+                                          and re.search(r'[,;:]\s*$', entity['name'])):
                         self.owners.setdefault(written(entity['name']),set()).add(entity['uid'])
+            # Two-character gene symbols (AR, F2, XK) count only when written exactly (3.10).
+            if entity['label']=='Gene' and re.fullmatch(r'[A-Z][A-Z0-9]',entity['name']):
+                self.short_symbols.setdefault(entity['name'],set()).add(entity['uid'])
         self.alias_sizes = sorted({len(key.split()) for key in
                                    self.aliases.keys() | self.quarantined_keys},reverse=True)
 
@@ -265,6 +272,9 @@ class Vocabulary:
                     # A rejected full phrase cannot fall through to a shorter
                     # retained alias. Valid whole-phrase owners take precedence.
                     occupied |= positions
+        for i, token in enumerate(original):
+            if i not in occupied and token in self.short_symbols:
+                result.update(self.short_symbols[token])
         return result
 
 
