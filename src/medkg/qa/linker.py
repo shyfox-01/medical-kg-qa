@@ -30,9 +30,19 @@ class Linker:
         self.entities = {e['uid']: e for e in entities}
         self.aliases: dict[str, list[str]] = {}
         self.by_label: dict[str, dict[str, list[str]]] = {}
+        # PrimeKG grouped nodes can carry a truncated group label ("nephrotic syndrome,").
+        # When it equals another entity's name of the same label, the name belongs to
+        # that entity; the group stays reachable through its subtype names (D088).
+        names: dict[tuple[str, str], int] = {}
+        for e in entities:
+            names[(e['label'], normalize(e['name']))] = names.get((e['label'], normalize(e['name'])), 0) + 1
+        truncated = {e['uid'] for e in entities if e['uid'].startswith('MONDO_grouped')
+                     and re.search(r'[,;:]\s*$', e['name']) and names[(e['label'], normalize(e['name']))] > 1}
         for e in entities:
             for alias in allowed_names(e):
                 key = normalize(alias)
+                if e['uid'] in truncated and key == normalize(e['name']):
+                    continue
                 if key:
                     self.aliases.setdefault(key, []).append(e['uid'])
                     self.by_label.setdefault(e['label'], {}).setdefault(key, []).append(e['uid'])

@@ -113,6 +113,10 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
             if re.search(pattern,q):
                 return intent
     if 'Disease' in labels:
+        # "Which drugs cause X?" asks about adverse effects, never treatments; no
+        # Drug->Disease causation template exists (D088).
+        if re.search(DRUG_WORDS,q) and re.search(r'\b(?:caus|induc|trigger)\w*\b',q):
+            return None
         if re.search(r'\b(?:subtype|subclass|parent|supertype|children)\b',q):
             if re.search(r'\b(?:parent|supertype)\b',q):
                 return 'parents'
