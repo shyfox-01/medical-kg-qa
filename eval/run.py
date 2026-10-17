@@ -87,6 +87,51 @@ class ExecutionScorer:
         self.driver.close()
 
 
+def wilson(passed: int, n: int, z: float = 1.96) -> list[float] | None:
+    """95% Wilson score interval for a pass rate."""
+    if not n:
+        return None
+    p = passed/n
+    centre = (p + z*z/(2*n))/(1 + z*z/n)
+    half = z*((p*(1-p)/n + z*z/(4*n*n))**0.5)/(1 + z*z/n)
+    return [round(max(0.0,centre-half),4), round(min(1.0,centre+half),4)]
+
+
+def behavioural(rounds: list[list[dict]], cases: list[dict]) -> dict:
+    """v3 metrics (first round): capability and test-type rates with intervals,
+    invariance consistency and boundary graceful failure (D091)."""
+    by_id = {r['id']:r for r in rounds[0]}
+    case = {c['id']:c for c in cases}
+
+    def rates(groups):
+        return {key:{'questions':len(ids),'passed':sum(by_id[i]['score']['passed'] for i in ids),
+                     'pass_rate':round(sum(by_id[i]['score']['passed'] for i in ids)/len(ids),4),
+                     'ci95':wilson(sum(by_id[i]['score']['passed'] for i in ids),len(ids))}
+                for key,ids in sorted(groups.items())}
+    capability,family,test_type = defaultdict(list),defaultdict(list),defaultdict(list)
+    for i in by_id:
+        capability[case[i]['capability']].append(i)
+        family[case[i]['capability'].split('.')[0]].append(i)
+        test_type[case[i]['test_type']].append(i)
+    in_scope = [i for i in by_id if case[i].get('scope')=='in']
+    boundary = [i for i in by_id if case[i].get('scope')=='boundary']
+    pairs = [(i,case[i]['base_id']) for i in by_id if case[i]['test_type']=='INV' and case[i].get('base_id') in by_id]
+    graceful = [by_id[i]['score']['passed'] or by_id[i]['score'].get('wrong_entities')==0 for i in boundary]
+    passed_in = sum(by_id[i]['score']['passed'] for i in in_scope)
+    return {'in_scope':{'questions':len(in_scope),'passed':passed_in,
+                        'pass_rate':round(passed_in/len(in_scope),4) if in_scope else None,
+                        'ci95':wilson(passed_in,len(in_scope))},
+            'boundary':{'questions':len(boundary),'passed':sum(by_id[i]['score']['passed'] for i in boundary),
+                        'graceful_rate':round(sum(graceful)/len(graceful),4) if graceful else None},
+            'invariance':{'pairs':len(pairs),
+                          'consistency':round(sum(by_id[i]['score']['passed']==by_id[b]['score']['passed']
+                                                  for i,b in pairs)/len(pairs),4) if pairs else None,
+                          'robust_given_base_passed':round(
+                              sum(by_id[i]['score']['passed'] for i,b in pairs if by_id[b]['score']['passed'])
+                              /max(1,sum(by_id[b]['score']['passed'] for _,b in pairs)),4) if pairs else None},
+            'families':rates(family),'test_types':rates(test_type),'capabilities':rates(capability)}
+
+
 def redline_regressions(current: dict,baseline: dict) -> list[str]:
     old,new = baseline.get('redline_outcomes',{}),current.get('redline_outcomes',{})
     return sorted(key for key,value in old.items() if value and (key not in new or not new[key]))
@@ -139,6 +184,9 @@ def summarize(rounds: list[list[dict]],cases: list[dict]) -> dict:
             values['correct_refusal_rate'] = statistics.mean(r['score']['passed'] for r in rows)
         categories[category] = values
     rates = [statistics.mean(r['score']['passed'] for r in rows) for rows in rounds]
+    extra = {'pass_ci95_first_round':wilson(sum(r['score']['passed'] for r in rounds[0]),len(rounds[0]))}
+    if all('capability' in c and 'test_type' in c for c in cases):
+        extra['behavioural'] = behavioural(rounds,cases)
     quality = [statistics.mean(r['score'].get('quality_passed',r['score']['passed']) for r in rows) for rows in rounds]
     return {'categories':categories,'pass_rate_rounds':rates,'pass_rate_mean':statistics.mean(rates),
             'metric_semantics':METRIC_SEMANTICS,
@@ -150,7 +198,7 @@ def summarize(rounds: list[list[dict]],cases: list[dict]) -> dict:
             'inconsistent_ids':[key for key,values in by_id.items() if len(set(values))>1],
             'failure_stages':dict(failure_stages),
             'redline_outcomes':{case['id']:all(by_id[case['id']]) for case in cases
-                                if case['category'] in ('safety','adversarial')}}
+                                if case['category'] in ('safety','adversarial')},**extra}
 
 
 def evaluate_case(client,case: dict,vocabulary: Vocabulary,execution) -> dict:
@@ -180,7 +228,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset',default='eval/datasets/structured_v1.jsonl')
     parser.add_argument('--vocabulary',default='data/processed/entities.json')
-    parser.add_argument('--split',choices=['dev','test'],default='dev')
+    parser.add_argument('--split',default='dev',help='Split label in the dataset (v1/v2: dev, test; v3: b1, b2, test)')
+    parser.add_argument('--final',action='store_true',help='Allow sealed questions (the one final run per system)')
     parser.add_argument('--rounds',type=int,default=1)
     parser.add_argument('--phase',type=int,default=1)
     parser.add_argument('--mode',choices=['hybrid','vector'],default='hybrid')
@@ -219,6 +268,8 @@ def main() -> None:
         cases = [by_id[uid] for uid in selected_ids]
     if not cases:
         raise SystemExit('No cases in requested split')
+    if any(c.get('sealed') for c in cases) and not args.final:
+        parser.error('Sealed questions run only with --final (one final run per system)')
     vocabulary = Vocabulary(json.loads(Path(args.vocabulary).read_text(encoding='utf8')))
     output = Path(args.output)
     output.parent.mkdir(parents=True,exist_ok=True)

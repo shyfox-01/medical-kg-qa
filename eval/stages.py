@@ -27,6 +27,8 @@ from pathlib import Path
 from eval.score import Vocabulary, score
 
 REFUSAL_KINDS = {'refusal', 'safety'}
+# v3 kinds judged on behaviour alone (no stage gold): none, yesno, clarify.
+POLICY_KINDS = {'none', 'yesno', 'clarify'}
 REFUSED = re.compile(r'\b(?:no (?:evidence|information|supporting|drugs|medications|genes|shared|symptoms|results)'
                      r'|there (?:are|is) no|not (?:found|available|listed|present)|does not (?:contain|include|list)'
                      r'|cannot (?:answer|determine|identify))\b', re.I)
@@ -45,6 +47,9 @@ def verdict(case: dict, record: dict, vocabulary: Vocabulary) -> dict:
     out = {'id': case['id'], 'category': case['category'], 'passed': score['passed']}
     if case['kind'] in REFUSAL_KINDS:
         out.update(stage=None if score['passed'] else 'refusal_policy')
+        return out
+    if case['kind'] in POLICY_KINDS:
+        out.update(stage=None if score['passed'] else 'policy:' + case['kind'])
         return out
     candidates = {c['uid'] for c in result.get('candidates', []) if c.get('uid')}
     gold_anchors = set(case.get('anchor_uids', []))
