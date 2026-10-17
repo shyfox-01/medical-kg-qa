@@ -5,6 +5,8 @@ from medkg.qa.linker import Candidate, label_choices, normalize
 from medkg.retrieval.templates import SPECS
 
 DRUG_WORDS = r'\b(?:drugs?|medications?|medicines?)\b'
+# Contraindication wording, including "when should it not be used" (D088).
+CONTRA = r'contraindicat|should.*avoid|must.*avoid|\b(?:should|must)\b.*\bnot be used\b|\bnot to be used\b'
 SHARED = r'\b(?:both|in common|share|shared|common)\b'
 TARGET_WORDS = (('Drug', r'drugs?|medications?|medicines?'),
                 ('Disease', r'diseases?|conditions?|disorders?'),
@@ -82,7 +84,7 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
     # Entity-type words alone are not relations ("drugs for a disease" is simple).
     families = (
         r'interact', r'side effect|adverse effect|phenotype|symptom|feature',
-        r'contraindicat|should.*avoid|must.*avoid', r'target|protein|gene',
+        CONTRA, r'target|protein|gene',
         r'(?<!contra)indicat|used for|treat',
     )
     if sum(bool(re.search(pattern,q)) for pattern in families)>1:
@@ -107,7 +109,7 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
         return None
     if 'Drug' in labels:
         for pattern, intent in [('interact','interactions'), ('side effect|adverse effect','side_effects'),
-            ('contraindicat|should.*avoid|must.*avoid','contraindications'),
+            (CONTRA,'contraindications'),
             ('off label','off_label'),
             ('target|protein|gene','targets'), ('indicat|used for|treat|condition|disease','indications')]:
             if re.search(pattern,q):

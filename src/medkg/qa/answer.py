@@ -100,7 +100,15 @@ def ensure_reported(answer: str, names: list[str]) -> tuple[str, str | None]:
     if not names:
         return answer, None
     text = ' ' + normalize(answer) + ' '
-    missing = [n for n in names if ' ' + normalize(n) + ' ' not in text]
+    found = set()
+    # Longest names first, each consuming its mention, so that "Parkinson disease"
+    # inside "late onset Parkinson disease" does not count as reported.
+    for name in sorted(names, key=lambda n: len(normalize(n)), reverse=True):
+        key = ' ' + normalize(name) + ' '
+        if key in text:
+            found.add(name)
+            text = text.replace(key, ' | ', 1)
+    missing = [n for n in names if n not in found]
     if not missing:
         return answer, None
     if len(missing) == len(names):

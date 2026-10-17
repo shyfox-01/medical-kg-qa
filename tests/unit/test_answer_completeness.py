@@ -24,6 +24,12 @@ def test_name_matching_ignores_case_and_punctuation():
     assert ensure_reported('ASTEROL, brinex.',['Asterol','Brinex'])[1] is None
 
 
+def test_a_name_inside_a_longer_reported_name_is_still_missing():
+    text,done = ensure_reported('- late onset Orion fever',['late onset Orion fever','Orion fever'])
+    assert done=='appended' and text.endswith('Also recorded in the knowledge graph: Orion fever.')
+    assert ensure_reported('Orion fever; late onset Orion fever',['late onset Orion fever','Orion fever'])[1] is None
+
+
 def test_pipeline_appends_what_the_model_left_out(monkeypatch):
     result = app(monkeypatch,Model(text='Asterol is recorded.')).ask('What is Asterol indicated for?')
     assert result['answer_completed']=='appended' and 'Brinex' in result['answer']

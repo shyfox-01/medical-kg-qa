@@ -30,3 +30,11 @@ def test_drugs_that_cause_a_disease_are_never_answered_with_its_treatments():
     for question in ('Which drugs cause Lyra disease?','What medications can induce Lyra disease?'):
         assert route(question,linker.in_question(question)) is None
     assert route('Which drugs treat Lyra disease?',linker.in_question('Which drugs treat Lyra disease?'))=='drugs_for'
+
+
+def test_when_not_to_use_a_drug_is_a_contraindication_question():
+    entities = [{'uid':'fiction:asterol','label':'Drug','name':'Asterol','synonyms':[]}]
+    linker = Linker(entities)
+    for question in ('When should Asterol not be used?','Asterol must not be used in which conditions?'):
+        assert route(question,linker.in_question(question))=='contraindications'
+    assert route('What is Asterol used for?',linker.in_question('What is Asterol used for?'))=='indications'
