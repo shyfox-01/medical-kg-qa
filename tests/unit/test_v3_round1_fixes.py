@@ -124,3 +124,28 @@ def test_target_synonyms_are_kept_in_contexts_but_not_shown_to_the_answer_model(
     result = ask(monkeypatch,store,model,'What is Asterol used for?')
     shown = json.loads(model.prompts[0][1]['content'].split('<evidence>')[1].split('</evidence>')[0])['rows']
     assert 'synonyms' not in shown[0] and result['contexts'][0]['synonyms']==['Orion pyrexia']
+
+
+def test_same_label_duplicates_get_a_clarification_listing_the_options(monkeypatch):
+    entities = ENTITIES + [{'uid':'fiction:vela-1','label':'Disease','name':'Vela syndrome','synonyms':[]},
+                           {'uid':'fiction:vela-2','label':'Disease','name':'Vela syndrome','synonyms':[]}]
+    monkeypatch.setattr('medkg.qa.pipeline.request_trace',trace)
+    monkeypatch.setattr('medkg.qa.pipeline.span',span)
+    model = Model()
+    result = Pipeline(Settings(phase=3,cache=False),store=InteractionStore([]),llm=model,entities=entities).ask(
+        'Which drugs treat Vela syndrome?')
+    assert result['refused'] and result['route']=='linking' and model.usage['calls']==0
+    assert sorted(result['clarification'])==['fiction:vela-1','fiction:vela-2'] and 'Which one do you mean?' in result['answer']
+
+
+def test_generic_class_words_are_not_entity_mentions():
+    entities = ENTITIES + [{'uid':'fiction:syndromic','label':'Disease','name':'syndromic disease','synonyms':['syndrome']}]
+    candidates,unresolved = Linker(entities).question_mentions('What are the symptoms of Zorvex syndrome?')
+    assert not candidates and unresolved
+
+
+def test_no_evidence_was_found_is_an_unsupported_response():
+    from medkg.qa.answer import unsupported_response
+    assert unsupported_response('No evidence was found in the provided knowledge base to answer this question.')
+    assert unsupported_response('Based on the provided evidence, no information was found about Zorvex.')
+    assert not unsupported_response('No interaction is recorded, but Asterol treats Orion fever.')

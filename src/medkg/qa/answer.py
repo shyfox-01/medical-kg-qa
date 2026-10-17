@@ -41,7 +41,7 @@ def unsupported_response(text: str) -> bool:
         r'(?:about|on|regarding)|No supporting evidence '
         r'(?:was|is)|The (?:(?:provided|retrieved|available) )?(?:evidence|context|data) '
         r'(?:does not|doesn\x27t) (?:support|contain|provide|specify|establish|include|identify|mention)|'
-        r'No (?:relevant|matching|supported) (?:information|evidence|entities|results) '
+        r'No (?:(?:relevant|matching|supported|supporting) )?(?:information|evidence|entities|results) '
         r'(?:was|were|is|are) (?:found|retrieved|available))',text,re.I))
 
 

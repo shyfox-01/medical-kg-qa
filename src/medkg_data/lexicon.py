@@ -11,6 +11,8 @@ import re
 GENERIC_ANCHORS = frozenset({
     'disease', 'diseases', 'condition', 'conditions', 'disorder', 'disorders',
     'medical condition', 'disease or disorder', 'diseases and disorders', 'other disease',
+    # "syndrome" is a synonym of the MONDO class "syndromic disease" (D093).
+    'syndrome', 'syndromes',
 })
 
 # Common English words that collide with catalog aliases. Deliberately excludes

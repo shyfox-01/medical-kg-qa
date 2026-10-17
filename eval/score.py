@@ -12,7 +12,7 @@ from medkg_data.lexicon import (
     list_breaks,
 )
 
-VERSION = 'deterministic-3.11'
+VERSION = 'deterministic-3.12'
 METRIC_SEMANTICS = {
     'entity_supported': 'All extracted answer entities occur in supplied contexts; entity-only.',
     'faithful': 'Legacy alias of entity_supported; does not evaluate claim entailment.',

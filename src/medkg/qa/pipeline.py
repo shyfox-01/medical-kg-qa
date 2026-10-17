@@ -9,7 +9,7 @@ from medkg.config import ROOT, Settings
 from medkg.graph.store import GraphStore
 from medkg.llm import LLMClient
 from medkg.qa import answer, planner, safety, scope, session
-from medkg.qa.linker import Linker
+from medkg.qa.linker import Linker, label_choices
 from medkg.qa.router import is_count, route, wants_shared
 from medkg.retrieval import templates, text2cypher
 from medkg.tracing import request_trace, span
@@ -73,6 +73,16 @@ class Pipeline:
                         answer='This name does not uniquely identify a supported drug. '
                                'Please provide the exact drug name before I continue.',
                         route='linking', refused=True, quarantined_mentions=quarantined)
+                    return self._finish(result,start,before)
+                # A name with several readings of one label (two diseases called
+                # "open-angle glaucoma") is resolved by the user, not guessed (D093).
+                if candidates and label_choices(candidates) is None:
+                    options = [c for c in candidates if c.ambiguous]
+                    listed = '; '.join(f'{c.name} ({c.label}, {c.uid})' for c in options[:6])
+                    mention = options[0].mention or options[0].name
+                    result.update(answer=f'"{mention}" matches several entries in the knowledge graph: {listed}. '
+                                         'Which one do you mean?',
+                                  route='linking',refused=True,clarification=[c.uid for c in options])
                     return self._finish(result,start,before)
                 stage = 'routing'
                 with span('routing') as attrs:
