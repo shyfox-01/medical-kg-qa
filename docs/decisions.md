@@ -2016,5 +2016,17 @@ and `medkg-gemma4-26b` on a loopback uvicorn server. All six examples rendered
 with the expected routes (four Cypher templates, the migraine/fluoxetine question
 through the LLM planner, the dosing question at the safety gate with no
 expandable sections), the `#q=` prefill submitted once, and a 375 px viewport had
-no horizontal scrolling. Review changes: Cypher wraps, and the call badge is
-singular for one call. The README screenshot and example are part of T3.
+no horizontal scrolling. Review changes: Cypher wraps, code blocks disable font
+ligatures (Cascadia Code drew `<-` as an arrow), and the call badge is singular
+for one call.
+
+README (same date): `docs/images/demo.png` is a headless Chrome capture of
+`/#q=Which drugs used for migraine interact with fluoxetine?` (1280 x 1800, light
+colour scheme, 109 KB): a two-relation planner query whose executed Cypher and
+answer fit one image, and whose result is clinically meaningful (triptans with an
+SSRI carry a serotonin-syndrome warning). The handoff planned to replace the
+text example (hypertension contraindicated in asthma) because its answer lists
+paclitaxel; it is kept, because the README already uses it to show that answers
+are faithful to the knowledge graph and inherit its errors. Its output, which had
+been abridged by hand (numbered list, a count line), is replaced by the literal
+CLI output and the executed planner Cypher.
