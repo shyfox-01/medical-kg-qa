@@ -130,17 +130,24 @@ def ledger(before: dict[str, dict], after: dict[str, dict]) -> dict[str, list[tu
     return groups
 
 
-def load(dataset: Path, run: Path, vocabulary: Vocabulary, rescore: bool = False) -> dict[str, dict]:
+def records(dataset: Path, run: Path, vocabulary: Vocabulary,
+            rescore: bool = False) -> tuple[dict[str, dict], list[dict]]:
+    """Cases by id and the run's records, rescored by the current evaluator when asked."""
     cases = {c['id']: c for c in (json.loads(line) for line in dataset.read_text(encoding='utf8').splitlines())}
-    records = [json.loads(line) for line in run.read_text(encoding='utf8').splitlines()]
+    run_records = [json.loads(line) for line in run.read_text(encoding='utf8').splitlines()]
     if rescore:
         # Saved outputs scored by the current evaluator version (no model calls).
-        for r in records:
+        for r in run_records:
             executed = [s for t in r.get('turns', []) for s in t['result'].get('executed_statements',
                         t['result'].get('cypher', []))]
             r['score'] = score(cases[r['id']], {**r['result'], 'failure_stage': r.get('failure_stage'),
                                                **({'executed_statements': executed} if executed else {})}, vocabulary)
-    return {r['id']: verdict(cases[r['id']], r, vocabulary) for r in records}
+    return cases, run_records
+
+
+def load(dataset: Path, run: Path, vocabulary: Vocabulary, rescore: bool = False) -> dict[str, dict]:
+    cases, run_records = records(dataset, run, vocabulary, rescore)
+    return {r['id']: verdict(cases[r['id']], r, vocabulary) for r in run_records}
 
 
 def main() -> None:

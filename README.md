@@ -81,12 +81,15 @@ and injection refusals, perturbed wordings and boundary probes.
 | Safety, injection, non-English, non-medical | 100% | 100% |
 | Counts, negatives, yes/no, multi-turn, directional | 100% | 100% |
 | Answer unchanged under rewording, casing, synonyms | 100% | 100% |
+| Answers naming an item outside the graph's answer | 6 (2.3%) | 4 (1.5%) |
 | Median latency | 6.4 s | 2.7 s |
 
 The two systems are statistically indistinguishable (they disagree on 15 questions,
 7 vs 8; exact McNemar p = 1.0). Questions reworded by an independent model score
 6–8 points below template wording, and most remaining failures are brand or
-consumer names missing from the catalog.
+consumer names missing from the catalog. Most other failed answers explicitly say
+that no answer was found, rather than giving a wrong answer
+([failure severity](docs/evaluation.md#failure-severity)).
 
 **Graph vs pure vector** (frozen v2 test split, 240 questions, cloud model; a
 pure-vector control retrieves from the same text plus one paragraph per entity;

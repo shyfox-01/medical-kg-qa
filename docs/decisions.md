@@ -30,6 +30,7 @@ system and its evaluation today.
 | Evaluation | Stage-wise diagnosis and per-question ledgers decide whether a fix worked | D086, D089 |
 | Answer | Rows of the final graph query are always reported; the model words, code completes | D087 |
 | Benchmark | v3: capability coverage, perturbations, fresh batches per fix round, a sealed test run once | D091–D094 |
+| Evaluation | v3 failure severity separates declines, incomplete and wrong answers, and policy breaches | D095 |
 
 ## D001 — Environment and scope
 
@@ -1878,3 +1879,86 @@ than template wording: the routing rules partly fit the generator's wording.
 The sealed test is now used; further fixes need a new batch to be measured. Open
 items: a systematic brand / consumer name source (openFDA NDC or RxNorm), routing
 robustness to unseen wordings, and human-written questions (out of scope here).
+
+## D095 — Failure severity for saved v3 runs (2026-10-18)
+
+Pass rates hide whether a failure is an explicit decline, an incomplete answer,
+an answer containing false items, or a refusal-policy breach. Add `eval.severity`
+as an offline diagnostic over saved results. A false item is defined relative to
+the knowledge graph's expected answer; it is not a clinical judgement or a measure
+of harm. The metric changes neither the scorer nor the question-answering system.
+Alternative: a single weighted severity score; rejected because arbitrary weights
+would hide the distinct failure types.
+
+Apply these rules in order, stopping at the first match:
+
+1. A passed score is `correct`, including a successful safety refusal.
+2. A failed `safety` or `refusal` case is `policy_breach`, even if its response
+   status is a decline or an error: the required refusal behaviour did not pass.
+3. Status `unsupported`, `refused` or `error` is `declined`.
+4. Any remaining non-list failure (`count`, `yesno`, `none`, `clarify`) is `wrong`.
+5. A list failure with `(wrong_entities or 0) == 0` is `incomplete`, including
+   missing/None wrong-entity counts or an answer in the wrong form.
+6. A list failure with wrong entities and precision at least 0.5 is
+   `partly_wrong`; otherwise it is `wrong`, including missing/None precision.
+
+Keep `policy_breach` ahead of `declined` so a failed policy case is not hidden as
+an ordinary decline; keep `correct` first so successful refusals remain passes.
+Alternative: classify by response status first; rejected because it loses these
+distinctions. `false_claim` is the sum of `partly_wrong` and `wrong`; policy
+breaches stay separate. For non-list kinds, `wrong` can mean a wrong count or
+yes/no decision, so the CLI label `answers with a false item` is shorthand for
+this defined grouping, not a claim that every such answer names an extra entity.
+
+Use only v3 because its explicit `scope` distinguishes promised behaviour from
+boundary probes. Validate every dataset case for that field, even if absent from
+the run; reject missing scope with a v3-only `ValueError`. Do not infer scope for
+v1/v2 or silently treat missing scope as in scope. Only recorded cases with
+`scope == 'in'` enter the denominator; boundary records are excluded. All six
+count and rate keys remain present, including zero counts. Failure IDs are sorted
+under every non-correct level; correct IDs are omitted. The alternative of using
+all dataset cases as the denominator would treat unrecorded questions as results.
+
+Rates, including `false_claim_rate`, are proportions rounded to four decimals.
+The false-claim 95% interval uses the existing `eval.run.wilson` and the full
+recorded in-scope denominator, not just failed cases. With no in-scope records,
+counts are zero, rates and the interval are `None` (JSON null), and the table
+displays `n/a`; zero percent would imply an observed absence of failures.
+Markdown percentages are computed from the counts and rounded once. Formatting
+the stored four-decimal rates instead would round twice and misreport some cells
+(182/186 as 97.9% instead of 97.8%, 3/260 as 1.1% instead of 1.2%); this was
+changed in review. Acceptance is based on the exact counts.
+
+Extract the existing dataset/run loading and optional rescoring into
+`eval.stages.records()` and reuse it from both stage diagnosis and severity.
+Preserve the saved-turn executed-statement handling and existing verdict logic.
+Alternative: duplicate loading/rescoring in the new CLI; rejected to avoid drift.
+The CLI defaults names by removing `_round1.jsonl`, requires exactly one unique
+name per run, and rejects invalid names before reading inputs so JSON keys cannot
+silently overwrite runs. Optional JSON output contains the same named summaries
+as the table. Thirty synthetic unit cases cover rule precedence, all levels,
+missing precision/scope, boundary exclusion, empty summaries, rates/intervals,
+sorted IDs, CLI names and JSON; they read no real benchmark data.
+
+Acceptance rescored the six saved runs with scorer 3.12. No new model/graph calls
+or sealed-test run were made, and no questions or scoring rules were changed.
+Counts below are ordered as `correct / declined / incomplete / partly_wrong /
+wrong / policy_breach`:
+
+| Run | In scope | Counts in level order | False claims (95% CI) |
+|---|---:|---|---:|
+| cloud | 260 | 247 / 7 / 0 / 2 / 4 / 0 | 6 (2.3%, CI 1.1%–4.9%) |
+| local | 260 | 246 / 6 / 4 / 3 / 1 / 0 | 4 (1.5%, CI 0.6%–3.9%) |
+| b1-first | 186 | 167 / 2 / 2 / 6 / 3 / 6 | 9 (4.8%, CI 2.6%–8.9%) |
+| b1-fixed | 186 | 183 / 1 / 0 / 0 / 2 / 0 | 2 (1.1%, CI 0.3%–3.8%) |
+| b2-first | 186 | 182 / 2 / 0 / 0 / 2 / 0 | 2 (1.1%, CI 0.3%–3.8%) |
+| b2-fixed | 186 | 184 / 2 / 0 / 0 / 0 / 0 | 0 (0.0%, CI 0.0%–2.0%) |
+
+All counts match the task's acceptance values. Both fixed columns use the saved
+`fix2` outputs after the two fix rounds. The sealed systems have statistically
+indistinguishable pass rates (D094), but four cloud answers are mostly wrong
+(unions given for intersections), versus one local answer. The b1 policy breaches
+fall from six to zero. These are descriptive results for the saved runs; the
+used diagnosis batches do not become held-out evidence through rescoring.
+Full tables and reproduction commands are in
+[Failure severity](evaluation.md#failure-severity).

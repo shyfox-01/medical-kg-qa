@@ -230,6 +230,59 @@ Paired, the systems disagree on 15 of 272 questions (7 vs 8; exact McNemar p = 1
 Remaining in-scope failures are catalog gaps (five each), unseen wordings for the local
 model's router and denied rows for the cloud model (D094).
 
+### Failure severity
+
+Pass rates do not distinguish an explicit decline from an answer containing wrong
+items. `eval.severity` classifies saved v3 results using the ordered rules in D095;
+only questions with `scope == 'in'` enter the counts and denominators. A false item
+means an item outside the knowledge graph's answer, not a clinical judgement.
+The combined `answers with a false item` row is `partly_wrong + wrong`, with a
+Wilson 95% interval over all recorded in-scope questions. Policy breaches are
+reported separately.
+
+Sealed test (260 in-scope questions per system), rescored offline with scorer 3.12:
+
+| Severity | cloud | local |
+|---|---:|---:|
+| correct | 247 (95.0%) | 246 (94.6%) |
+| declined | 7 (2.7%) | 6 (2.3%) |
+| incomplete | 0 (0.0%) | 4 (1.5%) |
+| partly_wrong | 2 (0.8%) | 3 (1.2%) |
+| wrong | 4 (1.5%) | 1 (0.4%) |
+| policy_breach | 0 (0.0%) | 0 (0.0%) |
+| answers with a false item | 6 (2.3%, CI 1.1%–4.9%) | 4 (1.5%, CI 0.6%–3.9%) |
+
+The pass rates are statistically indistinguishable (95.0% vs 94.6%, paired test
+above), but the cloud system has four answers whose items are mostly wrong,
+listing the union of two sets when their intersection was requested; the local
+system has one mostly-wrong answer. These counts describe the saved runs, not
+evidence of a population-level difference in severity. The other failed answers
+are declines (seven cloud, six local) or incomplete answers (zero cloud, four local).
+
+Local diagnosis batches (186 in-scope questions per run); `fixed` denotes the saved
+`fix2` run, after both fix rounds:
+
+| Severity | b1-first | b1-fixed | b2-first | b2-fixed |
+|---|---:|---:|---:|---:|
+| correct | 167 (89.8%) | 183 (98.4%) | 182 (97.8%) | 184 (98.9%) |
+| declined | 2 (1.1%) | 1 (0.5%) | 2 (1.1%) | 2 (1.1%) |
+| incomplete | 2 (1.1%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) |
+| partly_wrong | 6 (3.2%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) |
+| wrong | 3 (1.6%) | 2 (1.1%) | 2 (1.1%) | 0 (0.0%) |
+| policy_breach | 6 (3.2%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) |
+| answers with a false item | 9 (4.8%, CI 2.6%–8.9%) | 2 (1.1%, CI 0.3%–3.8%) | 2 (1.1%, CI 0.3%–3.8%) | 0 (0.0%, CI 0.0%–2.0%) |
+
+The first batch had six failed safety/refusal cases before fixes and zero after
+fixes. These post-fix results reuse the diagnosis batches; they are regression
+measurements, not a fresh held-out test.
+
+Reproduce both tables from saved outputs without model or graph calls:
+
+```bash
+python -m eval.severity eval/runs/v3_test_glm45_cloud_round1.jsonl eval/runs/v3_test_gemma4_local_round1.jsonl --dataset eval/datasets/structured_v3_sealed.jsonl --rescore --names cloud local
+python -m eval.severity eval/runs/v3_b1_gemma4_local_round1.jsonl eval/runs/v3_b1_gemma4_local_fix2_round1.jsonl eval/runs/v3_b2_gemma4_local_round1.jsonl eval/runs/v3_b2_gemma4_local_fix2_round1.jsonl --dataset eval/datasets/structured_v3.jsonl --rescore --names b1-first b1-fixed b2-first b2-fixed
+```
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time
