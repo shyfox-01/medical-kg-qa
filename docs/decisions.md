@@ -29,6 +29,7 @@ system and its evaluation today.
 | LLM | Keep the cloud model as default; local open-weight models are supported and measured on dev | D083, D084 |
 | Evaluation | Stage-wise diagnosis and per-question ledgers decide whether a fix worked | D086, D089 |
 | Answer | Rows of the final graph query are always reported; the model words, code completes | D087 |
+| Benchmark | v3: capability coverage, perturbations, fresh batches per fix round, a sealed test run once | D091–D094 |
 
 ## D001 — Environment and scope
 
@@ -1837,3 +1838,43 @@ this is tuned on b1, so the round's unbiased result is the b2 first look. v2 dev
 (regression set) 159/160. Saved runs rescored by 3.11 (`*_rescored_v311_summary.json`):
 v2 test final 211/240 (87.9%), first 198/240, pure vector 80/240. Remaining b1
 failures are catalog gaps (a brand name, a consumer term) and boundary probes.
+
+## D093 — v3 round 2 and the end of the fix cycle (2026-10-17)
+
+b2 first look (Gemma 4, round-1 code, questions never seen while fixing): in scope
+182/186 (97.8%, CI 94.6–99.2), invariance 100% - equal to b1 after its fixes, so the
+round-1 fixes generalise. Its remaining design defects were fixed: a name with
+several readings of one label is answered with a clarification listing the entries
+(five v1 questions are affected; two had passed by guessing), "syndrome" counts as
+a generic word, and "No evidence was found" is a declined answer. Verification: b2
+184/186, b1 183/186, v2 dev 159/160, no regression in any of the three ledgers.
+Every remaining in-scope failure on b1, b2 and v2 dev is a brand or consumer name
+absent from the catalog, so by the protocol of D091 the fix cycle stops here.
+Scorer 3.12 (the generic word list is shared) changes no saved score.
+
+## D094 — Sealed v3 test: cloud and local are indistinguishable (2026-10-18)
+
+Run once per system with `--final`, identical code (commit e6fdb3a) and scorer 3.12.
+The cloud run was interrupted by a session restart at 182/272 and resumed from its
+checkpoint on unchanged code; it had one API error in total.
+
+| | glm-4.5-flash (cloud) | Gemma 4 26B-A4B (local) |
+|---|---:|---:|
+| In scope | **247/260 (95.0%, CI 91.6–97.1)** | **246/260 (94.6%, CI 91.2–96.8)** |
+| Template wording / LLM-reworded | 95/100 / 52/57 | 95/100 / 50/57 |
+| Invariance consistency | 100% | 100% |
+| Boundary graceful failure | 83.3% | 100% |
+| Median latency | 6.4 s | 2.7 s |
+
+Paired over all 272 questions: 7 passed only by the cloud model, 8 only by the local
+one, exact McNemar p = 1.0 - no detectable difference. Safety, refusals, counts,
+negatives, yes/no, multi-turn and directional tests are 100% for both. Remaining
+in-scope failures: five catalog gaps each (brand and consumer names), then for the
+local model five unseen wordings the router does not know ("What is the purpose of
+X?"; the planner fallback did not recover them) and for the cloud model three
+answers denying returned rows. LLM-reworded questions score about 6-8 points lower
+than template wording: the routing rules partly fit the generator's wording.
+
+The sealed test is now used; further fixes need a new batch to be measured. Open
+items: a systematic brand / consumer name source (openFDA NDC or RxNorm), routing
+robustness to unseen wordings, and human-written questions (out of scope here).

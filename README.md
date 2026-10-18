@@ -70,14 +70,32 @@ More detail: [architecture](docs/architecture.md) and the
 
 ## Results
 
-Frozen v2 test split, 240 questions, graph hybrid vs a pure-vector control that
-retrieves from the same text plus one paragraph per entity, all scored by
-`deterministic-3.8` (saved outputs rescored offline, D089):
+**Sealed v3 test** (272 questions, never seen while developing, run once per
+system; [design](docs/evaluation/v3-design.md)): every promised capability is
+tested, including negatives, unknown and ambiguous names, yes/no questions, safety
+and injection refusals, perturbed wordings and boundary probes.
+
+| | Cloud `glm-4.5-flash` | Local Gemma 4 26B-A4B |
+|---|---:|---:|
+| In-scope questions (260) | **247 (95.0%, CI 91.6–97.1)** | **246 (94.6%, CI 91.2–96.8)** |
+| Safety, injection, non-English, non-medical | 100% | 100% |
+| Counts, negatives, yes/no, multi-turn, directional | 100% | 100% |
+| Answer unchanged under rewording, casing, synonyms | 100% | 100% |
+| Median latency | 6.4 s | 2.7 s |
+
+The two systems are statistically indistinguishable (they disagree on 15 questions,
+7 vs 8; exact McNemar p = 1.0). Questions reworded by an independent model score
+6–8 points below template wording, and most remaining failures are brand or
+consumer names missing from the catalog.
+
+**Graph vs pure vector** (frozen v2 test split, 240 questions, cloud model; a
+pure-vector control retrieves from the same text plus one paragraph per entity;
+scorer 3.12, saved outputs rescored offline):
 
 | Round | Graph hybrid | Pure vector |
 |---|---:|---:|
-| First accepted round (2026-10-08) | 197/240 (82.1%) | 80/240 (33.3%) |
-| Final test round (code of 2026-10-16) | **209/240 (87.1%)** | — |
+| First accepted round (2026-10-08) | 198/240 (82.5%) | 80/240 (33.3%) |
+| Final v2 test round (code of 2026-10-16) | **211/240 (87.9%)** | — |
 
 | Category (final round) | Graph hybrid | Pure vector (first round) |
 |---|---:|---:|
@@ -85,18 +103,13 @@ retrieves from the same text plus one paragraph per entity, all scored by
 | Exact counts (24) | 100% | 29.2% |
 | Multi-hop chains (30) | 73.3% | 3.3% |
 | Intersections / exclusions (24) | 66.7% | 8.3% |
-| Brand names, lay terms, typos (36) | 72.2% | 0% |
+| Brand names, lay terms, typos (36) | 77.8% | 0% |
 | Safety and prompt-injection controls (30) | 100% | 96.7% |
 
-Between the rounds, all changes were developed on the dev split only. The LLM is
-the free cloud `glm-4.5-flash` at temperature 0 with thinking off.
-
-Since that test round, a stage-wise failure analysis (linking, routing, retrieval,
-generation; D085–D088) fixed answers that denied correct evidence, routing gaps and
-incomplete lists. On dev, on identical code, the cloud model scores 154/160
-(96.3%) and a local open-weight Gemma 4 26B-A4B 155/160 (96.9%); each remaining
-Gemma failure is a catalog gap or a scorer limit. These are dev numbers after tuning
-on dev: the current code has not yet been measured on held-out questions.
+Between the v2 rounds, all changes were developed on the dev split only. The
+category table is from the v2 final round (scorer 3.12). Development after it
+(D085–D093) was driven by stage-wise failure analysis on fresh v3 batches; the
+sealed v3 test above measures the result.
 
 The gap is largest where structure matters: exact counts, intersections and
 multi-hop chains such as *"Which drugs used for major depressive disorder
@@ -162,11 +175,11 @@ LLM_COOLDOWN_S=0
 ```
 
 Gemma 4 26B-A4B (Apache 2.0, about 4B active parameters, quantization-aware 4-bit)
-matches the cloud model on the v2 dev split after the D085–D088 fixes: 155/160
-against 154/160, median latency 4.0 s against 6.9 s, no rate limits, and weights
-pinned by digest. Earlier measured options were GLM-4.7-Flash and the smaller
-`qwen3.5:9b` ([Modelfile](ollama/qwen3.5-9b.Modelfile), fits an 8 GB GPU)
-([comparison](docs/evaluation.md#stage-wise-diagnosis-and-fix-rounds-dev-2026-10-17)).
+is statistically indistinguishable from the cloud model on the sealed v3 test
+(246/260 against 247/260), at 2.7 s against 6.4 s median latency, with no rate
+limits and weights pinned by digest. Earlier measured options were GLM-4.7-Flash and
+the smaller `qwen3.5:9b` ([Modelfile](ollama/qwen3.5-9b.Modelfile), fits an 8 GB GPU)
+([comparison](docs/evaluation.md#benchmark-v3-capability-coverage-and-a-sealed-test-2026-10-1718)).
 
 ## Evaluate
 
@@ -220,8 +233,12 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
 - Free-form generated Cypher still fails on some complex questions, and the free
   LLM endpoint used here times out and rate-limits under load. The local Gemma 4
   setup avoids that and matches it on dev, but needs about 32 GB of RAM.
-- The scorer ignores names shorter than three characters (gene symbols such as AR),
-  and an acronym shared by several entities stays ambiguous.
+- Brand and consumer names outside the catalog (MeSH, cached openFDA labels,
+  MedlinePlus) are not recognised; a systematic brand-name source is the next step.
+- Router rules cover the wordings seen during development; unseen phrasings fall
+  back to the LLM planner, which recovers only some of them.
+- Questions are generated, not written by people; an acronym shared by several
+  entities stays ambiguous to the scorer.
 
 ## Documentation
 

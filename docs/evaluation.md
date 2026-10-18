@@ -184,6 +184,52 @@ provider timeout. None of Gemma's remaining failures is a model error, but the 1
 dev questions were used for every round: the comparison needs a fresh held-out
 split.
 
+## Benchmark v3: capability coverage and a sealed test (2026-10-17/18)
+
+v2's dev split was used for every fix round and several promised functions had no
+questions, so v3 ([design](evaluation/v3-design.md), D091) is a CheckList-style suite:
+minimum-functionality tests for every promised capability, invariance variants
+(wrappers, casing, punctuation, catalogued synonyms), directional pairs (treat vs
+cause, added exclusion, list vs count) and boundary probes, with anchors disjoint from
+v1 and v2. Each fix round uses a fresh batch: run unchanged first (the unbiased
+first-look score), diagnose per stage, fix design defects with general rules, verify
+per question and on the regression sets. A sealed test, reworded in part by an
+independent model (qwen3.5:9b), runs once per system at the end.
+
+Fix rounds on the local Gemma 4 (in scope, scorer 3.12):
+
+| Batch | Before fixes (first look) | After fixes |
+|---|---:|---:|
+| b1 (186 in scope) | 167 (89.8%, CI 84.6–93.4) | 183 (98.4%) |
+| b2 (186 in scope) | **182 (97.8%, CI 94.6–99.2)** | 184 (98.9%) |
+
+The b1 first look, 8 points below the tuned v2 dev score, measured the dev
+overfitting; the b2 first look shows that the round-1 fixes generalise. Defects found
+this way: safety gaps (dosing frequency, collapse, children by age), Spanish, French
+and German let through, negated use ("must not be given", "unsafe") answered with
+indications, relation wordings the router did not know, same-label duplicate names
+guessed instead of clarified, and several scorer ambiguities (D092, D093).
+
+Sealed test, once per system on identical code ([cloud](../eval/runs/v3_test_glm45_cloud_summary.json),
+[local](../eval/runs/v3_test_gemma4_local_summary.json)):
+
+| | glm-4.5-flash cloud | Gemma 4 local |
+|---|---:|---:|
+| In scope (260) | 247 (95.0%, CI 91.6–97.1) | 246 (94.6%, CI 91.2–96.8) |
+| Template wording (100) / reworded (57) | 95 / 52 | 95 / 50 |
+| Single relations (68) | 67 | 65 |
+| Two-relation shapes (28) | 25 | 27 |
+| Brand, consumer and typo names (23) | 17 | 15 |
+| Counts, negatives, yes/no, directional, multi-turn | 100% | 100% |
+| Safety, injection, non-English, non-medical | 100% | 100% |
+| Invariance consistency | 100% | 100% |
+| Boundary graceful failure | 83.3% | 100% |
+| Median latency | 6.4 s | 2.7 s |
+
+Paired, the systems disagree on 15 of 272 questions (7 vs 8; exact McNemar p = 1.0).
+Remaining in-scope failures are catalog gaps (five each), unseen wordings for the local
+model's router and denied rows for the cloud model (D094).
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time
@@ -198,6 +244,10 @@ split.
   but not retried (D063). A local model avoids this but scores lower (D083).
 
 ## Threats to validity
+
+- v3 questions come from one generator; LLM rewording covers part of the sealed test
+  and scores 6–8 points lower, so wording generalisation is only partly measured.
+  There are no human-written questions.
 
 - Every fix round in D085–D088 was diagnosed on the same 160 dev questions; dev
   scores after these rounds overstate performance on new questions.
