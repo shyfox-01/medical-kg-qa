@@ -1,7 +1,43 @@
+import tomllib
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from medkg.api.app import create_app
 from medkg.config import Settings
+
+
+def test_demo_page_is_available():
+    with TestClient(create_app(Pipeline())) as client:
+        response = client.get('/')
+        assert response.status_code==200
+        assert response.headers['content-type'].startswith('text/html')
+        assert 'Research demo, not medical advice' in response.text
+
+
+def test_demo_page_has_no_external_resources_or_html_injection_sinks():
+    with TestClient(create_app(Pipeline())) as client:
+        source = client.get('/').text
+    for forbidden in ('src="http','href="http','innerHTML','outerHTML',
+                      'insertAdjacentHTML','document.write'):
+        assert forbidden not in source
+
+
+def test_demo_page_survives_pipeline_initialization_failure(monkeypatch):
+    def fail():
+        raise RuntimeError('fixture initialization failure')
+
+    monkeypatch.setattr('medkg.api.app.local_pipeline',fail)
+    with TestClient(create_app()) as client:
+        assert client.app.state.initialization_error=='RuntimeError'
+        assert client.get('/').status_code==200
+        assert client.post('/ask',json={'question':'What is recorded?'}).status_code==503
+
+
+def test_demo_page_is_included_in_package_data():
+    project = Path(__file__).resolve().parents[2] / 'pyproject.toml'
+    config = tomllib.loads(project.read_text(encoding='utf8'))
+    assert 'api/static/*.html' in config['tool']['setuptools']['package-data']['medkg']
 
 
 class Store:

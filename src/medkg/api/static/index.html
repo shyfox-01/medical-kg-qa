@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Medical GraphRAG</title>
+  <style>
+    :root {
+      --background: #f4f6f5;
+      --surface: #ffffff;
+      --text: #192f2d;
+      --muted: #536663;
+      --border: #cbd6d2;
+      --accent: #146653;
+      --accent-text: #ffffff;
+      --soft: #eaf2ee;
+      --notice: #fff5dc;
+      --notice-text: #684d16;
+      --error: #a42b2b;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #111b19;
+        --surface: #192724;
+        --text: #e3eeea;
+        --muted: #adc0b8;
+        --border: #3b5149;
+        --accent: #9adfc0;
+        --accent-text: #10271e;
+        --soft: #243a32;
+        --notice: #342d1d;
+        --notice-text: #f1d59c;
+        --error: #ffaaa5;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+    main { max-width: 960px; margin: 0 auto; padding: 40px 24px 64px; }
+    h1 { margin: 0; font-size: clamp(1.9rem, 5vw, 2.7rem); letter-spacing: -0.04em; }
+    .subtitle { margin: 8px 0 24px; color: var(--muted); }
+    .notice {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 12px 16px;
+      margin: 0 0 24px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--notice);
+      color: var(--notice-text);
+      font-size: 0.9rem;
+    }
+    .section-label { margin: 0 0 10px; font-size: 0.9rem; font-weight: 650; }
+    .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+    button, input { font: inherit; }
+    button {
+      max-width: 100%;
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      overflow-wrap: anywhere;
+    }
+    button:hover:not(:disabled) { border-color: var(--accent); background: var(--soft); }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    button:focus-visible, input:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
+    .examples button { text-align: left; font-size: 0.85rem; }
+    form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+    .question-field { flex: 1 1 320px; min-width: 0; }
+    label { display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 650; }
+    input {
+      width: 100%;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text);
+    }
+    #ask { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+    #ask:hover:not(:disabled) { filter: brightness(0.9); }
+    #conversation { margin-top: 32px; }
+    .turn { margin-top: 28px; scroll-margin-top: 110px; min-width: 0; }
+    .question { margin: 0 0 12px; font-size: 1.15rem; overflow-wrap: anywhere; }
+    .result {
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      min-width: 0;
+    }
+    .answer { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .thinking { color: var(--muted); }
+    .error { color: var(--error); }
+    .badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
+    .badge {
+      padding: 3px 9px;
+      border-radius: 5px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 0.8rem;
+      overflow-wrap: anywhere;
+    }
+    .route { color: var(--accent); font-weight: 650; }
+    details { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+    summary { cursor: pointer; font-size: 0.9rem; font-weight: 650; }
+    .query + .query { margin-top: 20px; }
+    .description { margin: 12px 0 8px; overflow-wrap: anywhere; }
+    .cypher { white-space: pre-wrap; overflow-wrap: anywhere; }
+    pre {
+      max-width: 100%;
+      overflow-x: auto;
+      padding: 12px;
+      margin: 12px 0 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--background);
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 0.8rem;
+      line-height: 1.65;
+    }
+    .table-scroll { max-width: 100%; overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th, td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid var(--border); }
+    td { overflow-wrap: anywhere; min-width: 72px; }
+    th { color: var(--muted); font-weight: 650; }
+    .more { color: var(--muted); font-size: 0.85rem; }
+    @media (max-width: 480px) {
+      main { padding: 24px 16px 40px; }
+      .result { padding: 16px; }
+      .turn { scroll-margin-top: 140px; }
+      form > button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Medical GraphRAG</h1>
+      <p class="subtitle">Answers from a medical knowledge graph (PrimeKG in Neo4j), with the evidence behind them.</p>
+    </header>
+    <p class="notice" role="note">Research demo, not medical advice. Do not use it to diagnose, choose doses or make treatment decisions.</p>
+    <p class="section-label" id="examples-label">Try a question</p>
+    <div class="examples" role="group" aria-labelledby="examples-label">
+      <button type="button">What is Lipitor used for?</button>
+      <button type="button">Which drugs used for migraine interact with fluoxetine?</button>
+      <button type="button">Which genes are associated with cystic fibrosis?</button>
+      <button type="button">How many drugs are used for rheumatoid arthritis?</button>
+      <button type="button">Does warfarin interact with aspirin?</button>
+      <button type="button">How much ibuprofen should I give my 5-year-old?</button>
+    </div>
+    <form id="question-form">
+      <div class="question-field">
+        <label for="question">Your question</label>
+        <input id="question" name="question" type="text" maxlength="4096" required autocomplete="off"
+               placeholder="Ask about the knowledge graph">
+      </div>
+      <button id="ask" type="submit">Ask</button>
+      <button id="new-conversation" type="button">New conversation</button>
+    </form>
+    <section id="conversation" aria-label="Conversation"></section>
+  </main>
+  <script>
+    "use strict";
+
+    const form = document.getElementById("question-form");
+    const input = document.getElementById("question");
+    const conversation = document.getElementById("conversation");
+    const buttons = document.querySelectorAll("button");
+    const routeNames = new Map([
+      ["template", "Cypher template"], ["planner", "LLM planner"],
+      ["vector", "Vector search"], ["safety", "Safety gate"],
+      ["language", "Language gate"], ["scope", "Scope gate"],
+      ["linking", "Clarification"]
+    ]);
+    let history = [];
+    let pending = false;
+
+    function element(tag, className = "", text = "") {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      node.textContent = text;
+      return node;
+    }
+
+    function details(card, title, open = false) {
+      const section = element("details");
+      section.open = open;
+      section.append(element("summary", "", title));
+      card.append(section);
+      return section;
+    }
+
+    function table(section, headings, rows) {
+      const wrapper = element("div", "table-scroll");
+      const grid = element("table");
+      const head = element("thead");
+      const header = element("tr");
+      for (const heading of headings) {
+        const cell = element("th", "", heading);
+        cell.scope = "col";
+        header.append(cell);
+      }
+      head.append(header);
+      grid.append(head);
+      const body = element("tbody");
+      for (const row of rows) {
+        const line = element("tr");
+        for (const value of row) line.append(element("td", "", value ?? ""));
+        body.append(line);
+      }
+      grid.append(body);
+      wrapper.append(grid);
+      section.append(wrapper);
+    }
+
+    function renderResult(card, result) {
+      card.replaceChildren(element("div", "answer", result.answer ?? ""));
+      const badges = element("div", "badges");
+      badges.append(element("span", "badge route", routeNames.get(result.route) ?? result.route ?? ""));
+      badges.append(element("span", "badge", result.response_status ?? ""));
+      badges.append(element("span", "badge", `${Number(result.latency_s ?? 0).toFixed(1)} s`));
+      const calls = result.usage?.calls ?? 0;
+      badges.append(element("span", "badge", `${calls} LLM call${calls === 1 ? "" : "s"}`));
+      card.append(badges);
+
+      // Safety refusals have no expandable sections, including trace metadata (D096).
+      if (result.route === "safety") return;
+
+      if (result.candidates?.length) {
+        table(details(card, "Linked entities"), ["Mention", "Entity", "Type", "ID", "Match"],
+          result.candidates.map(row => [row.mention, row.name, row.label, row.uid, row.method]));
+      }
+      if (result.queries?.length) {
+        const section = details(card, "Graph queries", true);
+        for (const query of result.queries) {
+          const block = element("div", "query");
+          if (query.description) block.append(element("p", "description", query.description));
+          block.append(element("pre", "cypher", query.cypher ?? ""));
+          block.append(element("pre", "", JSON.stringify(query.params ?? {}, null, 2)));
+          section.append(block);
+        }
+      }
+      const rows = (result.contexts ?? []).filter(row => !Object.hasOwn(row, "role"));
+      if (rows.length) {
+        const section = details(card, "Evidence rows");
+        table(section, ["Name", "ID", "Source", "Conflict"],
+          rows.slice(0, 50).map(row => [row.name, row.uid, row.source, row.conflict ? "yes" : ""]));
+        if (rows.length > 50) section.append(element("p", "more", `+${rows.length - 50} more rows`));
+      }
+      if (result.trace_id) details(card, "Trace").append(element("pre", "", result.trace_id));
+    }
+
+    async function ask() {
+      const question = input.value.trim();
+      if (pending || !question || question.length > 4096) return;
+      pending = true;
+      for (const button of buttons) button.disabled = true;
+      input.readOnly = true;
+
+      const turn = element("article", "turn");
+      turn.append(element("h2", "question", question));
+      const card = element("div", "result");
+      card.setAttribute("aria-busy", "true");
+      const thinking = element("div", "thinking", "Thinking… 0 s");
+      thinking.setAttribute("role", "status");
+      card.append(thinking);
+      turn.append(card);
+      conversation.append(turn);
+      turn.scrollIntoView({block: "nearest", behavior: "smooth"});
+      const started = performance.now();
+      const timer = setInterval(() => {
+        thinking.textContent = `Thinking… ${Math.floor((performance.now() - started) / 1000)} s`;
+      }, 1000);
+
+      try {
+        const response = await fetch("/ask", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({question, history: history.slice(-4)})
+        });
+        if (response.status !== 200) {
+          const message = response.status === 503
+            ? "The service is not ready: start Neo4j and check the LLM settings (GET /ready)."
+            : `Request failed (HTTP ${response.status}).`;
+          card.replaceChildren(element("p", "error", message));
+        } else {
+          const result = await response.json();
+          renderResult(card, result);
+          history.push({question, focus: result.focus || [], intent: result.intent ?? null});
+        }
+      } catch {
+        card.replaceChildren(element("p", "error", "Could not reach the server."));
+      } finally {
+        clearInterval(timer);
+        card.setAttribute("aria-busy", "false");
+        pending = false;
+        for (const button of buttons) button.disabled = false;
+        input.readOnly = false;
+        turn.scrollIntoView({block: "start", behavior: "smooth"});
+      }
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      ask();
+    });
+    for (const button of document.querySelectorAll(".examples button")) {
+      button.addEventListener("click", () => {
+        input.value = button.textContent;
+        form.requestSubmit();
+      });
+    }
+    document.getElementById("new-conversation").addEventListener("click", () => {
+      history = [];
+      conversation.replaceChildren();
+      input.value = "";
+      input.focus();
+    });
+    if (location.hash.startsWith("#q=")) {
+      try {
+        input.value = decodeURIComponent(location.hash.slice(3)).slice(0, 4096);
+        form.requestSubmit();
+      } catch {
+        // A malformed fragment leaves the ordinary question form available.
+      }
+    }
+  </script>
+</body>
+</html>

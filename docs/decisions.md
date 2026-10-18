@@ -31,6 +31,7 @@ system and its evaluation today.
 | Answer | Rows of the final graph query are always reported; the model words, code completes | D087 |
 | Benchmark | v3: capability coverage, perturbations, fresh batches per fix round, a sealed test run once | D091–D094 |
 | Evaluation | v3 failure severity separates declines, incomplete and wrong answers, and policy breaches | D095 |
+| Demo | Self-contained web page shows answers, routes, executed Cypher and evidence; no frontend build | D096 |
 
 ## D001 — Environment and scope
 
@@ -1962,3 +1963,58 @@ fall from six to zero. These are descriptive results for the saved runs; the
 used diagnosis batches do not become held-out evidence through rescoring.
 Full tables and reproduction commands are in
 [Failure severity](evaluation.md#failure-severity).
+
+## D096 — Static web demo and inspectable answers (2026-10-18)
+
+Serve a single packaged `api/static/index.html` at `GET /`, using `FileResponse`
+independently of pipeline readiness. Inline CSS and JavaScript, system fonts and
+no external assets keep the interface usable without an internet connection or a
+frontend build. The page calls only the existing JSON `POST /ask`; other routes
+and question-answering behaviour are unchanged. Alternatives: a frontend framework
+or a separate static server; rejected because this demo needs neither a build
+chain nor a second deployment. Include the HTML in setuptools package data so an
+installed package can serve the same page.
+
+Render all dynamic values as text through `createElement` and `textContent`,
+including questions, answers, query parameters and table cells. Do not interpret
+model output as markup or Markdown. Keep `Graph queries` open by default so a
+reader can inspect the executed Cypher immediately; the other nonempty details
+are collapsed. Evidence excludes every context with a `role` field, omits
+synonyms, and displays at most 50 rows with an explicit remainder count. Scroll
+tables and code blocks internally on narrow screens; keep the research notice
+sticky while the conversation scrolls. Alternatives: rich-text rendering and
+always-visible full evidence tables; rejected for unnecessary injection risk and
+page length. Cypher blocks wrap (one generated query is a single long line and
+would otherwise be cut off in a screenshot); parameter JSON keeps internal scrolling.
+
+The safety-gate example must have no expandable sections. Its API result still
+has a trace ID, so suppress all details for `route == 'safety'`, including Trace,
+while retaining the answer and all four status badges. This is a presentation
+rule only. Alternative: show Trace whenever populated; rejected because that
+would violate the specified safety-example acceptance check.
+
+Keep conversation state only in page memory and send the last four turns with
+the same question/focus/intent shape as `eval.run.evaluate_case`. Append state
+only after a successful HTTP 200 result; transport/HTTP errors leave it unchanged.
+Disable every button and make the input read-only during a request, with a
+single-request guard and an elapsed-seconds indicator, to avoid overlapping
+turns or clearing an in-flight conversation. New conversation clears state,
+cards and the input. No automatic request retries or browser storage are used.
+Alternatives: persisted conversations or concurrent requests; unnecessary for
+the demo and harder to keep consistent.
+
+Use a one-time `#q=` fragment for prefill and automatic submission, rather than
+a query string, so the prefilled question is not sent in the page request URL.
+Trim submitted whitespace, bound decoded prefill to the input's 4096-character
+limit, and ignore malformed percent encoding so the ordinary form still works.
+Do not resubmit on later fragment changes. Alternative: silently retry malformed
+fragments or listen for every hash change; either could create unintended calls.
+
+Manual check (2026-10-18): the implementing agent's sandbox cannot start a
+background server, so the page was checked outside it against the local Neo4j
+and `medkg-gemma4-26b` on a loopback uvicorn server. All six examples rendered
+with the expected routes (four Cypher templates, the migraine/fluoxetine question
+through the LLM planner, the dosing question at the safety gate with no
+expandable sections), the `#q=` prefill submitted once, and a 375 px viewport had
+no horizontal scrolling. Review changes: Cypher wraps, and the call badge is
+singular for one call. The README screenshot and example are part of T3.

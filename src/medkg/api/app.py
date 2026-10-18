@@ -3,14 +3,17 @@
 import json
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from medkg.config import Settings
 from medkg.qa.pipeline import local_pipeline
+
+STATIC = Path(__file__).parent / 'static'
 
 
 class HistoryTurn(BaseModel):
@@ -49,6 +52,10 @@ def create_app(pipeline=None) -> FastAPI:
         with lock:
             return application.state.pipeline.ask(request.question,
                 [turn.model_dump() for turn in request.history])
+
+    @application.get('/')
+    def index():
+        return FileResponse(STATIC / 'index.html',media_type='text/html')
 
     @application.get('/health')
     def health():
