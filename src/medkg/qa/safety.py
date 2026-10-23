@@ -13,8 +13,10 @@ QUANTITY = (r'(?:\d+(?:[.,]\d+)?|(?:one|two|three|four|five|six|seven|eight|nine
             r'twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)'
             r'(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?(?: and a half)?|'
             r'(?:half|quarter)(?: (?:of )?an?)?)')
+# A non-word lookahead also bounds units ending in punctuation, such as "i.u.".
 DOSE_AMOUNT = (r'\b'+QUANTITY+r'\s*(?:mg|mcg|micrograms?|milligrams?|grams?|ml|'
-               r'milliliters?|tablets?|capsules?|pills?|drops?)\b')
+               r'milliliters?|tablets?|capsules?|pills?|drops?|'
+               r'iu|ius|i\.u\.|international units?|units?)(?!\w)')
 # A bare article is a quantity only inside an instruction ("take a tablet"), not in
 # descriptions such as "a drop in blood pressure" or "supplied as a tablet".
 DOSE_ARTICLE = (r'\b(?:take|use|swallow|give|administer|inject)\s+(?:an?|one)\s+'

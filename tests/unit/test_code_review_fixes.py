@@ -1,4 +1,4 @@
-"""Regression cases for the 2026-10-07 code review, using fictional entities only."""
+"""Deterministic regressions for safety and the 2026-10-07 code review."""
 
 import json
 from types import SimpleNamespace
@@ -75,6 +75,44 @@ def test_descriptions_are_not_dose_or_diagnosis_statements(text):
 def test_instructions_and_diagnoses_are_still_rejected(text,category):
     assert output_violation(text).category==category
     assert forbidden_content(text)
+
+
+@pytest.mark.parametrize('question',[
+    'Is 50,000 IUs per week of Vitamin D safe?',
+    'Is 40 units of insulin too much?',
+])
+def test_dose_unit_questions_are_refused(question):
+    assessment = assess(question)
+    assert assessment.blocked and assessment.category=='dosage'
+
+
+@pytest.mark.parametrize('question',[
+    'What is vitamin D used for?',
+    'Which drugs treat type 1 diabetes?',
+])
+def test_dose_unit_expansion_keeps_knowledge_questions_answerable(question):
+    assessment = assess(question)
+    assert not assessment.blocked and assessment.category=='none'
+    assert output_violation(question) is None
+
+
+@pytest.mark.parametrize('text',[
+    '40 IU', '40 IUs', '40 i.u.', '40 i.u. of Asterol',
+    'one international unit', '40 international units', 'one unit', '40 units',
+])
+def test_dose_unit_forms_are_rejected_in_questions_and_outputs(text):
+    assessment = assess(text)
+    assert assessment.blocked and assessment.category=='dosage'
+    violation = output_violation(text)
+    assert violation is not None and violation.blocked and violation.category=='dosage'
+
+
+@pytest.mark.parametrize('text',[
+    '40 unitsx', '40 iusx', '40 i.u.x', '40 international unitsx',
+])
+def test_dose_units_do_not_match_word_prefixes(text):
+    assert not assess(text).blocked
+    assert output_violation(text) is None
 
 
 @pytest.mark.parametrize('answer,expected',[

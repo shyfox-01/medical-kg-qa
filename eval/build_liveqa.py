@@ -1,6 +1,7 @@
 """Build the frozen LiveQA real-question benchmark from local inputs (D097).
 
     python -m eval.build_liveqa --dry-run  # statistics and summary-wording samples
+    python -m eval.build_liveqa --verify   # rebuild in memory and check the manifest hash
     python -m eval.build_liveqa            # create the dataset and manifest once
 
 NLM annotations determine eligibility; catalog names determine exact links; the
@@ -305,6 +306,30 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def superseded_metadata(v1_path: Path, manifest_path: Path) -> dict:
+    """Resolve provenance only for generation; a missing local v1 is optional."""
+    reason = 'mapping ignored keywords; never evaluated'
+    if v1_path.exists():
+        return {v1_path.name: {'sha256': digest(v1_path), 'reason': reason}}
+    if not manifest_path.exists():
+        return {}
+    previous = json.loads(manifest_path.read_text(encoding='utf8'))
+    if not isinstance(previous, dict):
+        raise ValueError('LiveQA manifest must be a JSON object')
+    if 'superseded' in previous:
+        return previous['superseded']
+    if (previous.get('generator_version') == 'liveqa-1'
+            and previous.get('dataset') == 'eval/datasets/liveqa_v1.jsonl'
+            and previous.get('dataset_sha256')):
+        return {v1_path.name: {'sha256': previous['dataset_sha256'], 'reason': reason}}
+    return {}
+
+
+def dataset_bytes(rows: list[dict]) -> bytes:
+    """Use identical UTF-8 JSONL serialization for frozen output and verification."""
+    return ''.join(json.dumps(row, ensure_ascii=False) + '\n' for row in rows).encode('utf8')
+
+
 def check_outputs(dataset: Path, manifest_path: Path,
                   superseded_sha256: str | None = None) -> bool:
     """Allow only the documented v1 manifest transition; never replace a dataset."""
@@ -328,7 +353,7 @@ def write_outputs(rows: list[dict], manifest: dict, dataset: Path, manifest_path
     superseded_hash = (manifest.get('superseded', {}).get('liveqa_v1.jsonl', {}).get('sha256')
                        if manifest.get('generator_version') == VERSION else None)
     upgrading = check_outputs(dataset, manifest_path, superseded_hash)
-    payload = ''.join(json.dumps(row, ensure_ascii=False) + '\n' for row in rows).encode('utf8')
+    payload = dataset_bytes(rows)
     manifest = {**manifest, 'dataset_sha256': hashlib.sha256(payload).hexdigest()}
     metadata = (json.dumps(manifest, ensure_ascii=False, indent=2) + '\n').encode('utf8')
     # Freeze the dataset before updating the shared manifest. Partial outputs remain
@@ -341,12 +366,21 @@ def write_outputs(rows: list[dict], manifest: dict, dataset: Path, manifest_path
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--dry-run', action='store_true',
-                        help='Print statistics and up to five summary samples per split; write nothing')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--dry-run', action='store_true',
+                       help='Print statistics and up to five summary samples per split; write nothing')
+    modes.add_argument('--verify', action='store_true',
+                       help='Rebuild in memory and compare with the manifest SHA-256; write nothing')
     args = parser.parse_args()
     try:
-        superseded_hash = digest(SUPERSEDED)
-        if not args.dry_run:
+        if args.verify:
+            previous = json.loads(MANIFEST.read_text(encoding='utf8'))
+            if not isinstance(previous, dict) or not previous.get('dataset_sha256'):
+                raise ValueError('LiveQA verification requires a manifest dataset_sha256')
+            expected_hash = previous['dataset_sha256']
+        elif not args.dry_run:
+            superseded = superseded_metadata(SUPERSEDED, MANIFEST)
+            superseded_hash = superseded.get(SUPERSEDED.name, {}).get('sha256')
             check_outputs(DATASET, MANIFEST, superseded_hash)
         root = ET.parse(XML).getroot()
         # Validate source structure before loading the much larger CSV graph.
@@ -360,6 +394,13 @@ def main() -> None:
             raise ValueError(f'Expected {EXPECTED_ROWS} LiveQA rows; got {len(rows)}; stopping')
         stats = summarize(rows)
         print(json.dumps(stats, ensure_ascii=False, indent=2))
+        if args.verify:
+            actual_hash = hashlib.sha256(dataset_bytes(rows)).hexdigest()
+            if actual_hash != expected_hash:
+                print(f'LiveQA verification: MISMATCH; expected {expected_hash}; rebuilt {actual_hash}')
+                raise SystemExit(1)
+            print(f'LiveQA verification: MATCH; SHA-256 {actual_hash}')
+            return
         if args.dry_run:
             for split in sorted(stats['split']):
                 samples = [row for row in rows
@@ -373,14 +414,13 @@ def main() -> None:
                     'inputs': {name: {'path': path.relative_to(ROOT).as_posix(),
                                       'sha256': digest(path)} for name, path in inputs.items()},
                     'dataset': DATASET.relative_to(ROOT).as_posix(), 'statistics': stats,
-                    'superseded': {SUPERSEDED.name: {
-                        'sha256': superseded_hash,
-                        'reason': 'mapping ignored keywords; never evaluated'}},
                     'malformed_annotations': sorted({row['pair_id'] for row in rows
                                                      if row['liveqa']['malformed_annotation']}),
                     'focus_count_unit': 'NLM FOCUS annotation, once per question',
                     'keyword_count_unit': 'NLM KEYWORD annotation, once per question',
                     'row_count_unit': 'question wording; each question has original and summary'}
+        if superseded:
+            manifest['superseded'] = superseded
         write_outputs(rows, manifest, DATASET, MANIFEST)
         print(f'Created {DATASET.relative_to(ROOT)} and {MANIFEST.relative_to(ROOT)}')
     except (OSError, ValueError, ET.ParseError) as error:

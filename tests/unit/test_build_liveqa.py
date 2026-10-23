@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import sys
 from pathlib import Path
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
@@ -651,3 +652,115 @@ def test_write_outputs_refuses_unverified_or_unrelated_manifest_replacement(
         liveqa.write_outputs([], metadata, dataset, manifest)
     assert manifest.read_bytes() == original
     assert not dataset.exists()
+
+
+@pytest.fixture
+def cli_inputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+               world: tuple[v3.Graph, list[dict]]) -> Path:
+    """Exercise the CLI with real local XML/catalog files and a tiny CSV substitute."""
+    raw, processed = tmp_path / 'data/raw', tmp_path / 'data/processed'
+    raw.mkdir(parents=True)
+    processed.mkdir(parents=True)
+    datasets = tmp_path / 'eval/datasets'
+    datasets.mkdir(parents=True)
+    xml = raw / 'questions.xml'
+    xml.write_text('<LiveQA2017-Medical-Test-Set-Full>' + question_xml(
+        [('DOSAGE', 'F1')], [('F1', 'Asterol', 'DrugSupplement')],
+        summary='What dose of Asterol? É',
+    ) + '</LiveQA2017-Medical-Test-Set-Full>', encoding='utf8')
+    (processed / 'entities.json').write_text(json.dumps(world[1]), encoding='utf8')
+    for name in ('kg.csv', 'mondo.obo', 'hp.obo'):
+        (raw / name).write_text('synthetic input', encoding='utf8')
+    monkeypatch.setattr(liveqa, 'ROOT', tmp_path)
+    monkeypatch.setattr(liveqa, 'XML', xml)
+    monkeypatch.setattr(liveqa, 'SUPERSEDED', datasets / 'liveqa_v1.jsonl')
+    monkeypatch.setattr(liveqa, 'DATASET', datasets / 'liveqa_v2.jsonl')
+    monkeypatch.setattr(liveqa, 'MANIFEST', datasets / 'MANIFEST_liveqa.json')
+    monkeypatch.setattr(liveqa, 'EXPECTED_ROWS', 2)
+    monkeypatch.setattr(liveqa, 'read_graph', lambda *args: (world[1], [], {}))
+    monkeypatch.setattr(liveqa, 'load_obo', lambda path: {})
+    return tmp_path
+
+
+def file_snapshot(root: Path) -> dict:
+    return {path.relative_to(root): (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in root.rglob('*') if path.is_file()}
+
+
+def test_cli_dry_run_without_v1_writes_nothing(
+    cli_inputs: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture,
+) -> None:
+    monkeypatch.setattr(sys, 'argv', ['build_liveqa', '--dry-run'])
+    before = file_snapshot(cli_inputs)
+    liveqa.main()
+    output = capsys.readouterr().out
+    assert '"rows": 2' in output
+    assert '[liveqa/real.dosage_refusal/refusal]' in output
+    assert file_snapshot(cli_inputs) == before
+
+
+@pytest.mark.parametrize('matches', [True, False])
+def test_cli_verify_rebuilds_with_existing_outputs_and_no_v1_without_writes(
+    cli_inputs: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture,
+    world: tuple[v3.Graph, list[dict]], matches: bool,
+) -> None:
+    rows = liveqa.build_rows(ET.parse(liveqa.XML).getroot(), *world)
+    liveqa.write_outputs(rows, {'generator_version': liveqa.VERSION},
+                         liveqa.DATASET, liveqa.MANIFEST)
+    if not matches:
+        manifest = json.loads(liveqa.MANIFEST.read_text(encoding='utf8'))
+        manifest['dataset_sha256'] = '0' * 64
+        liveqa.MANIFEST.write_text(json.dumps(manifest), encoding='utf8')
+    monkeypatch.setattr(sys, 'argv', ['build_liveqa', '--verify'])
+    before = file_snapshot(cli_inputs)
+    if matches:
+        liveqa.main()
+        assert 'verification: MATCH' in capsys.readouterr().out
+    else:
+        with pytest.raises(SystemExit) as error:
+            liveqa.main()
+        assert error.value.code == 1
+        assert 'verification: MISMATCH' in capsys.readouterr().out
+    assert file_snapshot(cli_inputs) == before
+
+
+def test_cli_generation_without_v1_or_manifest_omits_superseded(
+    cli_inputs: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, 'argv', ['build_liveqa'])
+    liveqa.main()
+    manifest = json.loads(liveqa.MANIFEST.read_text(encoding='utf8'))
+    assert 'superseded' not in manifest
+    assert manifest['dataset_sha256'] == hashlib.sha256(liveqa.DATASET.read_bytes()).hexdigest()
+
+
+def test_superseded_metadata_preserves_manifest_record_when_v1_is_missing(tmp_path: Path) -> None:
+    manifest = tmp_path / 'MANIFEST_liveqa.json'
+    recorded = {'liveqa_v1.jsonl': {'sha256': 'a' * 64, 'reason': 'recorded provenance'}}
+    manifest.write_text(json.dumps({'superseded': recorded}), encoding='utf8')
+    assert liveqa.superseded_metadata(tmp_path / 'liveqa_v1.jsonl', manifest) == recorded
+
+
+def test_cli_generation_reuses_v1_manifest_hash_when_v1_file_is_missing(
+    cli_inputs: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    liveqa.MANIFEST.write_text(json.dumps({
+        'generator_version': 'liveqa-1', 'dataset': 'eval/datasets/liveqa_v1.jsonl',
+        'dataset_sha256': 'a' * 64,
+    }), encoding='utf8')
+    monkeypatch.setattr(sys, 'argv', ['build_liveqa'])
+    liveqa.main()
+    manifest = json.loads(liveqa.MANIFEST.read_text(encoding='utf8'))
+    assert manifest['superseded']['liveqa_v1.jsonl']['sha256'] == 'a' * 64
+
+
+def test_cli_generation_hashes_existing_v1_and_preserves_its_bytes(
+    cli_inputs: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    frozen = b'{"id": "frozen-v1"}\n'
+    liveqa.SUPERSEDED.write_bytes(frozen)
+    monkeypatch.setattr(sys, 'argv', ['build_liveqa'])
+    liveqa.main()
+    manifest = json.loads(liveqa.MANIFEST.read_text(encoding='utf8'))
+    assert manifest['superseded']['liveqa_v1.jsonl']['sha256'] == hashlib.sha256(frozen).hexdigest()
+    assert liveqa.SUPERSEDED.read_bytes() == frozen

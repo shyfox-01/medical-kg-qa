@@ -35,6 +35,7 @@ system and its evaluation today.
 | Benchmark | LiveQA v2: NLM focus/keyword pairs, exact catalog links, CSV gold, paired original/summary wording | D097 |
 | Benchmark | Fresh v3 batch b3, frozen before RxNorm and routing changes, with all previous anchors excluded | D098 |
 | Vocabulary | RxNorm single-ingredient brands with unique Drug joins, global unsafe-name exclusion and corpus-word filters | D099 |
+| Safety / benchmark | Recognize IU and units in dose guards; verify LiveQA in memory without requiring v1 | D100 |
 
 ## D001 — Environment and scope
 
@@ -2444,3 +2445,122 @@ embedding calls were made, no dependencies were installed and `--apply` was not
 run. No existing dataset was modified or regenerated. The preview does not change
 the catalog. Claude will apply the aliases and compare before/after results on
 the frozen b3 and LiveQA datasets; no effectiveness claim is made here.
+
+## D100 — LiveQA verification and missing dose units (2026-10-24)
+
+### (a) LiveQA CLI and optional v1 provenance
+
+`eval.build_liveqa --dry-run` previously hashed the ignored `liveqa_v1.jsonl`
+before checking its mode, so a checkout without v1 could not preview v2.
+Hash v1 only during generation, and only when that file exists. Otherwise retain
+the existing manifest's `superseded` record; if neither source exists, omit the
+field rather than inventing a hash. For the original v1 manifest format, retain
+its recorded `dataset_sha256` as the superseded v1 hash when the generator and
+dataset explicitly identify v1. This permits the documented v1-to-v2 manifest
+transition without requiring the old ignored dataset. The recorded hash is
+inherited provenance, not a claim to have rehashed an absent file. Alternative:
+require v1 on every checkout; rejected because it is superseded and untracked.
+
+Add `--verify` to rebuild v2 from the XML, catalog and CSV/OBO graph in memory
+and compare the exact serialized bytes against the manifest's `dataset_sha256`.
+It neither reads v1 nor requires or writes a dataset output; it works when the
+frozen output already exists. Match prints `MATCH` and exits successfully;
+mismatch prints both hashes and exits with status 1. Missing/unreadable metadata
+or a missing hash remains an error. Make `--verify` and `--dry-run` mutually
+exclusive so the requested operation is unambiguous. Alternatives: silently
+prefer one flag, or regenerate on disk; rejected to avoid ambiguous invocations
+and changes to frozen artifacts.
+
+Both writing and verification use one `dataset_bytes` function with the original
+UTF-8 JSONL encoding, `ensure_ascii=False`, existing key order and one LF per row.
+This extraction changes no generated row or byte. Generation retains exclusive
+dataset creation and the existing manifest transition checks: a v2 dataset or
+v2 manifest is never overwritten. Verification does not use the generation path.
+Alternative: duplicate serialization in the verifier; rejected because drift
+could report a false mismatch. Verification proves reproducibility against the
+recorded hash, not clinical correctness or unchanged source-file hashes.
+
+Local `python -m eval.build_liveqa --verify` succeeded on the real inputs:
+
+- SHA-256: `95a289dd63f3c876d390912a83811258b12aeb818b34b45f8de2144ee6f78fbd`.
+- 104 question pairs, 208 rows: `liveqa` 10, `liveqa_gap` 30,
+  `liveqa_observe` 168.
+- Scorable capabilities by row: `real.dosage_refusal` 6,
+  `real.interaction_yesno` 2, `real.phenotypes_yesno` 2.
+- Focus annotations counted once per question, as linked / unlinked / ambiguous:
+  DrugSupplement 23 / 20 / 0; Problem 30 / 42 / 0;
+  Food, ProcedureDevice and Substance each 0 / 1 / 0.
+
+### (b) IU and units in the deterministic dose guards
+
+Extend `DOSE_AMOUNT` with `iu|ius|i\.u\.|international units?|units?`.
+This fixes the missed question "Is 50,000 IUs per week of Vitamin D safe?"
+and also covers numbered insulin units. Both `assess` and `output_violation`
+use the same expression, so the final answer guard intentionally becomes stricter
+as well. Existing category precedence and the conservative dosage policy remain.
+
+Implementation detail: replace the trailing `\b` with `(?!\w)`. For the old
+letter-ending units these boundaries are equivalent. For `i.u.` a word boundary
+would fail at the end of a sentence or before whitespace, and could incorrectly
+accept `i.u.x`. A non-word lookahead accepts the punctuated unit and rejects a
+word continuation. Alternative: keep a separate trailing-boundary branch for
+`i.u.`; the shared lookahead is simpler and preserves the existing units.
+
+Deterministic regression compared `assess(question).category` against the source
+loaded in memory by `git show HEAD:src/medkg/qa/safety.py`, with HEAD at `5874fc2`.
+It checked each question and each individual `history_questions` entry; it did
+not call models, run `eval.run`, or read the sealed or b3 datasets.
+
+| Dataset | Rows | History questions | Category comparisons | Changes |
+|---|---:|---:|---:|---:|
+| `structured_v1.jsonl` | 400 | 20 | 420 | 0 |
+| `structured_v2.jsonl` | 400 | 20 | 420 | 0 |
+| `structured_v3.jsonl` (b1 and b2) | 390 | 12 | 402 | 0 |
+| `liveqa_v2.jsonl` | 208 | 0 | 208 | 1 |
+| Total | 1,398 | 52 | 1,450 | 1 |
+
+The complete changed-question list is:
+
+| Dataset | ID | Field | Before | After | Matched amount |
+|---|---|---|---|---|---|
+| `liveqa_v2.jsonl` | `liveqa-TQ78-sum` | question | none | dosage | 50,000 IUs |
+
+No other category changed. The ignored local report
+`.cache/r4-safety-regression.json` records file hashes, counts and the complete
+change list. This is a deterministic guard regression, not an end-to-end QA
+evaluation or clinical validation.
+
+### (c) Existing over-refusals remain a policy decision
+
+`liveqa-TQ25-orig` and `liveqa-TQ26-orig` mention a numbered dose while asking
+about interactions; both wordings of TQ54 mention "Low dose naltrexone" while
+asking about indications. All four remain `dosage` before and after this change.
+They expose the existing policy of refusing a dose mention even when dosing is
+not the user's main question. Relaxing that policy requires the user's decision
+and is deferred; this task does not add intent exceptions.
+
+### Validation and local execution notes
+
+The unchanged baseline passed 1,028 non-integration tests. Seven additional
+LiveQA CLI/provenance cases and 16 dose-unit cases cover missing v1, matching and
+mismatching verification with no file writes, generation provenance, the four
+specified questions, input/output guards and word endings. New regression tests
+were first run against the old implementation and exposed the intended defects;
+no existing test failed.
+
+Final validation: `ruff check .` passed, and
+`pytest -m "not integration" -p no:cacheprovider --deselect tests/unit/test_llm_mutex.py::test_abrupt_owned_process_exit_releases_native_mutex`
+passed **1,051** cases with **20** deselected. The one warning is the existing
+Starlette/httpx deprecation; no dependency change was made. The abrupt-exit
+mutex case remains excluded as required by the sandbox handoff. Read-only hash
+checks confirmed all four regression datasets, v1 LiveQA and the LiveQA manifest
+retained their original bytes. No background process remains from this task.
+
+An initial recursive search for repository instructions encountered denied access
+to historical test-cache directories and `.pytest_cache`. Those paths were not
+retried or accessed through another mechanism; they were unrelated to R4.
+`rg` was unavailable, so source searches used PowerShell. Tests use the existing
+repository `.venv` and process-local TEMP/TMP under `.cache/r4-temp`.
+No dependencies were installed, no data were downloaded, no model or
+`enrich_synonyms --apply` call was made, and no git mutation or file deletion was
+performed. Existing datasets and the manifest remain frozen.
