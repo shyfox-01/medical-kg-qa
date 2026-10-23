@@ -37,6 +37,7 @@ system and its evaluation today.
 | Vocabulary | RxNorm single-ingredient brands with unique Drug joins, global unsafe-name exclusion and corpus-word filters | D099 |
 | Safety / benchmark | Recognize IU and units in dose guards; verify LiveQA in memory without requiring v1 | D100 |
 | Vocabulary | Keep RxNorm aliases exact-only through openFDA parsing, verify Neo4j before apply, exclude 45 reviewed names and quarantine 11 Pentastarch aliases | D101 |
+| Answer | Decline empty verified bodies; recognize bounded opening decline paraphrases | D102 |
 
 ## D001 — Environment and scope
 
@@ -2897,3 +2898,133 @@ to the shared environment. Test TEMP/TMP directories are retained under
 No files were deleted, no git mutations were run, no main-repository/data files
 were written, and no live apply, evaluation/model call, installation, download or
 background service was started. Git remains Claude's responsibility.
+
+## D102 — Empty verified answers and opening decline detection (2026-10-24)
+
+LiveQA exposed two answer-boundary defects. Verification could remove every
+unsupported entity line, leaving only its removal notice and generated sources
+(TQ38-orig and TQ72-orig), while the response stayed `answered`. Separately,
+15 saved answers explicitly declining for lack of evidence were not recognized
+because the opening refusal patterns were too narrow. R5 addresses these two
+defects with general rules; it does not change routing or evaluation scoring.
+
+### Empty answer bodies
+
+After generation and verification, inspect the body before output safety,
+graph-result completion and final formatting. Ignore the fixed verification
+removal notice and the source/research-footer suffix, then require at least one
+Unicode alphanumeric character (`str.isalnum`). Empty, whitespace-only and
+punctuation-only bodies become `No supporting evidence was retrieved.` with
+`refused=True`; `_finish` therefore records `response_status='unsupported'`.
+That branch skips completion and is finalized like the no-evidence decline
+(`finalize` with no rows and no truncation), so it keeps the research disclaimer
+but carries no removal, source, truncation or conflict notice. (Review change:
+the first implementation skipped `finalize` entirely and dropped the
+disclaimer.) The evidence, executed queries and existing cache flow are retained.
+
+Implementation choices: strip only the known removal notice and line-start
+`Sources:` / `Research demo;` suffixes for the emptiness check; a nonempty answer
+keeps its original text and normal formatting. At this point the verifier is
+the only code that has appended a notice; the other notices are added later by
+`finalize`. Use a local `empty_answer` flag to finalize without rows instead of returning
+early, which would bypass normal cache handling. Check before `ensure_reported`
+so a fully removed model answer cannot be silently reconstructed into an
+answered graph list. Alternatives: test string length, which counts notices
+and punctuation as answers, or check only after completion, which hides the
+verification outcome. Both fail the specified empty-answer contract.
+
+### Opening decline wording
+
+`unsupported_response` now strips the specified opening apology (`I'm sorry`
+or `I am sorry`, optional comma and `but`) as well as the existing evidence
+prefixes. They may occur consecutively in either order. The rule for `there is
+no/insufficient information/evidence` ends at a word boundary instead of requiring
+`about`, `on` or `regarding`. Add the pattern `No [relevant] information/evidence
+regarding/about/on/concerning <topic> was/were/is/are
+found/retrieved/available/provided`, and add `provided` to the existing direct
+verb list.
+
+The topic is 1–200 characters and cannot cross `.`, `!` or `?`; the new verb
+alternative also ends at a word boundary. A nonempty topic is required to avoid
+matching a malformed empty subject. Excluding all three sentence terminators
+implements the first-sentence boundary rather than crossing a question or
+exclamation into a later statement. Matching stays anchored to the opening;
+ordinary negative interaction answers, known-cure statements and a later
+decline following an actual answer remain outside these patterns. Alternatives:
+scan the whole answer or use an unbounded topic; rejected because they could
+misclassify partial answers. No question-specific names or IDs enter the rules.
+
+### Read-only deterministic impact check
+
+With `PYTHONPATH=src`, import the worktree's new `unsupported_response` and apply
+it to every saved top-level `result['answer']` in the eight specified files under
+`E:\medical project\medical-kg-qa\eval\runs`. Compare against both recorded
+`result['refused']` and `result['response_status']`; inspect the original
+`score.passed` for every newly detected decline. No datasets, model calls,
+evaluation runs or rescoring are involved. Each input was hashed before and
+after its inspection and remained unchanged.
+
+| Saved run | Rows | Non-refusal to decline | Previously passed among changes |
+|---|---:|---:|---:|
+| `v3_test_gemma4_local_round1.jsonl` | 272 | 0 | 0 |
+| `v3_test_glm45_cloud_round1.jsonl` | 272 | 0 | 0 |
+| `v3_b1_gemma4_local_fix2_round1.jsonl` | 195 | 0 | 0 |
+| `v3_b2_gemma4_local_fix2_round1.jsonl` | 195 | 0 | 0 |
+| `r5_dev_gemma4_local_round1.jsonl` | 160 | 0 | 0 |
+| `liveqa_v2_before_liveqa_gemma4_local_round1.jsonl` | 10 | 1 | 0 |
+| `liveqa_v2_before_liveqa_gap_gemma4_local_round1.jsonl` | 30 | 0 | 0 |
+| `liveqa_v2_before_liveqa_observe_gemma4_local_round1.jsonl` | 168 | 14 | 0 |
+| Total | 1,302 | 15 | 0 |
+
+All 15 changed rows had `refused=False`, `response_status='answered'` and
+`score.passed=False`. Counts based on the recorded flag and status agree; no
+stored flag/status inconsistencies were found. There are no previously passed
+rows to list with answer openings, so the potential-regression stop condition
+did not occur. Changed IDs:
+
+- LiveQA: `liveqa-TQ78-sum`.
+- Observe: `liveqa-TQ12-orig`, `liveqa-TQ12-sum`, `liveqa-TQ17-sum`,
+  `liveqa-TQ19-orig`, `liveqa-TQ20-sum`, `liveqa-TQ21-sum`, `liveqa-TQ29-orig`,
+  `liveqa-TQ44-sum`, `liveqa-TQ5-orig`, `liveqa-TQ53-sum`, `liveqa-TQ58-sum`,
+  `liveqa-TQ63-orig`, `liveqa-TQ7-orig`, `liveqa-TQ77-orig`.
+
+This checks decline classification on saved text, not regenerated answer quality.
+It does not measure the empty-body pipeline fix on live model outputs; that
+path is covered with fictional data, fake model/store objects and the real
+verifier. The saved source files and scores are not modified.
+
+### Validation and execution boundaries
+
+Add 34 refusal-wording/boundary cases and eight pipeline cases. The latter
+exercise complete removal with punctuation/source remnants, empty generation,
+partial removal with supported text retained, and cached declines. The tests
+call the real verifier and assert the public answer and response status.
+
+Validation passed using the existing main-repository virtual environment with
+the worktree as the working directory and `PYTHONPATH=src`:
+
+```powershell
+& 'E:\medical project\medical-kg-qa\.venv\Scripts\ruff.exe' check .
+& 'E:\medical project\medical-kg-qa\.venv\Scripts\python.exe' -m pytest -m "not integration" -p no:cacheprovider --deselect tests/unit/test_llm_mutex.py::test_abrupt_owned_process_exit_releases_native_mutex -x
+```
+
+`ruff check .` passed. Pytest: **1,236 passed, 20 deselected, 1 warning** in
+16.48 seconds. `-x` implements the required stop on the first failed test;
+none failed. The warning is the existing Starlette/httpx deprecation. The
+taskkill-dependent mutex test remains excluded as instructed; Claude owns
+verification outside the sandbox. `git diff --check` also passed.
+
+Process-local `MEDKG_HOME` pointed to this worktree and the impact-check import
+path was verified to resolve to its `src/medkg/qa/answer.py`.
+`PYTHONDONTWRITEBYTECODE=1` avoided bytecode writes to the shared environment;
+test `TEMP`/`TMP` used `.cache/r5-temp`, which is retained. Initial discovery
+encountered missing `rg`, a PowerShell default-decoding issue, and nonexistent
+guessed `tests/conftest.py` / `tests/unit/test_answer.py` paths. PowerShell
+searches and explicit UTF-8 reads resolved these ordinary discovery issues;
+there were no sandbox-blocked commands or stop conditions.
+
+Only R5 was implemented, on `decline-fixes`. No git mutation, file deletion,
+dependency installation, download, live model/graph call, evaluation run or
+background service was performed. Main-repository saved runs were read-only;
+no data, dataset or saved-run output was written. Git remains Claude's
+responsibility.

@@ -2,6 +2,7 @@
 
 import copy
 import json
+import re
 import time
 from collections import OrderedDict
 
@@ -201,6 +202,7 @@ class Pipeline:
                 pair = steps[0].args.get('uids',[]) if result['route']=='template' and len(steps)==1 else []
                 recorded = (intent=='interactions' and len(pair)==2 and not steps[0].args.get('count')
                             and not steps[0].args.get('shared') and bool(answer_rows))
+                empty_answer = False
                 if not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
                 elif recorded:
@@ -219,6 +221,13 @@ class Pipeline:
                             from medkg.qa.verify import verify_answer
                             result['answer'] = verify_answer(self.llm,resolved,result['answer'],result['contexts'],self.linker,
                                                              query_evidence,entities)
+                    # Verification notices and source footers are not an answer (D102).
+                    body = re.split(r'(?m)^\s*(?:Sources:|Research demo;)',result['answer'],maxsplit=1)[0]
+                    body = body.replace('Some entries were removed because their entities '
+                                        'were not supported by retrieved evidence.','')
+                    empty_answer = not any(char.isalnum() for char in body)
+                    if empty_answer:
+                        result.update(answer='No supporting evidence was retrieved.',refused=True)
                     with span('output_safety'):
                         violation = safety.output_violation(result['answer'])
                         if violation:
@@ -233,7 +242,9 @@ class Pipeline:
                             entities_in_text(result['answer'],self.linker))
                         if completed:
                             result['answer_completed'] = completed
-                result['answer'] = answer.finalize(result['answer'],rows,result['truncated'])
+                # An emptied answer is finalized like the no-evidence decline: disclaimer, no sources.
+                result['answer'] = (answer.finalize(result['answer'],[],False) if empty_answer
+                                    else answer.finalize(result['answer'],rows,result['truncated']))
             except Exception as exc:
                 result.update(answer='The request could not be completed. Please retry or simplify the question.',
                               failure_stage=stage,error_type=type(exc).__name__)

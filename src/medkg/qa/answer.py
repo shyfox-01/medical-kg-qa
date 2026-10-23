@@ -32,17 +32,20 @@ PROMPT = ('Answer the English medical knowledge question using only the evidence
 def unsupported_response(text: str) -> bool:
     """Normalize an explicit model refusal at the public response boundary."""
     text = re.sub(r'^\s*(?:\*\*|#+\s*)','',text).replace('\u2019',"'")
-    text = re.sub(r'^\s*(?:Based on|According to|From) (?:the )?(?:'
+    # Strip leading apology/evidence prefixes in either order, within the opening.
+    text = re.sub(r"^\s*(?:I(?:'m| am) sorry,?\s*(?:but\s*)?|"
+        r'(?:Based on|According to|From) (?:the )?(?:'
         r'(?:provided|retrieved|available) (?:evidence|context|data)|'
-        r'(?:evidence|context|data) (?:provided|retrieved|available))[,;:.]?\s*','',text,flags=re.I)
+        r'(?:evidence|context|data) (?:provided|retrieved|available))[,;:.]?\s*)+','',text,flags=re.I)
     return bool(re.search(r'^\s*(?:I (?:cannot|can\x27t|am unable to) '
         r'(?:answer|determine|confirm|verify|identify|find|provide (?:an? answer|information|the requested))|'
-        r'there is (?:no|insufficient) (?:information|evidence) '
-        r'(?:about|on|regarding)|No supporting evidence '
+        r'there is (?:no|insufficient) (?:information|evidence)\b|No supporting evidence '
         r'(?:was|is)|The (?:(?:provided|retrieved|available) )?(?:evidence|context|data) '
         r'(?:does not|doesn\x27t) (?:support|contain|provide|specify|establish|include|identify|mention)|'
+        r'No (?:relevant )?(?:information|evidence) (?:regarding|about|on|concerning) '
+        r'[^.!?]{1,200} (?:was|were|is|are) (?:found|retrieved|available|provided)\b|'
         r'No (?:(?:relevant|matching|supported|supporting) )?(?:information|evidence|entities|results) '
-        r'(?:was|were|is|are) (?:found|retrieved|available))',text,re.I))
+        r'(?:was|were|is|are) (?:found|retrieved|available|provided))',text,re.I))
 
 
 def bound_evidence(rows: list[dict], max_chars: int = 24000) -> tuple[list[dict], bool]:
