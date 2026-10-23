@@ -34,6 +34,7 @@ system and its evaluation today.
 | Demo | Self-contained web page shows answers, routes, executed Cypher and evidence; no frontend build | D096 |
 | Benchmark | LiveQA v2: NLM focus/keyword pairs, exact catalog links, CSV gold, paired original/summary wording | D097 |
 | Benchmark | Fresh v3 batch b3, frozen before RxNorm and routing changes, with all previous anchors excluded | D098 |
+| Vocabulary | RxNorm single-ingredient brands with unique Drug joins, global unsafe-name exclusion and corpus-word filters | D099 |
 
 ## D001 — Environment and scope
 
@@ -2296,3 +2297,150 @@ existing Starlette/httpx deprecation warning. The abrupt-process-exit mutex
 test was explicitly deselected as required. Tests used a new repository-local
 temporary directory and no live model calls; no dependencies were installed
 or changed. These checks establish generator behaviour, not system accuracy.
+
+## D099 — RxNorm brand-name aliases (2026-10-24)
+
+Use the US National Library of Medicine's RxNorm Current Prescribable Content,
+release **2026-10-05**, to propose brand aliases missing from the catalog. The
+prescribable-content subset is available without a UMLS licence. Claude supplied
+`data/raw/rxnorm_prescribe_20261005/RxNorm_full_prescribe_10052026.zip` and reported
+its MD5 verification; this task did not download it again. The bundled
+`Readme_Full_Prescribe_10052026.txt` identifies the release and links to NLM's
+[prescribable-content documentation](https://www.nlm.nih.gov/research/umls/rxnorm/docs/prescribe.html)
+and [release downloads](https://www.nlm.nih.gov/research/umls/rxnorm/docs/rxnormfiles.html).
+Parse the local UTF-8 RRF files as data; do not execute the bundled loading scripts.
+Alternative: add the observed failed-question brands manually; rejected because
+the rule should cover the source systematically rather than target benchmark items.
+
+Read only `RXNCONSO.RRF` and `RXNREL.RRF` from `extracted/rrf/`; no rule needs
+`RXNSAT.RRF`. In CONSO retain `SAB=RXNORM` and `SUPPRESS=N` or empty, using BN
+for brands and IN for ingredients. In REL retain `SAB=RXNORM` and only
+`tradename_of` or `has_tradename`, accepting either endpoint orientation when
+one endpoint is an active BN and the other an active IN. Deduplicate these
+edges by ingredient RXCUI. Do not infer ingredients through other term types or
+relations. Alternative: traverse clinical/branded-drug concepts; outside this
+specified source mapping and liable to conflate products with ingredients.
+
+Apply all of the following eligibility rules before the existing synonym merge:
+
+1. Require exactly one distinct IN RXCUI for a brand. Zero-ingredient and
+   multi-ingredient brands are rejected, even if two IN concepts could map to
+   the same catalog Drug. A combination such as Dhivy must not become an alias
+   for just one constituent.
+2. Join the ingredient through `_index(entities, 'Drug')`, including existing
+   synonyms. Look up `normalize(name)` first; use the existing terminal `SALT`
+   removal only when that lookup has no matches. Require exactly one UID;
+   never rescue an ambiguous exact match through the salt fallback. Other
+   entity labels cannot create or resolve a Drug match.
+3. Require the existing `usable()` policy: reject empty, very short, inverted,
+   excessively long, generic or already recognised common-word aliases.
+4. Reject any brand containing `(` or the whole word `reformulated`, ignoring
+   case, to avoid obsolete/formulation-qualified spellings.
+5. Reject the fixed `RXNORM_STOP` set in code, supplied by Claude after manual
+   review of 556 short brands. Its 20 personal names and ordinary words are
+   lexical exclusions, not benchmark-specific aliases.
+6. For a normalized single-word brand, reject it if that word appears at least
+   three times under the prescribed lowercase-word regex in chunk text. This
+   provides a corpus-based check for ordinary-language collisions beyond the
+   fixed lists; multiword brands are not rejected just for containing such a word.
+7. Reject any normalized name in a global `unsafe` set collected from all
+   zero-ingredient, multi-ingredient, unlinked or ambiguous-ingredient brands.
+   Build this set before emitting proposals so a valid-looking namesake cannot
+   escape the veto because of input order. A locally valid mapping is insufficient
+   when the same spelling also names an unresolved or combination product.
+
+Return sorted, deduplicated `(uid, alias, 'rxnorm:' + brand_rxcui)` tuples from
+`rxnorm_proposals(rrf_dir, entities, lowercase_words)`. Keep all existing
+`merge_synonyms` collision and quarantine rules. Proposals are not additions:
+aliases already present or conflicting with other entities can still be rejected.
+The `--apply` backup, catalog, Neo4j, MENTIONS and vector-update flow is unchanged.
+
+Implementation details and alternatives:
+
+- Keep a shared `rxnorm_proposal_report` helper returning proposals and statistics;
+  the list-only API delegates to it, and the script uses it once. This avoids a
+  second large-file scan, mutable global counters or changing the required return
+  type of `rxnorm_proposals`.
+- Preserve every distinct BN spelling and IN spelling per RXCUI. If an IN has
+  several active spellings, each must resolve uniquely to the same Drug; otherwise
+  its brands are unsafe. Selecting the first row would make safety depend on file
+  order. An unresolved spelling takes precedence over the ambiguity counter.
+- Count distinct `(BN RXCUI, spelling)` candidates after the CONSO filters, not
+  raw rows, relationship rows or only normalized names. Each candidate contributes
+  either one proposal or its first failing rule, in the order above. Rule 1 splits
+  into `no_ingredient` and `multiple_ingredients`; rule 2 splits into
+  `ingredient_unlinked` and `ingredient_ambiguous`. Keep zero-valued counters.
+  Counting all overlapping failures was rejected because the totals would not
+  reconcile with the candidate count. These are candidate counts, not counts of
+  CONSO/REL rows ignored by source/type/suppression filters.
+- Stream `chunks.jsonl` and count total occurrences, not document frequency, of
+  the exact regex `(?<![.!?]\s)(?<![A-Za-z])([a-z][a-z-]{2,})(?![A-Za-z])` in each
+  row's `text`. Do not lowercase the text or normalize the extracted word set.
+  The specified regex excludes a word immediately after punctuation and one
+  whitespace character, but still counts lowercase text-start words; do not add
+  a sentence parser or expand this heuristic beyond the agreed expression.
+- Split RRF records literally on `|`, preserving quotes inside names. Ignore
+  blank lines; reject nonblank records lacking the required columns or trailing
+  delimiter with a filename and line number. Silently dropping malformed records
+  could hide a second ingredient and incorrectly make a combination appear safe.
+- Add report fields only with `--rxnorm`. Choose up to 10 examples from actual
+  merged RxNorm additions, sorted by `(alias, uid, source)`, with brand, entity
+  name, UID and provenance. Sampling raw proposals could present already-present
+  or rejected aliases as new. Preview JSON retains exclusive creation via `open('x')`.
+
+Local preview (2026-10-24):
+
+```text
+python -m scripts.enrich_synonyms --cached-labels --rxnorm data/raw/rxnorm_prescribe_20261005/extracted/rrf --output .cache/rxnorm-preview.json
+```
+
+The ignored preview contains **4,140** brand candidates, **2,618** RxNorm proposals
+and **1,947** merged additions, all from RxNorm, across **970** Drug entities.
+The full enrichment pass considered 31,110 MeSH descriptors and 32,458 proposals
+from all enabled sources. The optional DrugBank vocabulary is absent; its existing
+optional behavior is unchanged. Full-pass merge skip counts are 29,887 already
+present, 465 owned by another entity of the same label, and 159 conflicting with
+an unrelated entity of another label. These skip counts cover all sources.
+
+| First failing RxNorm rule | Candidates |
+|---|---:|
+| `no_ingredient` | 0 |
+| `multiple_ingredients` | 829 |
+| `ingredient_unlinked` | 669 |
+| `ingredient_ambiguous` | 0 |
+| `unusable` | 0 |
+| `parenthesized_or_reformulated` | 11 |
+| `stop_word` | 13 |
+| `lowercase_word` | 0 |
+| `unsafe_name` | 0 |
+| Total excluded | 1,522 |
+
+Zero counts mean no additional candidates first failed that rule after earlier
+filters; they do not mean the rule was disabled. Exclusions plus proposals equal
+4,140. Existing lexical coverage probes move from 39/40 to 40/40 in the in-memory
+enriched catalog; this is a catalog diagnostic, not an end-to-end QA result.
+The preview's source catalog SHA-256 is
+`60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5`.
+
+| New alias example | Catalog entity | Source |
+|---|---|---|
+| ACT Fluoride Rinse | Sodium fluoride | rxnorm:214916 |
+| Aagylur | Penicillamine | rxnorm:2723903 |
+| Abelcet | Amphotericin B | rxnorm:81507 |
+| Abirtega | Abiraterone | rxnorm:2702595 |
+| Abraxane | Paclitaxel | rxnorm:589511 |
+| Abreva | Docosanol | rxnorm:285039 |
+| Abrilada | Adalimumab | rxnorm:2668066 |
+| Absorbine Jr. Antifungal | Tolnaftate | rxnorm:214954 |
+| Absorica | Isotretinoin | rxnorm:1299198 |
+| Abstral | Fentanyl | rxnorm:1053648 |
+
+Validation: 84 new synthetic cases passed using handwritten temporary RRF and
+chunk files. `ruff check .` passed; the required non-integration pytest selection
+passed **1,028** cases with **20** deselected and one existing Starlette/httpx
+deprecation warning. The abrupt-process-exit mutex case was explicitly excluded.
+Tests used new repository-local temporary directories. No model, live Neo4j or
+embedding calls were made, no dependencies were installed and `--apply` was not
+run. No existing dataset was modified or regenerated. The preview does not change
+the catalog. Claude will apply the aliases and compare before/after results on
+the frozen b3 and LiveQA datasets; no effectiveness claim is made here.

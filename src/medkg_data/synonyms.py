@@ -1,4 +1,4 @@
-"""Synonym enrichment from MeSH descriptors and the DrugBank vocabulary.
+"""Synonym enrichment from MeSH, DrugBank, cached labels and RxNorm.
 
 Pure functions shared by the enrichment script and tests. Proposals are
 (uid, alias, source) triples; merge_synonyms() decides which become aliases.
@@ -10,6 +10,8 @@ Pure functions shared by the enrichment script and tests. Proposals are
 * MeSH diseases: preferred-concept terms only (narrower concepts can be other
   diseases), joined through MONDO xrefs annotated MONDO:equivalentTo.
 * DrugBank vocabulary (CC0): synonyms joined by DrugBank id.
+* RxNorm prescribable brands: one ingredient with one catalog Drug; ambiguous
+  and ordinary-language brand names are excluded before the shared merge.
 """
 
 import csv
@@ -101,6 +103,118 @@ def _index(entities: Iterable[dict], label: str) -> dict[str, set[str]]:
 SALT = re.compile(r'\s+(?:citrate|hydrochloride|hcl|sodium|potassium|calcium|maleate|sulfate|'
                   r'mesylate|tartrate|acetate|phosphate|besylate|fumarate|succinate|bromide|'
                   r'chloride|hydrobromide|monohydrate|dihydrate|trihydrate)$', re.I)
+
+
+# Claude's manual review of 556 short RxNorm brands (D099): personal names and
+# ordinary English words that would create unrelated mentions in free text.
+RXNORM_STOP = frozenset({
+    'julie', 'ella', 'nikita', 'muse', 'propel', 'thrive', 'react', 'clarus', 'compro',
+    'curae', 'utopic', 'inova', 'allday', 'today', 'focus', 'prevail', 'relief', 'clear',
+    'correct', 'ultra',
+})
+
+
+def _rrf_rows(path: Path, required_fields: int) -> Iterator[list[str]]:
+    """Read pipe-delimited records as data, preserving literal quotes in names."""
+    with path.open(encoding='utf8') as stream:
+        for number, line in enumerate(stream, 1):
+            if not line.strip():
+                continue
+            fields = line.rstrip('\r\n').split('|')
+            if fields[-1] != '' or len(fields) - 1 < required_fields:
+                raise ValueError(f'{path.name}:{number}: malformed RRF record')
+            yield fields
+
+
+def rxnorm_proposal_report(rrf_dir: Path, entities: list[dict],
+                           lowercase_words: set[str]) -> tuple[list[tuple], dict]:
+    """Return proposals and exclusive first-failure counts for BN/name pairs.
+
+    Scan every brand before emitting any proposal: a spelling seen on a
+    combination or unresolved brand must also block otherwise valid namesakes.
+    """
+    brands: dict[str, set[str]] = defaultdict(set)
+    ingredients: dict[str, set[str]] = defaultdict(set)
+    for fields in _rrf_rows(rrf_dir / 'RXNCONSO.RRF', 17):
+        if fields[11] != 'RXNORM' or fields[16] not in ('N', ''):
+            continue
+        if fields[12] == 'BN':
+            brands[fields[0]].add(fields[14])
+        elif fields[12] == 'IN':
+            ingredients[fields[0]].add(fields[14])
+
+    brand_ingredients: dict[str, set[str]] = defaultdict(set)
+    for fields in _rrf_rows(rrf_dir / 'RXNREL.RRF', 11):
+        if fields[10] != 'RXNORM' or fields[7] not in ('tradename_of', 'has_tradename'):
+            continue
+        a, b = fields[0], fields[4]
+        if a in brands and b in ingredients:
+            brand_ingredients[a].add(b)
+        if b in brands and a in ingredients:
+            brand_ingredients[b].add(a)
+
+    drugs = _index(entities, 'Drug')
+    resolved: dict[str, str] = {}
+    failures: dict[str, str] = {}
+    unsafe: set[str] = set()
+    for brand, names in brands.items():
+        linked = brand_ingredients.get(brand, set())
+        if not linked:
+            failures[brand] = 'no_ingredient'
+        elif len(linked) != 1:
+            failures[brand] = 'multiple_ingredients'
+        else:
+            ingredient = next(iter(linked))
+            matches = [drugs.get(normalize(name)) or
+                       drugs.get(normalize(SALT.sub('', name)), set())
+                       for name in ingredients[ingredient]]
+            matched = set().union(*matches)
+            if any(not ids for ids in matches):
+                failures[brand] = 'ingredient_unlinked'
+            elif any(len(ids) != 1 for ids in matches) or len(matched) != 1:
+                failures[brand] = 'ingredient_ambiguous'
+            else:
+                resolved[brand] = next(iter(matched))
+        if brand in failures:
+            unsafe.update(normalize(name) for name in names)
+
+    excluded = dict.fromkeys((
+        'no_ingredient', 'multiple_ingredients', 'ingredient_unlinked',
+        'ingredient_ambiguous', 'unusable', 'parenthesized_or_reformulated',
+        'stop_word', 'lowercase_word', 'unsafe_name',
+    ), 0)
+    proposals = set()
+    for brand, names in brands.items():
+        for name in names:
+            key = normalize(name)
+            reason = failures.get(brand)
+            if reason is None:
+                if not usable(name):
+                    reason = 'unusable'
+                elif '(' in name or re.search(r'\breformulated\b', name, re.I):
+                    reason = 'parenthesized_or_reformulated'
+                elif key in RXNORM_STOP:
+                    reason = 'stop_word'
+                elif len(key.split()) == 1 and key in lowercase_words:
+                    reason = 'lowercase_word'
+                elif key in unsafe:
+                    reason = 'unsafe_name'
+            if reason is not None:
+                excluded[reason] += 1
+            else:
+                proposals.add((resolved[brand], name, 'rxnorm:' + brand))
+    result = sorted(proposals)
+    return result, {
+        'rxnorm_brands_considered': sum(len(names) for names in brands.values()),
+        'rxnorm_proposed': len(result),
+        'rxnorm_excluded_by_rule': excluded,
+    }
+
+
+def rxnorm_proposals(rrf_dir: Path, entities: list[dict],
+                     lowercase_words: set[str]) -> list[tuple]:
+    """Propose deduplicated, sorted RxNorm brand aliases for the shared merge."""
+    return rxnorm_proposal_report(rrf_dir, entities, lowercase_words)[0]
 
 
 def mesh_drug_proposals(descriptors: Iterable[Descriptor], entities: list[dict]) -> list[tuple]:

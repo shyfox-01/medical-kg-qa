@@ -1,4 +1,4 @@
-"""Add MeSH (and, when present, DrugBank vocabulary) synonyms to the entity catalog.
+"""Add MeSH and optional local-source synonyms to the entity catalog.
 
 Preview by default; --apply backs up the catalog and alias vectors, then updates
 entities.json, Neo4j synonyms, chunk MENTIONS edges and alias vectors (decision D049).
@@ -13,6 +13,7 @@ The DrugBank vocabulary cannot be fetched by scripts; download "DrugBank Vocabul
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import time
 from collections import Counter
@@ -25,6 +26,16 @@ from medkg_data import synonyms
 RAW, PROCESSED = ROOT/'data/raw', ROOT/'data/processed'
 
 PROBES = synonyms.COVERAGE_PROBES
+LOWERCASE_WORD = re.compile(r'(?<![.!?]\s)(?<![A-Za-z])([a-z][a-z-]{2,})(?![A-Za-z])')
+
+
+def lowercase_words(path: Path) -> set[str]:
+    """Find words occurring at least three times under the D099 corpus rule."""
+    counts: Counter[str] = Counter()
+    with path.open(encoding='utf8') as stream:
+        for line in stream:
+            counts.update(LOWERCASE_WORD.findall(json.loads(line)['text']))
+    return {word for word, count in counts.items() if count >= 3}
 
 
 def coverage(entities: list[dict]) -> dict:
@@ -46,6 +57,8 @@ def main() -> None:
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--cached-labels', action='store_true',
                         help='Also propose aliases from existing openFDA and MedlinePlus files')
+    parser.add_argument('--rxnorm', type=Path, metavar='DIR',
+                        help='Also propose brand aliases from local RxNorm RRF files')
     parser.add_argument('--output', type=Path,
                         help='Write an immutable preview with source ids and catalog fingerprint')
     args = parser.parse_args()
@@ -61,6 +74,11 @@ def main() -> None:
         records = [json.loads(path.read_text(encoding='utf8')) for path in sorted((RAW/'openfda').glob('*.json'))]
         proposals += synonyms.cached_fda_proposals(records, entities)
         proposals += synonyms.medlineplus_proposals(RAW/'medlineplus.xml', entities)
+    rxnorm_stats = {}
+    if args.rxnorm:
+        rxnorm_proposals, rxnorm_stats = synonyms.rxnorm_proposal_report(
+            args.rxnorm, entities, lowercase_words(PROCESSED/'chunks.jsonl'))
+        proposals += rxnorm_proposals
     additions, skipped = synonyms.merge_synonyms(entities, proposals)
     enriched = synonyms.apply_additions(entities, additions)
     before, after = coverage(entities), coverage(enriched)
@@ -76,6 +94,15 @@ def main() -> None:
         'cached_labels': args.cached_labels,
         'catalog_sha256': hashlib.sha256((PROCESSED/'entities.json').read_bytes()).hexdigest(),
     }
+    if args.rxnorm:
+        names = {e['uid']: e['name'] for e in entities}
+        rxnorm_additions = sorted(
+            (a for a in additions if a['source'].startswith('rxnorm:')),
+            key=lambda a: (a['alias'], a['uid'], a['source']))
+        report.update(rxnorm_stats)
+        report['rxnorm_examples'] = [
+            {'brand': a['alias'], 'entity': names[a['uid']], 'uid': a['uid'], 'source': a['source']}
+            for a in rxnorm_additions[:10]]
     if args.output:
         with args.output.open('x', encoding='utf8') as stream:
             json.dump({**report, 'proposed_additions': additions}, stream, indent=2)
