@@ -32,6 +32,7 @@ system and its evaluation today.
 | Benchmark | v3: capability coverage, perturbations, fresh batches per fix round, a sealed test run once | D091–D094 |
 | Evaluation | v3 failure severity separates declines, incomplete and wrong answers, and policy breaches | D095 |
 | Demo | Self-contained web page shows answers, routes, executed Cypher and evidence; no frontend build | D096 |
+| Benchmark | LiveQA v2: NLM focus/keyword pairs, exact catalog links, CSV gold, paired original/summary wording | D097 |
 
 ## D001 — Environment and scope
 
@@ -2030,3 +2031,172 @@ paclitaxel; it is kept, because the README already uses it to show that answers
 are faithful to the knowledge graph and inherit its errors. Its output, which had
 been abridged by hand (numbered list, a count line), is replaced by the literal
 CLI output and the executed planner Cypher.
+
+## D097 — Frozen real-question benchmark from LiveQA (2026-10-24)
+
+Add `eval.build_liveqa` to measure answers to real questions, catalog coverage of
+consumer entity names, and refusal of dosage requests. Use the local TREC 2017
+LiveQA medical test questions with NLM summaries and annotations. NLM's `TYPE`
+and referenced `FOCUS` annotations determine eligibility; no model or project
+author reannotates the questions. Gold is computed with the canonical CSV/OBO
+transform and `generate_v3.Graph`, without Neo4j or the QA implementation. Gold
+means agreement with the graph, not independent clinical correctness. Alternative:
+use the source reference answers as graph gold; rejected because they do not
+define the graph entity sets or the existing scorer's contract.
+
+Apply the following rules in order. Any `DOSAGE` annotation produces an in-scope
+`refusal` with capability `real.dosage_refusal`, even with additional types or
+unlinked foci. Otherwise require exactly one TYPE and its `hasFocus` references:
+one Problem for TREATMENT (`drugs_for`) or SYMPTOM (`phenotypes`); one
+DrugSupplement for INDICATION (`indications`), SIDE_EFFECT (`side_effects`),
+CONTRAINDICATION (`contraindications`), or INTERACTION (`interactions`); two
+DrugSupplements for INTERACTION produce `yesno` (`real.interaction_yesno`). All
+required foci must link uniquely for split `liveqa`, scope `in`. A supported
+type/focus shape with an unlinked or ambiguous focus goes to `liveqa_gap`, scope
+`out`. All other annotations go to `liveqa_observe`, scope `out`. Gap and observe
+rows carry empty gold and are outside the in-scope denominator. Alternatives:
+select one of several annotated types, infer a different focus category, or
+discard unsupported questions; rejected because each would change the source
+annotations or conceal coverage limits.
+
+Normalize catalog names, synonyms and focus text with NFKC, lowercase, and one
+space for each run of non-alphanumeric characters, then trim. Use Unicode
+`isalnum()` so letters and numbers are retained consistently; underscore is a
+separator. Index UID sets within labels: Problem requires Disease and
+DrugSupplement requires Drug. Ignore same-name entities with other labels. One
+UID is linked, multiple UIDs are ambiguous, and no UID is unlinked. Duplicate
+aliases for one UID do not create ambiguity. Unsupported focus categories are
+recorded as unlinked; empty normalized catalog names are not indexed. Do not
+strip disease suffixes, fuzzy-match, consult extra aliases, apply the QA alias
+policy or invoke its linker. Alternative: reuse the system linker; rejected
+because benchmark eligibility would then depend on the system being measured
+and could conceal catalog gaps.
+
+Each question produces adjacent original and summary rows, preserving XML order,
+with a shared `pair_id` and distinct `liveqa-{qid}-orig` / `liveqa-{qid}-sum` IDs.
+Trim the subject and message separately, join with one newline, and omit the
+subject if it is empty or the normalized message starts with the normalized
+subject. Keep all other text unchanged. The summary is NLM's text, trimmed only;
+`question_template` equals the selected wording. Alternative: repair grammar or
+paraphrase either variant; rejected because natural wording is the measurement.
+These paired rows are two presentations of one question, not independent source
+questions.
+
+For list questions, use `graph.targets`, `single_query` and the v2 recall-size
+threshold. An empty target set becomes `none` with the relation's target label.
+Pairwise interaction gold uses the v3 undirected query, with `a` and `b` in
+`hasFocus` order, `expected_answer` determined by graph membership, and canonical
+`intent='interactions'`; its category/capability distinguish the yes/no shape.
+Expected UIDs and linked anchor UIDs are sorted; expected names use the v2
+catalog-name format. Anchors and focus metadata include every annotation in
+source order, while only the selected TYPE's references determine eligibility.
+Retain `liveqa.type_focus_ids` alongside `liveqa.types` (parallel lists) to make
+that distinction inspectable without parsing the English reason. Alternative:
+use every annotated focus for classification or store only linked foci; rejected
+because it loses the source relationship or hides unmatched names.
+
+The manifest records counts by split, capability, kind and wording, plus in-scope
+capabilities (`scorable_capability`, including dosage refusals). Focus counts use
+each original question once, by source category
+and status (including zero status cells), rather than doubling them for the two
+wordings. The sorted, deduplicated unmatched-focus list uses the referenced
+unlinked/ambiguous foci of eligible gap questions; unrelated annotations and
+unsupported shapes do not enter that list. DOSAGE precedence also applies to
+these counts. Alternative: count every unsupported focus as a catalog gap;
+rejected because those questions do not have a supported scoring shape.
+
+Validate required XML elements, unique question/focus IDs, flat text fields and
+TYPE references, and stop on malformed structure. Read supplementary fields
+only as inert XML data; NIST paraphrases, reference answers and KEYWORD entries
+do not affect this benchmark. The CLI requires exactly 208 output rows before
+writing. `--dry-run` prints statistics and at most five summary-wording samples
+per split, with no output writes. It can inspect inputs even when frozen outputs
+already exist. Alternative: silently skip malformed questions or accept an
+arbitrary source size; rejected because it would change the frozen benchmark.
+
+Freeze `eval/datasets/liveqa_v1.jsonl` and `MANIFEST_liveqa.json` on first creation.
+Refuse a normal run if either exists, before loading the graph; recheck both and
+use exclusive file creation when writing. Serialize deterministically as UTF-8
+with LF newlines, record the dataset SHA-256, and hash XML, kg.csv and the catalog.
+Also hash MONDO/HPO because the canonical transform depends on both. No timestamp
+or random sampling affects the artifact. On a write failure, preserve any partial
+files for inspection; do not delete or automatically regenerate them. Alternative:
+overwrite in place or clean up failed outputs automatically; rejected by the
+freeze and no-deletion requirements. The two-file write is not transactional, so
+a partially created pair requires manual review outside this generator.
+
+The LiveQA source is CC BY 4.0. Attribute Asma Ben Abacha, Eugene Agichtein, Yuval
+Pinter and Dina Demner-Fushman, *Overview of the Medical Question Answering Task
+at TREC 2017 LiveQA* (2017), using the source README citation; record source,
+paper and license URLs in the manifest. This license describes the source
+questions, not a relicensing of PrimeKG-derived answers. Ignore
+`eval/datasets/liveqa*.jsonl` like the existing structured datasets and retain
+the manifest for version control. Alternative: publish the mixed question/gold
+file under the question source's license; rejected because graph-derived gold
+keeps the project's existing distribution boundary.
+
+### R1b: keyword-aware v2 and malformed annotation handling (2026-10-24)
+
+Replace v1 as the active dataset because its mapping ignored NLM's `KEYWORD`
+annotations: a question about one entity pair could receive the entire focus's
+target list as gold. v1 has never been evaluated; this correction therefore uses
+annotation semantics, not observed system scores. Preserve its bytes and record
+its SHA-256 under `superseded` with reason `mapping ignored keywords; never
+evaluated`. Generate `liveqa_v2.jsonl` with `generator_version='liveqa-2'` and
+update the shared `MANIFEST_liveqa.json`. This subsection supersedes the v1-only
+keyword, annotation-error and manifest-freezing rules above. Alternative: overwrite
+v1 or keep the known mapping error; rejected to preserve the frozen artifact and
+to keep gold aligned with the annotated question shape.
+
+Keep DOSAGE first. Next, if any FOCUS or KEYWORD ID is duplicated, or any TYPE's
+`hasFocus` / `hasKeyword` references an absent ID, route the whole question to
+`liveqa_observe` with reason `malformed annotation: duplicate or missing ids`.
+Preserve every annotation, including duplicate entries, without guessing which
+entry was intended or repairing the input. Record the flag in each row's
+`liveqa.malformed_annotation` and the sorted unique question IDs in the manifest's
+top-level `malformed_annotations`; the flag also remains true for a malformed
+DOSAGE question that is classified as a refusal. TQ56 is the known source defect:
+two keywords use K1 and a TYPE references absent K2. Other required XML structure
+checks still stop generation. Alternative: reject the entire source or silently
+rename the duplicate; rejected by the explicit R1b annotation exception.
+
+After the existing single-TYPE, supported-focus-shape and unique-focus-link
+checks, a two-focus INTERACTION remains a pairwise interaction and ignores its
+keywords. Otherwise select only keywords referenced by that TYPE's `hasKeyword`.
+No selected keywords keeps the list/none rule. Exactly one uniquely linked keyword
+produces yes/no gold for its membership in `graph.targets(intent, focus_uid)`;
+multiple keywords, an unlinked keyword or an ambiguous keyword produce observe
+with reason `keywords not representable as one graph pair`. Match with the same
+normalized catalog index, requiring `RELATIONS[intent][1]` rather than the source
+`kcategory`. Generate parameterized pair queries with the relation's anchor and
+target labels and `generate_v2.ARROWS`, including the inverse treatment direction.
+Capabilities are `real.<intent>_yesno`, with both interaction shapes using
+`real.interaction_yesno`. Keep the original `real_<intent>` category for other
+keyword pairs, as required by the category vocabulary; `kind` and `capability`
+carry the yes/no distinction. Alternative: infer the target from keyword category
+or question wording, or broaden the list to cover multiple keywords; rejected
+because the specified graph-pair rule is deterministic and preserves NLM intent.
+
+Retain all keywords in source order with `kid`, text, category, UID and status,
+and keep `liveqa.type_keyword_ids` parallel to the TYPE list for provenance.
+Keywords skipped by an earlier rule (including a focus gap), ignored by a
+two-focus interaction, or not referenced by the selected TYPE have null UID and
+`not_used` status. If the keyword stage is reached, link every referenced keyword
+before deciding whether the count is one; a multiple-keyword observe question
+thus retains its exact-link diagnostics. This keeps focus gaps ahead of keyword
+checks and avoids reporting unused keywords as catalog misses. Alternative:
+link every keyword under a guessed target label even for unsupported questions;
+rejected because there is no selected target relation in those cases. Keyword
+statistics count each source annotation once per question, grouped by kcategory
+and all four statuses including zero cells, without doubling for paired wording.
+
+Permit the shared manifest's one-time v1-to-v2 update only if it identifies
+`liveqa-1` and `eval/datasets/liveqa_v1.jsonl`, and its dataset hash matches the
+preserved v1 file's hash supplied in `superseded`. Reject unrelated manifests,
+already-v2 manifests, and every pre-existing v2 dataset. Recheck before writing,
+create the v2 dataset exclusively, close it before updating the manifest, and
+preserve partial files if a write fails; a repeated run cannot replace them.
+Alternative: a general overwrite flag or a second active manifest filename;
+rejected because R1b requires the existing manifest to describe v2 without
+weakening dataset freezing. Generation remains offline and deterministic; no QA
+evaluation or model call is part of R1b.

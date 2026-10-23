@@ -1,0 +1,204 @@
+{
+  "generator_version": "liveqa-2",
+  "source": {
+    "url": "https://github.com/abachaa/LiveQA_MedicalTask_TREC2017",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "citation": {
+      "authors": [
+        "Asma Ben Abacha",
+        "Eugene Agichtein",
+        "Yuval Pinter",
+        "Dina Demner-Fushman"
+      ],
+      "title": "Overview of the Medical Question Answering Task at TREC 2017 LiveQA",
+      "year": 2017,
+      "url": "https://trec.nist.gov/pubs/trec26/papers/Overview-QA.pdf"
+    }
+  },
+  "inputs": {
+    "xml": {
+      "path": "data/raw/liveqa_trec2017/TestDataset/TREC-2017-LiveQA-Medical-Test-Questions-w-summaries.xml",
+      "sha256": "f6384fcf03e9b1bd0d9a15f6ea1a1aafc9491082e63fef0922ae2d6bc451805b"
+    },
+    "kg": {
+      "path": "data/raw/kg.csv",
+      "sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69"
+    },
+    "catalog": {
+      "path": "data/processed/entities.json",
+      "sha256": "60208bae51b1ad3b84621c69e261a6ef571c09f6250bea8615e53b81e27e16e5"
+    },
+    "mondo": {
+      "path": "data/raw/mondo.obo",
+      "sha256": "50c8367f9bd9978321eedf84d4e2e79cb757efbed514c81effb00b9ad2e49994"
+    },
+    "hp": {
+      "path": "data/raw/hp.obo",
+      "sha256": "93dace952fcb3ec4728818857f6ba76bc2d5312f4d83266519b8694b8e798f22"
+    }
+  },
+  "dataset": "eval/datasets/liveqa_v2.jsonl",
+  "statistics": {
+    "rows": 208,
+    "questions": 104,
+    "split": {
+      "liveqa": 10,
+      "liveqa_gap": 30,
+      "liveqa_observe": 168
+    },
+    "capability": {
+      "real.dosage_refusal": 6,
+      "real.gap": 30,
+      "real.interaction_yesno": 2,
+      "real.observe": 168,
+      "real.phenotypes_yesno": 2
+    },
+    "kind": {
+      "list": 198,
+      "refusal": 6,
+      "yesno": 4
+    },
+    "wording": {
+      "original": 104,
+      "summary": 104
+    },
+    "scorable_capability": {
+      "real.dosage_refusal": 6,
+      "real.interaction_yesno": 2,
+      "real.phenotypes_yesno": 2
+    },
+    "focus_linking": {
+      "DrugSupplement": {
+        "linked": 23,
+        "unlinked": 20,
+        "ambiguous": 0
+      },
+      "Food": {
+        "linked": 0,
+        "unlinked": 1,
+        "ambiguous": 0
+      },
+      "Problem": {
+        "linked": 30,
+        "unlinked": 42,
+        "ambiguous": 0
+      },
+      "ProcedureDevice": {
+        "linked": 0,
+        "unlinked": 1,
+        "ambiguous": 0
+      },
+      "Substance": {
+        "linked": 0,
+        "unlinked": 1,
+        "ambiguous": 0
+      }
+    },
+    "keyword_linking": {
+      "Anatomy": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 3
+      },
+      "DiagnosticProcedure": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 2
+      },
+      "DrugSupplement": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 8
+      },
+      "Food": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 1
+      },
+      "GeographicLocation": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 1
+      },
+      "Lifestyle": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 2
+      },
+      "Measurement": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 2
+      },
+      "OTHER": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 6
+      },
+      "PersonPopulation": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 4
+      },
+      "Problem": {
+        "linked": 2,
+        "unlinked": 7,
+        "ambiguous": 0,
+        "not_used": 22
+      },
+      "ProcedureDevice": {
+        "linked": 0,
+        "unlinked": 1,
+        "ambiguous": 0,
+        "not_used": 3
+      },
+      "Substance": {
+        "linked": 0,
+        "unlinked": 0,
+        "ambiguous": 0,
+        "not_used": 4
+      }
+    },
+    "unmatched_foci": [
+      "ANESTHESIA",
+      "CITROBACTOR FREUNDII",
+      "Gabamentine",
+      "Hydrslazine",
+      "Iron Overdose",
+      "NSAIDS",
+      "Shingles shot",
+      "acute fibromyalgia",
+      "ear wax",
+      "effextor",
+      "giant cell vasculitis",
+      "hydrocodene",
+      "leg cramps",
+      "leg pain",
+      "pain(joint)",
+      "severe depression"
+    ]
+  },
+  "superseded": {
+    "liveqa_v1.jsonl": {
+      "sha256": "5ff1e05f11e73f38241839b07b6e8942f7886bb39da48283bd6137eb4e175601",
+      "reason": "mapping ignored keywords; never evaluated"
+    }
+  },
+  "malformed_annotations": [
+    "TQ56"
+  ],
+  "focus_count_unit": "NLM FOCUS annotation, once per question",
+  "keyword_count_unit": "NLM KEYWORD annotation, once per question",
+  "row_count_unit": "question wording; each question has original and summary",
+  "dataset_sha256": "95a289dd63f3c876d390912a83811258b12aeb818b34b45f8de2144ee6f78fbd"
+}
