@@ -33,6 +33,7 @@ system and its evaluation today.
 | Evaluation | v3 failure severity separates declines, incomplete and wrong answers, and policy breaches | D095 |
 | Demo | Self-contained web page shows answers, routes, executed Cypher and evidence; no frontend build | D096 |
 | Benchmark | LiveQA v2: NLM focus/keyword pairs, exact catalog links, CSV gold, paired original/summary wording | D097 |
+| Benchmark | Fresh v3 batch b3, frozen before RxNorm and routing changes, with all previous anchors excluded | D098 |
 
 ## D001 — Environment and scope
 
@@ -2200,3 +2201,98 @@ Alternative: a general overwrite flag or a second active manifest filename;
 rejected because R1b requires the existing manifest to describe v2 without
 weakening dataset freezing. Generation remains offline and deterministic; no QA
 evaluation or model call is part of R1b.
+
+## D098 — Fresh v3 batch before RxNorm and routing changes (2026-10-24)
+
+b1 and b2 have been used for diagnosis and fixes, and the sealed test has already
+been evaluated. Add `eval.generate_v3_b3` to generate a fresh batch before the
+RxNorm brand-alias and routing changes. Claude must generate and freeze b3, then
+evaluate it once on the unchanged system to establish the before-change baseline.
+Reuse exactly those frozen questions for the after-change comparison. Do not
+regenerate questions after inspecting failures or describe a tuned b3 score as
+new held-out evidence. Alternative: reuse b1, b2 or the used sealed test as fresh
+evidence; rejected because those questions have already informed development.
+
+Use seed `3032`, scale `1.0`, split `b3`, ID prefix `v3-b3`, and the existing
+`generate_v3.VERSION`. Reuse `Graph`, `Builder`, `finish`, `reword` and
+`anchors_of`. Builder inputs are the same CSV/OBO graph, entity catalog,
+documents, synonym additions, HPO qualifiers, cached openFDA brands and
+MedlinePlus lay names used by `generate_v3.main()`. The only change to the
+original generator is the new `finish` prefix entry; existing parts are unchanged.
+Alternative: copy and modify the v3 sampling rules; rejected to avoid changing
+what the comparison measures.
+
+Exclude the union of `anchor_uids` from `structured_v1.jsonl`,
+`structured_v2.jsonl`, `structured_v3.jsonl` and `structured_v3_sealed.jsonl`.
+All four files are required before loading the graph. The historical-file
+helper extracts only `anchor_uids`; sealed questions and gold are never
+inspected, printed or saved. Record only the source filenames and the number
+of distinct excluded UIDs. Alternative: accept a missing file as an empty set,
+as the shared helper permits; rejected because b3 would silently lose part of
+its exclusion history. This is the existing anchor-UID exclusion contract;
+control questions with no anchor UIDs can still mention familiar names.
+
+Follow the original test-part construction order: build MFT and other rows,
+assign IDs, reword eligible MFT list/count questions without history, then
+derive invariance variants from those possibly reworded bases. Reword selection
+uses share `0.6` and seed `3032`; the shared validation and bounded retries stay
+unchanged. Derive `max(1, round(len(mft) * 0.12))` invariance candidates and
+continue IDs after the base rows. Do not set `sealed`. Alternative: perturb
+templates first and reword bases later; rejected because a variant would no
+longer perturb the wording actually evaluated.
+
+`--dry-run` skips `reword` entirely, writes no dataset or manifest, and prints
+row, test-type, capability, paraphrase-status and exclusion counts plus 25
+samples (or all rows if a synthetic input has fewer). Sampling uses a separate
+`random.Random(1)`, matching the original preview and leaving builder randomness
+untouched. Preview wording is template-only; invariance subtypes can differ in
+the formal run because validated paraphrases affect available perturbations.
+The preview is not the frozen benchmark. Alternative: invoke a dummy model or
+persist a template-only b3; rejected because this invocation must not call a
+model and Claude owns formal generation.
+
+Formal generation writes ignored `eval/datasets/structured_v3_b3.jsonl` and
+committable `eval/datasets/MANIFEST_v3_b3.json`. The manifest records version,
+seed, scale, split, row counts by test type and capability, dataset/CSV/catalog
+SHA-256 hashes, excluded-anchor count and filenames, reword share, `LLM_MODEL`,
+and paraphrase-status counts. Refuse either existing output before loading
+inputs or calling a model, recheck before writing, and create both files
+exclusively. Prepare metadata before writing and retain partial outputs on
+failure; never overwrite or delete them. Alternative: overwrite an orphan
+manifest or clean up an interrupted dataset automatically; rejected because
+the freeze rule requires operator inspection.
+
+R3 validation uses only the real-data dry-run plus synthetic unit tests and the
+required non-integration suite. Formal generation, model calls, baseline
+evaluation, and the RxNorm/routing changes remain Claude's subsequent work.
+
+Validation (2026-10-24): the real-data dry-run produced 191 rows: 152 MFT, 18
+INV, 12 DIR and 9 BOUNDARY, covering 67 capabilities and excluding 962 distinct
+historical anchor UIDs. All 191 rows have `paraphrase_status='template'`; 25
+samples were printed. No b3 dataset or manifest was created. The 208-row
+requirement belongs to the separate LiveQA task; b3 follows `part(1.0)` and
+the available unused anchors without padding missing rows.
+
+| Capability family | Rows | Distribution within the family |
+|---|---:|---|
+| `single.*` | 51 | All 17 relations, 3 each |
+| `count.*` | 16 | drugs_for, drugs_with_side_effect, genes, indications, interactions, phenotypes, side_effects, subtypes: 2 each |
+| `multi.*` | 21 | All 7 shapes, 3 each |
+| `lexical.*` | 15 | brand 6, consumer_term 5, drug_typo 4 |
+| `multi_turn.pronoun` | 6 | 6 |
+| `sensitive_terms.answered` | 2 | 2 |
+| `yesno.*` | 6 | interaction_yes 3, interaction_no 3 |
+| `negative.*` | 14 | both_drugs, drugs_for, genes, interactions, side_effects, targeting_drugs, targets: 2 each |
+| `clarify.*` | 5 | ambiguous_name 1, unknown_name 4 |
+| `safety.*` | 10 | All 5 categories, 2 each |
+| `refusal.*` | 6 | injection, language, out_of_scope: 2 each |
+| `dir.*` | 12 | add_exclusion, base_list, cause, treat: 3 each |
+| `inv.*` | 18 | lowercase 4, no_question_mark 6, synonym 5, wrapper 3 |
+| `boundary.*` | 9 | disease_typo, double_drug_typo, three_entities: 3 each |
+
+`ruff check .` passed. The prescribed non-integration pytest selection passed
+944 cases (including 12 new synthetic b3 cases), with 20 deselected and one
+existing Starlette/httpx deprecation warning. The abrupt-process-exit mutex
+test was explicitly deselected as required. Tests used a new repository-local
+temporary directory and no live model calls; no dependencies were installed
+or changed. These checks establish generator behaviour, not system accuracy.
