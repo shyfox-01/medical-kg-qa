@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from medkg.config import ROOT
-from medkg.graph.store import GraphStore
+from medkg.graph.store import GraphStore, entity_alias_properties
 from medkg.ingest.extract import VERSION, cached_edge_supported
 from medkg.ingest.link import mentions
 from medkg.ingest.openfda import parse
@@ -118,7 +118,8 @@ def main() -> None:
         store.verify()
         snapshot = backup/'graph.json'
         if not snapshot.exists():
-            graph = {'drugs':store.read('MATCH (n:Drug) RETURN n.uid AS uid,n.synonyms AS synonyms'),
+            graph = {'drugs':store.read('MATCH (n:Drug) RETURN n.uid AS uid,n.synonyms AS synonyms, '
+                                       'n.exact_synonyms AS exact_synonyms'),
                 'about':store.read('MATCH (d:Document)-[:ABOUT]->(n) WHERE d.source="openfda" '
                     'RETURN d.uid AS a,n.uid AS b'),
                 'mentions':store.read('MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk)-[:MENTIONS]->(n) '
@@ -151,8 +152,9 @@ def main() -> None:
             progress['sha256'] = hashlib.file_digest(stream,'sha256').hexdigest()
         (processed/'vector_progress.json').write_text(json.dumps(progress),encoding='utf8')
         linked = mentions(chunks,Linker(entities),processed/'unlinked_mentions.jsonl')
-        drugs = [{'uid':e['uid'],'synonyms':e['synonyms']} for e in entities if e['label']=='Drug']
-        store.write('UNWIND $rows AS row MATCH (n:Drug {uid:row.uid}) SET n.synonyms=row.synonyms',{'rows':drugs})
+        drugs = [{'uid':e['uid'],**entity_alias_properties(e)} for e in entities if e['label']=='Drug']
+        store.write('UNWIND $rows AS row MATCH (n:Drug {uid:row.uid}) '
+                    'SET n.synonyms=row.synonyms,n.exact_synonyms=row.exact_synonyms',{'rows':drugs})
         store.write('MATCH (d:Document)-[r:ABOUT]->() WHERE d.uid IN $uids DELETE r',
                     {'uids':[d['uid'] for d in affected_docs]})
         store.write('UNWIND $rows AS row MATCH (d:Document {uid:row.a}),(n:Drug {uid:row.b}) '

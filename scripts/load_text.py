@@ -5,7 +5,7 @@ from collections import Counter
 
 from medkg.config import ROOT
 from medkg.embeddings import Embeddings
-from medkg.graph.store import GraphStore
+from medkg.graph.store import GraphStore, entity_alias_properties
 from medkg.ingest import medlineplus, openfda
 from medkg.ingest.link import mentions
 from medkg.ingest.ontology import load_obo
@@ -33,8 +33,9 @@ def main() -> None:
         documents += fda_documents
         chunks += fda_chunks
         for label in ('Disease','Drug','Phenotype','Gene'):
-            rows = [{'uid':e['uid'],'synonyms':e['synonyms']} for e in entities if e['label']==label]
-            store.write(f'UNWIND $rows AS row MATCH (n:{label} {{uid:row.uid}}) SET n.synonyms=row.synonyms',{'rows':rows})
+            rows = [{'uid':e['uid'],**entity_alias_properties(e)} for e in entities if e['label']==label]
+            store.write(f'UNWIND $rows AS row MATCH (n:{label} {{uid:row.uid}}) '
+                        'SET n.synonyms=row.synonyms,n.exact_synonyms=row.exact_synonyms',{'rows':rows})
         for i in range(0,len(documents),1000):
             rows = [{k:v for k,v in d.items() if k!='about'} for d in documents[i:i+1000]]
             store.write('UNWIND $rows AS row MERGE (d:Document {uid:row.uid}) SET d += row',{'rows':rows})

@@ -2,6 +2,8 @@
 
 import io
 
+import pytest
+
 from medkg_data import synonyms as S
 
 MESH = b'''<?xml version="1.0"?>
@@ -94,6 +96,54 @@ def test_merge_allows_cross_label_sharing_within_a_same_name_pair_and_is_idempot
     assert S.merge_synonyms(enriched,proposals)[0]==[]
 
 
+def test_apply_additions_routes_by_source_without_mutating_existing_aliases():
+    entities = [dict(ENTITIES[0], synonyms=['Asterate'], exact_synonyms=['Oldbrand']),
+                ENTITIES[1]]
+    additions = [
+        {'uid': 'DrugBank:DB90001', 'alias': 'Newbrand', 'source': 'rxnorm:20'},
+        {'uid': 'DrugBank:DB90001', 'alias': 'Asterol', 'source': 'mesh:D900001'},
+        {'uid': 'DrugBank:DB90001', 'alias': 'Starbrand', 'source': 'openfda:1'},
+    ]
+    enriched = S.apply_additions(entities, additions)
+    assert enriched[0]['synonyms'] == ['Asterate', 'Asterol', 'Starbrand']
+    assert enriched[0]['exact_synonyms'] == ['Oldbrand', 'Newbrand']
+    assert entities[0]['synonyms'] == ['Asterate']
+    assert entities[0]['exact_synonyms'] == ['Oldbrand']
+    assert enriched[1] is entities[1]
+
+
+@pytest.mark.parametrize('source', ['rxnorm:20', 'mesh:D900001'])
+@pytest.mark.parametrize('field_name', ['synonyms', 'exact_synonyms'])
+def test_merge_rejects_alias_already_owned_in_either_field(source, field_name):
+    entities = [dict(ENTITIES[0], **{field_name: ['Starbrand']})]
+    additions, skipped = S.merge_synonyms(
+        entities, [('DrugBank:DB90001', 'STARBRAND', source)])
+    assert additions == []
+    assert skipped == {'already_present': 1}
+
+
+def test_rxnorm_merge_then_apply_is_idempotent_with_exact_aliases():
+    proposals = [('DrugBank:DB90001', 'Starbrand', 'rxnorm:20')]
+    additions, skipped = S.merge_synonyms(ENTITIES, proposals)
+    assert len(additions) == 1 and skipped == {}
+    enriched = S.apply_additions(ENTITIES, additions)
+    assert enriched[0]['synonyms'] == []
+    assert enriched[0]['exact_synonyms'] == ['Starbrand']
+    assert S.merge_synonyms(enriched, proposals) == ([], {'already_present': 1})
+
+
+@pytest.mark.parametrize('source', ['rxnorm:20', 'mesh:D900001'])
+def test_merge_counts_exact_aliases_for_same_and_cross_label_collisions(source):
+    entities = [dict(e, exact_synonyms=['Starbrand']) if e['uid'] == 'DrugBank:DB90001'
+                else e for e in ENTITIES]
+    additions, skipped = S.merge_synonyms(entities, [
+        ('DrugBank:DB90002', 'Starbrand', source),
+        ('MONDO:9000001', 'Starbrand', source),
+    ])
+    assert additions == []
+    assert skipped == {'used_by_other_entity_same_label': 1, 'unrelated_entity_other_label': 1}
+
+
 def test_drugbank_vocabulary_joins_by_id(tmp_path):
     path = tmp_path/'drugbank vocabulary.csv'
     path.write_text('DrugBank ID,Common name,Synonyms\nDB90002,Brinex,Brinexate | BRX | Brinex\n',
@@ -117,6 +167,21 @@ def test_cached_fda_aliases_require_all_ingredients_and_ignore_requested_uid():
     ]}]
     assert S.cached_fda_proposals(records,ENTITIES)==[
         ('DrugBank:DB90002','Brinexa','openfda:one')]
+
+
+def test_cached_fda_ingredient_matching_accepts_exact_only_aliases():
+    entities = [dict(ENTITIES[1], exact_synonyms=['Brinexate'])]
+    records = [{'results': [label('one', 'Brinexa', ['Brinexate'])]}]
+    assert S.cached_fda_proposals(records, entities) == [
+        ('DrugBank:DB90002', 'Brinexa', 'openfda:one')]
+
+
+@pytest.mark.parametrize('field_name', ['synonyms', 'exact_synonyms'])
+def test_cached_fda_ingredient_matching_rejects_quarantined_aliases(field_name):
+    entities = [{'uid': 'DrugBank:DB09111', 'label': 'Drug', 'name': 'Pentastarch',
+                 field_name: ['Hetastarch']}]
+    records = [{'results': [label('one', 'Fictionalbrand', ['Hetastarch'])]}]
+    assert S.cached_fda_proposals(records, entities) == []
 
 
 def test_brand_on_an_unresolved_product_is_vetoed_across_all_records():
@@ -148,21 +213,23 @@ def test_new_alias_cannot_join_unrelated_labels_within_one_batch():
     assert additions==[] and skipped=={'proposed_for_unrelated_labels':2}
 
 
-def test_mesh_narrower_drug_does_not_acquire_a_whole_chemical_class():
+@pytest.mark.parametrize('field_name', ['synonyms', 'exact_synonyms'])
+def test_mesh_narrower_drug_does_not_acquire_a_whole_chemical_class(field_name):
     descriptor = S.Descriptor('D999','Fictional Chemical Class',['D01'],
                               ['Fictional Chemical Class'],['Brinex'])
     assert S.mesh_drug_proposals([descriptor],ENTITIES)==[]
-    enriched = [dict(e,synonyms=['Fictional Chemical Class']) if e['name']=='Brinex' else e
+    enriched = [dict(e, **{field_name: ['Fictional Chemical Class']}) if e['name']=='Brinex' else e
                 for e in ENTITIES]
     assert S.mesh_drug_proposals([descriptor],enriched)==[]
 
 
-def test_consumer_title_does_not_join_through_an_existing_acronym(tmp_path):
+@pytest.mark.parametrize('field_name', ['synonyms', 'exact_synonyms'])
+def test_consumer_title_does_not_join_through_an_existing_acronym(tmp_path, field_name):
     path = tmp_path/'topics.xml'
     path.write_text('<health-topics><health-topic id="1" language="English" title="RASH">'
                     '<also-called>Skin spots</also-called></health-topic></health-topics>')
     entity = {'uid':'MONDO:999','label':'Disease','name':'Rare Astral Syndrome',
-              'synonyms':['RASH']}
+              field_name:['RASH']}
     assert S.medlineplus_proposals(path,[entity])==[]
 
 

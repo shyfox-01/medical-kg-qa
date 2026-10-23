@@ -21,9 +21,11 @@ def audit(entities: list[dict], additions: list[dict], supported: set[tuple]) ->
     for entity in entities:
         uid = entity['uid']
         names[uid] = synonyms.normalize(re.sub(r'\s*\((?:disease|disorder)\)$','',entity['name']))
-        for alias in [entity['name'],*(entity.get('synonyms') or [])]:
+        # Audit raw ownership, including quarantined and exact-only aliases.
+        raw_aliases = [*(entity.get('synonyms') or []), *(entity.get('exact_synonyms') or [])]
+        for alias in [entity['name'], *raw_aliases]:
             owners[synonyms.normalize(alias)].add(uid)
-        for alias in entity.get('synonyms') or []:
+        for alias in raw_aliases:
             forms[(uid,synonyms.normalize(alias))].add(alias)
     for entry in additions:
         provenance[(entry['uid'],synonyms.normalize(entry['alias']))].add(entry['source'])
@@ -87,7 +89,8 @@ def main() -> None:
     flagged = audit(entities,additions,supported)
     summary = {'catalog_sha256':hashlib.sha256(catalog.read_bytes()).hexdigest(),
                'entities_examined':len(entities),
-               'synonym_strings_examined':sum(len(e.get('synonyms') or []) for e in entities),
+               'synonym_strings_examined':sum(len(e.get('synonyms') or []) +
+                                             len(e.get('exact_synonyms') or []) for e in entities),
                'flagged_entity_alias_pairs':len(flagged),
                'flags':dict(Counter(flag for row in flagged for flag in row['flags'])),
                'priorities':dict(Counter(row['priority'] for row in flagged)),

@@ -119,17 +119,18 @@ def main() -> None:
     with (PROCESSED/'synonym_additions.jsonl').open('a', encoding='utf8') as stream:
         for addition in additions:
             stream.write(json.dumps(addition)+'\n')
-    from medkg.graph.store import GraphStore
+    from medkg.graph.store import GraphStore, entity_alias_properties
     from medkg.ingest.link import mentions
     changed = {a['uid'] for a in additions}
     store = GraphStore()
     try:
         for label in ('Drug', 'Disease'):
-            rows = [{'uid': e['uid'], 'synonyms': e['synonyms']} for e in enriched
+            rows = [{'uid': e['uid'], **entity_alias_properties(e)} for e in enriched
                     if e['uid'] in changed and e['label'] == label]
             for i in range(0, len(rows), 5000):
                 store.write(f'UNWIND $rows AS row MATCH (n:{label} {{uid: row.uid}}) '
-                            'SET n.synonyms = row.synonyms', {'rows': rows[i:i+5000]})
+                            'SET n.synonyms = row.synonyms, n.exact_synonyms = row.exact_synonyms',
+                            {'rows': rows[i:i+5000]})
         chunks = [json.loads(line) for line in (PROCESSED/'chunks.jsonl').read_text(encoding='utf8').splitlines()]
         linked = mentions(chunks, Linker(enriched), PROCESSED/'unlinked_mentions.jsonl')
         store.write('MATCH (d:Document)-[:HAS_CHUNK]->(:Chunk)-[r:MENTIONS]->() '

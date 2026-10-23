@@ -1,4 +1,4 @@
-"""RxNorm brand joins use small, handwritten RRF records only (D099)."""
+"""RxNorm brand joins use small, handwritten RRF records only (D099, D101)."""
 
 from pathlib import Path
 
@@ -17,6 +17,22 @@ STOP_WORDS = {
     'curae', 'utopic', 'inova', 'allday', 'today', 'focus', 'prevail', 'relief', 'clear',
     'correct', 'ultra',
 }
+
+REVIEW_EXCLUSIONS = (
+    'Hextend', 'K-Phos', 'Listerine', 'Chloraseptic', 'Aleve Arthritis Pain',
+    'Unisom Sleep', 'Clinidine', 'Morning After', 'Option 2', 'My Choice', 'Your Choice',
+    'My Way', 'New Day', 'Take Action', 'Her Style', "Doctor's Choice", 'Perfect Choice',
+    "Kid's Choice", 'Fiber Choice', 'Deep Sea', 'Sea Soft', 'Simply Sleep', 'Healthy Mama',
+    'Comfort Shield', 'Aqua Care', 'The Magic Bullet', 'Acne-Clear', 'Blink Dry Eye',
+    'Sojourn', 'P & S', 'Terrell', 'Tobi', 'Dotti', 'Alora', 'Avita', 'Antara', 'Flanders',
+    'Medicone', 'Stangard', 'Appearex', 'Vectical', 'OraVerse', 'Mitigare', 'Hurricaine',
+    'IsoDitrate',
+)
+
+SALT_CATIONS = (
+    'potassium', 'sodium', 'calcium', 'magnesium', 'zinc', 'iron', 'lithium',
+    'aluminum', 'aluminium', 'ammonium',
+)
 
 
 def conso(rxcui: str, tty: str, name: str, *, sab: str = 'RXNORM',
@@ -69,6 +85,50 @@ def test_ingredient_joins_drug_names_synonyms_and_terminal_salts(tmp_path, ingre
                     [rel('20', '10')])
     assert S.rxnorm_proposals(directory, ENTITIES, set()) == [
         ('DrugBank:DB90002', 'Brinexa', 'rxnorm:20')]
+
+
+def test_ingredient_matching_accepts_exact_only_aliases(tmp_path):
+    entities = [dict(ENTITIES[0], exact_synonyms=['Asterate'])]
+    directory = rrf(tmp_path, [conso('10', 'IN', 'ASTERATE'), conso('20', 'BN', 'Astrabrand')],
+                    [rel('20', '10')])
+    assert S.rxnorm_proposals(directory, entities, set()) == [
+        ('DrugBank:DB90001', 'Astrabrand', 'rxnorm:20')]
+
+
+@pytest.mark.parametrize('field_name', ['synonyms', 'exact_synonyms'])
+@pytest.mark.parametrize('legitimate_owner', [False, True])
+def test_ingredient_matching_enforces_hetastarch_quarantine(
+        tmp_path, field_name, legitimate_owner):
+    entities = [{'uid': 'DrugBank:DB09111', 'label': 'Drug', 'name': 'Pentastarch',
+                 field_name: ['Hetastarch']}]
+    if legitimate_owner:
+        entities.append({'uid': 'DrugBank:DB09106', 'label': 'Drug',
+                         'name': 'Hydroxyethyl Starch', field_name: ['Hetastarch']})
+    directory = rrf(tmp_path, [conso('10', 'IN', 'Hetastarch'),
+                               conso('20', 'BN', 'Fictionalbrand')], [rel('20', '10')])
+    proposals, report = S.rxnorm_proposal_report(directory, entities, set())
+    expected = [('DrugBank:DB09106', 'Fictionalbrand', 'rxnorm:20')] if legitimate_owner else []
+    assert proposals == expected
+    assert report['rxnorm_excluded_by_rule']['ingredient_unlinked'] == int(not legitimate_owner)
+
+
+@pytest.mark.parametrize('cation', SALT_CATIONS)
+def test_salt_fallback_does_not_link_to_a_bare_cation(tmp_path, cation):
+    entities = [{'uid': 'DrugBank:DB90003', 'label': 'Drug', 'name': cation, 'synonyms': []}]
+    directory = rrf(tmp_path, [conso('10', 'IN', cation.upper() + ' phosphate'),
+                               conso('20', 'BN', 'Mineralbrand')], [rel('20', '10')])
+    proposals, report = S.rxnorm_proposal_report(directory, entities, set())
+    assert proposals == []
+    assert report['rxnorm_excluded_by_rule']['ingredient_unlinked'] == 1
+
+
+@pytest.mark.parametrize('ingredient', ['potassium', 'potassium phosphate'])
+def test_cation_guard_preserves_exact_ingredient_names(tmp_path, ingredient):
+    entities = [{'uid': 'DrugBank:DB90003', 'label': 'Drug', 'name': ingredient, 'synonyms': []}]
+    directory = rrf(tmp_path, [conso('10', 'IN', ingredient),
+                               conso('20', 'BN', 'Mineralbrand')], [rel('20', '10')])
+    assert S.rxnorm_proposals(directory, entities, set()) == [
+        ('DrugBank:DB90003', 'Mineralbrand', 'rxnorm:20')]
 
 
 def test_exact_salt_name_takes_precedence_over_active_moiety(tmp_path):
@@ -160,7 +220,8 @@ def test_report_accounts_for_each_brand_once_and_global_unsafe_veto(tmp_path):
     excluded = report['rxnorm_excluded_by_rule']
     assert excluded == {
         'no_ingredient': 1, 'multiple_ingredients': 1, 'ingredient_unlinked': 1,
-        'ingredient_ambiguous': 0, 'unusable': 0, 'parenthesized_or_reformulated': 0,
+        'ingredient_ambiguous': 0, 'review_excluded': 0, 'unusable': 0,
+        'parenthesized_or_reformulated': 0,
         'stop_word': 1, 'lowercase_word': 0, 'unsafe_name': 1,
     }
     assert sum(excluded.values()) + len(proposals) == report['rxnorm_brands_considered']
@@ -168,6 +229,22 @@ def test_report_accounts_for_each_brand_once_and_global_unsafe_veto(tmp_path):
 
 def test_stop_list_matches_the_manually_reviewed_names():
     assert S.RXNORM_STOP == STOP_WORDS
+
+
+def test_review_exclusion_list_has_exactly_the_45_reviewed_names():
+    assert len(S.RXNORM_EXCLUDE) == len(REVIEW_EXCLUSIONS) == 45
+    assert S.RXNORM_EXCLUDE == {S.normalize(name) for name in REVIEW_EXCLUSIONS}
+
+
+@pytest.mark.parametrize('brand', REVIEW_EXCLUSIONS)
+def test_review_exclusions_use_normalized_names_and_are_counted(tmp_path, brand):
+    normalized_variant = S.normalize(brand).upper()
+    directory = rrf(tmp_path, [conso('10', 'IN', 'Brinex'),
+                               conso('20', 'BN', normalized_variant)], [rel('20', '10')])
+    proposals, report = S.rxnorm_proposal_report(directory, ENTITIES, set())
+    assert proposals == []
+    assert report['rxnorm_excluded_by_rule']['review_excluded'] == 1
+    assert sum(report['rxnorm_excluded_by_rule'].values()) == 1
 
 
 @pytest.mark.parametrize('brand', sorted(STOP_WORDS))

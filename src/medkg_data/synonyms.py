@@ -12,6 +12,7 @@ Pure functions shared by the enrichment script and tests. Proposals are
 * DrugBank vocabulary (CC0): synonyms joined by DrugBank id.
 * RxNorm prescribable brands: one ingredient with one catalog Drug; ambiguous
   and ordinary-language brand names are excluded before the shared merge.
+  Accepted RxNorm aliases are stored separately for exact matching only.
 """
 
 import csv
@@ -25,7 +26,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from medkg_data.alias_policy import is_excluded
+from medkg_data.alias_policy import exact_names, is_excluded
 from medkg_data.lexicon import COMMON_WORDS, GENERIC_ANCHORS, normalize
 from medkg_data.ontology import mondo_ids
 
@@ -95,7 +96,7 @@ def _index(entities: Iterable[dict], label: str) -> dict[str, set[str]]:
     index: dict[str, set[str]] = defaultdict(set)
     for entity in entities:
         if entity['label'] == label:
-            for alias in [entity['name'], *(entity.get('synonyms') or [])]:
+            for alias in exact_names(entity):
                 index[normalize(alias)].add(entity['uid'])
     return index
 
@@ -111,6 +112,32 @@ RXNORM_STOP = frozenset({
     'julie', 'ella', 'nikita', 'muse', 'propel', 'thrive', 'react', 'clarus', 'compro',
     'curae', 'utopic', 'inova', 'allday', 'today', 'focus', 'prevail', 'relief', 'clear',
     'correct', 'ultra',
+})
+
+
+# The 2026-10-24 RxNorm review (D101), compared after shared normalization.
+RXNORM_EXCLUDE = frozenset(normalize(name) for name in (
+    # Incorrect ingredient mappings, including salt stripping to a bare cation.
+    'Hextend', 'K-Phos',
+    # Names usually identify another product or formulation.
+    'Listerine', 'Chloraseptic', 'Aleve Arthritis Pain', 'Unisom Sleep', 'Clinidine',
+    'IsoDitrate',
+    # Ordinary phrases create unrelated free-text mentions.
+    'Morning After', 'Option 2', 'My Choice', 'Your Choice', 'My Way', 'New Day',
+    'Take Action', 'Her Style', "Doctor's Choice", 'Perfect Choice', "Kid's Choice",
+    'Fiber Choice', 'Deep Sea', 'Sea Soft', 'Simply Sleep', 'Healthy Mama',
+    'Comfort Shield', 'Aqua Care', 'The Magic Bullet', 'Acne-Clear', 'Blink Dry Eye',
+    'Sojourn', 'P & S',
+    # Personal names create unrelated mentions of people.
+    'Terrell', 'Tobi', 'Dotti', 'Alora', 'Avita', 'Antara', 'Flanders',
+    # These brands attract spelling corrections of ordinary English words.
+    'Medicone', 'Stangard', 'Appearex', 'Vectical', 'OraVerse', 'Mitigare', 'Hurricaine',
+))
+
+# Removing a terminal salt must not turn its active ingredient into a bare cation.
+RXNORM_SALT_CATIONS = frozenset({
+    'potassium', 'sodium', 'calcium', 'magnesium', 'zinc', 'iron', 'lithium',
+    'aluminum', 'aluminium', 'ammonium',
 })
 
 
@@ -165,9 +192,17 @@ def rxnorm_proposal_report(rrf_dir: Path, entities: list[dict],
             failures[brand] = 'multiple_ingredients'
         else:
             ingredient = next(iter(linked))
-            matches = [drugs.get(normalize(name)) or
-                       drugs.get(normalize(SALT.sub('', name)), set())
-                       for name in ingredients[ingredient]]
+            matches = []
+            for name in ingredients[ingredient]:
+                ids = drugs.get(normalize(name))
+                if not ids:
+                    stripped = SALT.sub('', name)
+                    key = normalize(stripped)
+                    if stripped != name and key in RXNORM_SALT_CATIONS:
+                        ids = set()
+                    else:
+                        ids = drugs.get(key, set())
+                matches.append(ids)
             matched = set().union(*matches)
             if any(not ids for ids in matches):
                 failures[brand] = 'ingredient_unlinked'
@@ -180,7 +215,7 @@ def rxnorm_proposal_report(rrf_dir: Path, entities: list[dict],
 
     excluded = dict.fromkeys((
         'no_ingredient', 'multiple_ingredients', 'ingredient_unlinked',
-        'ingredient_ambiguous', 'unusable', 'parenthesized_or_reformulated',
+        'ingredient_ambiguous', 'review_excluded', 'unusable', 'parenthesized_or_reformulated',
         'stop_word', 'lowercase_word', 'unsafe_name',
     ), 0)
     proposals = set()
@@ -189,7 +224,9 @@ def rxnorm_proposal_report(rrf_dir: Path, entities: list[dict],
             key = normalize(name)
             reason = failures.get(brand)
             if reason is None:
-                if not usable(name):
+                if key in RXNORM_EXCLUDE:
+                    reason = 'review_excluded'
+                elif not usable(name):
                     reason = 'unusable'
                 elif '(' in name or re.search(r'\breformulated\b', name, re.I):
                     reason = 'parenthesized_or_reformulated'
@@ -220,7 +257,7 @@ def rxnorm_proposals(rrf_dir: Path, entities: list[dict],
 def mesh_drug_proposals(descriptors: Iterable[Descriptor], entities: list[dict]) -> list[tuple]:
     # Do not recursively use aliases added by a previous enrichment to join a
     # broader descriptor to one of its narrower drugs.
-    drugs = _index([dict(e,synonyms=[]) for e in entities], 'Drug')
+    drugs = _index([dict(e,synonyms=[],exact_synonyms=[]) for e in entities], 'Drug')
     existing_aliases = _index(entities, 'Drug')
     proposals = []
     for d in descriptors:
@@ -331,7 +368,7 @@ def medlineplus_proposals(path: Path, entities: list[dict]) -> list[tuple]:
     No benchmark surface forms or gold anchors participate in this join.
     """
     diseases = _index([dict(e,name=re.sub(r'\s*\((?:disease|disorder)\)$','',e['name']),
-                           synonyms=[]) for e in entities], 'Disease')
+                           synonyms=[],exact_synonyms=[]) for e in entities], 'Disease')
     proposals = []
     for topic in ET.parse(path).getroot().findall('health-topic'):
         if topic.get('language', '').casefold()!='english' or not topic.get('id'):
@@ -362,7 +399,8 @@ def merge_synonyms(entities: list[dict], proposals: Iterable[tuple]) -> tuple[li
     any_owner: dict[str, set[str]] = defaultdict(set)
     keys: dict[str, set[str]] = defaultdict(set)
     for entity in entities:
-        for alias in [entity['name'], *(entity.get('synonyms') or [])]:
+        for alias in [entity['name'], *(entity.get('synonyms') or []),
+                      *(entity.get('exact_synonyms') or [])]:
             owners[(entity['label'], normalize(alias))].add(entity['uid'])
             any_owner[normalize(alias)].add(entity['uid'])
             keys[entity['uid']].add(normalize(alias))
@@ -400,8 +438,11 @@ def merge_synonyms(entities: list[dict], proposals: Iterable[tuple]) -> tuple[li
 
 
 def apply_additions(entities: list[dict], additions: list[dict]) -> list[dict]:
-    by_uid = defaultdict(list)
+    """Append RxNorm aliases to exact_synonyms and other sources to synonyms."""
+    by_uid = defaultdict(lambda: defaultdict(list))
     for addition in additions:
-        by_uid[addition['uid']].append(addition['alias'])
-    return [dict(e, synonyms=[*(e.get('synonyms') or []), *by_uid[e['uid']]]) if e['uid'] in by_uid else e
-            for e in entities]
+        field_name = 'exact_synonyms' if addition.get('source', '').startswith('rxnorm:') else 'synonyms'
+        by_uid[addition['uid']][field_name].append(addition['alias'])
+    return [dict(e, **{field_name: [*(e.get(field_name) or []), *aliases]
+                      for field_name, aliases in by_uid[e['uid']].items()})
+            if e['uid'] in by_uid else e for e in entities]

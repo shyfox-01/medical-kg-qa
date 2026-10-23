@@ -6,6 +6,7 @@ from pathlib import Path
 from medkg.ingest.chunking import chunks
 from medkg.ingest.ontology import mondo_ids
 from medkg.qa.linker import normalize
+from medkg_data.alias_policy import exact_names
 
 
 def parse(path: Path,entities: list[dict],mondo: dict,retrieved_at: str) -> tuple[list,list]:
@@ -13,7 +14,7 @@ def parse(path: Path,entities: list[dict],mondo: dict,retrieved_at: str) -> tupl
     for entity in entities:
         if entity['label']!='Disease':
             continue
-        for alias in [entity['name'],*entity.get('synonyms',[])]:
+        for alias in exact_names(entity):
             names.setdefault(normalize(alias),set()).add(entity['uid'])
         identifier = entity['uid'].split(':',1)[1]
         for term_id in mondo_ids(identifier):

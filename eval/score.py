@@ -3,7 +3,7 @@
 import json
 import re
 
-from medkg_data.alias_policy import EXCLUDED_ALIASES, allowed_names
+from medkg_data.alias_policy import EXCLUDED_ALIASES, exact_names
 from medkg_data.lexicon import (
     GENERIC_ANCHORS,
     LIST_BREAK,
@@ -236,7 +236,7 @@ class Vocabulary:
         self.quarantined_keys = set(self.excluded_by_key)
         for entity in entities:
             self.labels[entity['uid']] = entity['label']
-            for alias in allowed_names(entity):
+            for alias in exact_names(entity):
                 key = normalize(alias)
                 canonical = key==normalize(entity['name'])
                 excluded = entity['uid'] in self.excluded_by_key.get(key, set())

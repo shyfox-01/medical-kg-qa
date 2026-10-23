@@ -36,3 +36,15 @@ def test_supported_source_is_not_flagged_but_word_collision_remains_visible():
     rows = audit(entities,additions,{('d:a','starbrand','mesh:D1')})
     assert len(rows)==1 and rows[0]['forms']==['LET']
     assert rows[0]['flags']==['ordinary_or_generic_word']
+
+
+def test_audit_keeps_exact_only_and_quarantined_owners_visible():
+    entities = [
+        {'uid': 'DrugBank:DB09111', 'label': 'Drug', 'name': 'Pentastarch',
+         'exact_synonyms': ['Hetastarch']},
+        {'uid': 'DrugBank:DB09106', 'label': 'Drug', 'name': 'Hydroxyethyl Starch',
+         'synonyms': ['Hetastarch']},
+    ]
+    rows = audit(entities, [], set())
+    assert {r['uid'] for r in rows} == {e['uid'] for e in entities}
+    assert all('same_label_collision' in r['flags'] for r in rows)

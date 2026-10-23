@@ -9,6 +9,21 @@ from neo4j import READ_ACCESS, GraphDatabase
 from medkg.config import Settings
 from medkg.graph.guard import CypherRejected, check
 from medkg.graph.schema import LABELS, RELATIONS, statements
+from medkg_data.lexicon import normalize
+
+
+def entity_alias_properties(entity: dict) -> dict[str, list[str]]:
+    """Keep full-text aliases together while preserving exact-only matching metadata."""
+    regular = entity.get('synonyms') or []
+    exact = entity.get('exact_synonyms') or []
+    regular_keys = {normalize(alias) for alias in [entity.get('name', ''), *regular]}
+    return {
+        'synonyms': list(dict.fromkeys([*regular, *exact])),
+        # A name already supported by the ordinary catalog remains available to
+        # fuzzy matching, including equivalent casing and punctuation (D101).
+        'exact_synonyms': list(dict.fromkeys(
+            alias for alias in exact if normalize(alias) not in regular_keys)),
+    }
 
 
 @dataclass
@@ -71,7 +86,8 @@ class GraphStore:
 
     def load(self, nodes: list[dict], edges: list[dict], batch_size: int = 10000) -> None:
         for label in LABELS:
-            batch = [{k: v for k, v in n.items() if k not in ('label', 'node_id')}
+            batch = [{**{k: v for k, v in n.items() if k not in ('label', 'node_id')},
+                      **(entity_alias_properties(n) if label in LABELS[:4] else {})}
                      for n in nodes if n['label'] == label]
             for i in range(0, len(batch), batch_size):
                 self.write(f'UNWIND $rows AS row MERGE (n:{label} {{uid: row.uid}}) SET n += row',
@@ -144,6 +160,15 @@ class GraphStore:
                 tx.commit()
 
     def entities(self) -> list[dict]:
-        return self.read('MATCH (n) WHERE any(l IN labels(n) WHERE l IN $labels) '
+        rows = self.read('MATCH (n) WHERE any(l IN labels(n) WHERE l IN $labels) '
                          'RETURN n.uid AS uid, n.name AS name, n.synonyms AS synonyms, '
-                         'labels(n)[0] AS label', {'labels': list(LABELS[:4])}, timeout=60)
+                         'n.exact_synonyms AS exact_synonyms, labels(n)[0] AS label',
+                         {'labels': list(LABELS[:4])}, timeout=60)
+        entities = []
+        for row in rows:
+            exact = list(row.get('exact_synonyms') or [])
+            exact_keys = {normalize(alias) for alias in exact}
+            entities.append({**row, 'exact_synonyms': exact,
+                             'synonyms': [alias for alias in row.get('synonyms') or []
+                                          if normalize(alias) not in exact_keys]})
+        return entities

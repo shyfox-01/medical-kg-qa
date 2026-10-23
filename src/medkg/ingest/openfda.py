@@ -12,6 +12,7 @@ from rapidfuzz import fuzz, process
 
 from medkg.ingest.chunking import chunks
 from medkg.qa.linker import normalize
+from medkg_data.alias_policy import allowed_names, exact_names
 
 SECTIONS = ('indications_and_usage','contraindications','drug_interactions','boxed_warning',
             'warnings_and_cautions','adverse_reactions','description')
@@ -60,10 +61,15 @@ def fetch(drugs: list[dict],raw: Path) -> list[dict]:
 
 def parse(records: list[dict],entities: list[dict],retrieved_at: str) -> tuple[list,list,dict]:
     drugs = {e['uid']:e for e in entities if e['label']=='Drug'}
-    aliases = {}
+    aliases, fuzzy_aliases, exact_only_keys = {}, {}, {}
     for drug in drugs.values():
-        for alias in [drug['name'],*drug.get('synonyms',[])]:
+        regular = allowed_names(drug)
+        exact_only_keys[drug['uid']] = {normalize(a) for a in drug.get('exact_synonyms') or []} - {
+            normalize(a) for a in regular}
+        for alias in exact_names(drug):
             aliases.setdefault(normalize(alias),set()).add(drug['uid'])
+        for alias in regular:
+            fuzzy_aliases.setdefault(normalize(alias),set()).add(drug['uid'])
     documents,sections_by_id,brand_candidates = {},{},{}
     unsafe_brands = set()
     stats = {'labels':0,'unlinked_labels':0,'ambiguous_labels':0,'quarantined_aliases':0}
@@ -77,11 +83,11 @@ def parse(records: list[dict],entities: list[dict],retrieved_at: str) -> tuple[l
             for name in names:
                 ids = set(aliases.get(normalize(name),set()))
                 if not ids:
-                    scored = process.extract(normalize(name),aliases.keys(),
+                    scored = process.extract(normalize(name),fuzzy_aliases.keys(),
                         scorer=fuzz.token_sort_ratio,score_cutoff=95,limit=2)
                     if scored:
                         maximum = scored[0][1]
-                        ids = set().union(*(aliases[alias] for alias,score,_ in scored
+                        ids = set().union(*(fuzzy_aliases[alias] for alias,score,_ in scored
                                             if score==maximum))
                 if len(ids)==1:
                     uid = next(iter(ids))
@@ -101,7 +107,11 @@ def parse(records: list[dict],entities: list[dict],retrieved_at: str) -> tuple[l
                 stats['quarantined_aliases'] += len(brands)
                 continue
             for uid in about:
-                drugs[uid]['synonyms'] = sorted(set(drugs[uid].get('synonyms',[])) | matched_names[uid])
+                # Re-reading a known exact-only name must not promote it to a
+                # fuzzy alias merely because it also occurs in a cached label.
+                regular_matches = {name for name in matched_names[uid]
+                                   if normalize(name) not in exact_only_keys[uid]}
+                drugs[uid]['synonyms'] = sorted(set(drugs[uid].get('synonyms',[])) | regular_matches)
             if len(about)==1 and not ambiguous and not unmatched:
                 uid = next(iter(about))
                 for brand in brands:
@@ -131,12 +141,17 @@ def parse(records: list[dict],entities: list[dict],retrieved_at: str) -> tuple[l
             unsafe_brands.add(key)
             continue
         uid = next(iter(entry['uids']))
-        drugs[uid]['synonyms'] = sorted(set(drugs[uid]['synonyms']) | entry['names'])
+        regular_brands = {name for name in entry['names']
+                          if normalize(name) not in exact_only_keys[uid]}
+        drugs[uid]['synonyms'] = sorted(set(drugs[uid]['synonyms']) | regular_brands)
     # Also remove an unsafe brand retained from an earlier import. Canonical
     # names remain authoritative and are never removed by this alias operation.
     for drug in drugs.values():
         drug['synonyms'] = [name for name in drug.get('synonyms',[])
                             if normalize(name) not in unsafe_brands]
+        if 'exact_synonyms' in drug:
+            drug['exact_synonyms'] = [name for name in drug['exact_synonyms'] or []
+                                      if normalize(name) not in unsafe_brands]
     all_chunks = [chunk for identifier,document in documents.items()
                   for chunk in chunks(document,sections_by_id[identifier])]
     return list(documents.values()),all_chunks,stats

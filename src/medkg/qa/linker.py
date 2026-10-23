@@ -7,7 +7,7 @@ import numpy as np
 from rapidfuzz import fuzz, process
 from rapidfuzz.distance import DamerauLevenshtein
 
-from medkg_data.alias_policy import EXCLUDED_ALIASES, allowed_names, is_excluded
+from medkg_data.alias_policy import EXCLUDED_ALIASES, allowed_names, exact_names, is_excluded
 from medkg_data.lexicon import COMMON_WORDS, GENERIC_ANCHORS, ambiguous_word, normalize
 
 __all__ = ['Candidate', 'Linker', 'label_choices', 'normalize']
@@ -30,6 +30,9 @@ class Linker:
         self.entities = {e['uid']: e for e in entities}
         self.aliases: dict[str, list[str]] = {}
         self.by_label: dict[str, dict[str, list[str]]] = {}
+        self.fuzzy_aliases: dict[str, list[str]] = {}
+        self.fuzzy_by_label: dict[str, dict[str, list[str]]] = {}
+        self.vector_names = {e['uid']: set(allowed_names(e)) for e in entities}
         # PrimeKG grouped nodes can carry a truncated group label ("nephrotic syndrome,").
         # When it equals another entity's name of the same label, the name belongs to
         # that entity; the group stays reachable through its subtype names (D088).
@@ -39,20 +42,26 @@ class Linker:
         truncated = {e['uid'] for e in entities if e['uid'].startswith('MONDO_grouped')
                      and re.search(r'[,;:]\s*$', e['name']) and names[(e['label'], normalize(e['name']))] > 1}
         for e in entities:
-            for alias in allowed_names(e):
-                key = normalize(alias)
-                if e['uid'] in truncated and key == normalize(e['name']):
-                    continue
-                if key:
-                    self.aliases.setdefault(key, []).append(e['uid'])
-                    self.by_label.setdefault(e['label'], {}).setdefault(key, []).append(e['uid'])
+            # RxNorm aliases may identify literal mentions but must not become
+            # spelling-correction or token-similarity targets (D101).
+            for aliases, index, by_label in (
+                (exact_names(e), self.aliases, self.by_label),
+                (allowed_names(e), self.fuzzy_aliases, self.fuzzy_by_label),
+            ):
+                for alias in aliases:
+                    key = normalize(alias)
+                    if e['uid'] in truncated and key == normalize(e['name']):
+                        continue
+                    if key:
+                        index.setdefault(key, []).append(e['uid'])
+                        by_label.setdefault(e['label'], {}).setdefault(key, []).append(e['uid'])
         # Canonical names as written (case-folded word tokens, no plural strip): a name
         # shared by several entities denotes the one whose own name it is (D087).
         self.written_owners: dict[str, set[str]] = {}
         for e in entities:
             self.written_owners.setdefault(' '.join(re.findall(r'\w+', e['name'].casefold())), set()).add(e['uid'])
         # Keys whose own spelling has a comma or semicolon may span a list separator.
-        self.separated = {normalize(a) for e in entities for a in allowed_names(e) if re.search(r'[,;]', a)}
+        self.separated = {normalize(a) for e in entities for a in exact_names(e) if re.search(r'[,;]', a)}
         self.embedder, self.vectors, self.vector_aliases = embedder, vectors, vector_aliases
         self.excluded_by_key: dict[str, set[str]] = {}
         for uid in self.entities.keys() & EXCLUDED_ALIASES.keys():
@@ -63,7 +72,7 @@ class Linker:
                                    self.aliases.keys() | self.quarantined_keys}, reverse=True)
         # Single-edit correction is limited to long drug-name tokens. Short
         # acronyms, gene symbols and ordinary words require the existing rules.
-        self.drug_spellings = {key:ids for key,ids in self.by_label.get('Drug',{}).items()
+        self.drug_spellings = {key:ids for key,ids in self.fuzzy_by_label.get('Drug',{}).items()
                                if key.isalpha() and len(key)>=8 and key not in COMMON_WORDS}
 
     def link(self, mention: str, label: str | None = None) -> list[Candidate]:
@@ -72,6 +81,7 @@ class Linker:
         if key in aliases:
             ids = sorted(set(aliases[key]))
             return [self._candidate(uid, 100, 'exact', len(ids)>1) for uid in ids]
+        aliases = self.fuzzy_by_label.get(label, {}) if label else self.fuzzy_aliases
         # A reviewed conflicting name must not return through typo or vector
         # similarity to the entity whose exact mapping was quarantined.
         excluded = self.excluded_by_key.get(key, set())
@@ -109,11 +119,15 @@ class Linker:
             ranked = []
             seen = set()
             for i in np.argsort(-similarities):
-                uid = self.vector_aliases[int(i)]['uid']
+                row = self.vector_aliases[int(i)]
+                uid = row['uid']
                 if similarities[i]<0.85:
                     break
+                # Cached rows must still be eligible for embedding under the
+                # current catalog, even if an alias has since become exact-only.
                 if (uid not in self.entities or uid in excluded or
-                        is_excluded(uid, self.vector_aliases[int(i)]['text'])):
+                        row['text'] not in self.vector_names[uid] or
+                        is_excluded(uid, row['text'])):
                     continue
                 if uid not in seen and (not label or self.entities[uid]['label']==label):
                     ranked.append((uid, float(similarities[i])))

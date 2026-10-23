@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from medkg_data.alias_policy import exact_names
+
 VERSION = 'openfda-json-1.2'
 BIORED_TYPES = ('Association','Positive_Correlation','Negative_Correlation','Bind',
                 'Cotreatment','Comparison','Conversion','Drug_Interaction')
@@ -93,6 +95,6 @@ def cached_edge_supported(edge: dict,chunk: dict,entities: dict[str,dict]) -> bo
         if not entity or entity['label']!=label:
             return False
         if not any(mention_in_quote(name,quote)
-                   for name in [entity['name'],*entity.get('synonyms',[])] if name.strip()):
+                   for name in exact_names(entity) if name.strip()):
             return False
     return True
