@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from medkg.graph import store as graph_store
 from scripts import enrich_synonyms as enrich
 
 
@@ -153,3 +154,43 @@ def test_preview_without_rxnorm_keeps_existing_report_and_needs_no_chunks(
 
     report = json.loads(capsys.readouterr().out)
     assert not any(key.startswith('rxnorm_') for key in report)
+
+
+@pytest.mark.parametrize('failure', ['construct', 'verify'])
+@pytest.mark.parametrize('brands', [[], ['Starbrand']])
+def test_apply_failed_preflight_writes_no_files(tmp_path, monkeypatch, failure, brands):
+    raw, processed, rrf = preview_files(tmp_path, brands)
+    output = tmp_path/'preview.json'
+    monkeypatch.setattr(enrich, 'ROOT', tmp_path)
+    monkeypatch.setattr(enrich, 'RAW', raw)
+    monkeypatch.setattr(enrich, 'PROCESSED', processed)
+    monkeypatch.setattr(sys, 'argv', ['enrich_synonyms', '--apply', '--rxnorm', str(rrf),
+                                    '--output', str(output)])
+    events = []
+
+    class UnavailableStore:
+        def __init__(self):
+            events.append('construct')
+            if failure == 'construct':
+                raise RuntimeError('Neo4j unavailable')
+
+        def verify(self):
+            events.append('verify')
+            raise RuntimeError('Neo4j unavailable')
+
+        def close(self):
+            events.append('close')
+
+    monkeypatch.setattr(graph_store, 'GraphStore', UnavailableStore)
+    before_files = {path.relative_to(tmp_path): path.read_bytes()
+                    for path in tmp_path.rglob('*') if path.is_file()}
+    before_paths = set(tmp_path.rglob('*'))
+
+    with pytest.raises(RuntimeError, match='Neo4j unavailable'):
+        enrich.main()
+
+    assert set(tmp_path.rglob('*')) == before_paths
+    assert {path.relative_to(tmp_path): path.read_bytes()
+            for path in tmp_path.rglob('*') if path.is_file()} == before_files
+    assert events == (['construct'] if failure == 'construct'
+                      else ['construct', 'verify', 'close'])

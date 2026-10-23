@@ -144,14 +144,12 @@ def parse(records: list[dict],entities: list[dict],retrieved_at: str) -> tuple[l
         regular_brands = {name for name in entry['names']
                           if normalize(name) not in exact_only_keys[uid]}
         drugs[uid]['synonyms'] = sorted(set(drugs[uid]['synonyms']) | regular_brands)
-    # Also remove an unsafe brand retained from an earlier import. Canonical
-    # names remain authoritative and are never removed by this alias operation.
+    # Also remove an unsafe regular brand retained from an earlier import.
+    # Unmatched label ingredients do not invalidate independently sourced
+    # exact-only aliases. Keep those aliases and canonical names unchanged.
     for drug in drugs.values():
         drug['synonyms'] = [name for name in drug.get('synonyms',[])
                             if normalize(name) not in unsafe_brands]
-        if 'exact_synonyms' in drug:
-            drug['exact_synonyms'] = [name for name in drug['exact_synonyms'] or []
-                                      if normalize(name) not in unsafe_brands]
     all_chunks = [chunk for identifier,document in documents.items()
                   for chunk in chunks(document,sections_by_id[identifier])]
     return list(documents.values()),all_chunks,stats

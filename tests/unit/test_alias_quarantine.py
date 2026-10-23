@@ -25,8 +25,8 @@ def policy(monkeypatch):
     ]
 
 
-def test_policy_covers_29_pairs_and_preserves_canonical_names():
-    assert sum(map(len, EXCLUDED_ALIASES.values())) == 29
+def test_policy_covers_39_pairs_and_preserves_canonical_names():
+    assert sum(map(len, EXCLUDED_ALIASES.values())) == 39
     assert is_excluded('DrugBank:DB00105', 'Interferon alfa-2a')
     assert not is_excluded('DrugBank:DB00105', 'Interferon alfa-2b')
     assert not is_excluded('DrugBank:DB00027', 'Linear Gramicidin')

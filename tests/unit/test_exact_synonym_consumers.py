@@ -73,15 +73,21 @@ def test_fda_exact_alias_does_not_enter_fuzzy_lookup_or_get_promoted(name, linke
     assert entity['exact_synonyms'] == ['Zejula', 'Aster Brand']
 
 
-def test_fda_unsafe_brand_cleanup_includes_exact_only_aliases():
+@pytest.mark.parametrize('ingredients', [
+    ['NIRAPARIB TOSYLATE'],
+    ['niraparib', 'Other ingredient'],
+])
+def test_fda_unsafe_brand_cleanup_preserves_exact_only_aliases(ingredients):
     entity = drug()
     other = {'uid': 'DrugBank:other', 'label': 'Drug', 'name': 'Other ingredient',
              'synonyms': []}
-    records = [{'results': [{'id': 'combination', 'openfda': {
-        'generic_name': ['niraparib', 'Other ingredient'], 'brand_name': ['Aster Brand']}}]}]
-    openfda.parse(records, [entity, other], 'fixture')
-    assert entity['exact_synonyms'] == ['Zejula']
-    assert Linker([entity, other]).link('Aster Brand') == []
+    records = [{'results': [{'id': 'unsafe-brand', 'openfda': {
+        'generic_name': ingredients, 'brand_name': ['Zejula', 'Regular alias']}}]}]
+    _, _, stats = openfda.parse(records, [entity, other], 'fixture')
+    assert stats['unlinked_labels'] == (ingredients == ['NIRAPARIB TOSYLATE'])
+    assert 'Regular alias' not in entity['synonyms']
+    assert entity['exact_synonyms'] == ['Zejula', 'Aster Brand']
+    assert Linker([entity, other]).link('Zejula')[0].uid == entity['uid']
 
 
 def test_medlineplus_title_uses_exact_names(tmp_path):

@@ -103,27 +103,31 @@ def main() -> None:
         report['rxnorm_examples'] = [
             {'brand': a['alias'], 'entity': names[a['uid']], 'uid': a['uid'], 'source': a['source']}
             for a in rxnorm_additions[:10]]
-    if args.output:
-        with args.output.open('x', encoding='utf8') as stream:
-            json.dump({**report, 'proposed_additions': additions}, stream, indent=2)
-    print(json.dumps(report, indent=2, ensure_ascii=False))
-    if not args.apply or not additions:
-        return
-    backup = ROOT/'.cache'/f'synonyms-{time.strftime("%Y%m%d-%H%M%S")}'
-    backup.mkdir(parents=True)
-    for name in ('entities.json', 'vector_aliases.json', 'alias_vectors.npy',
-                 'synonym_additions.jsonl', 'unlinked_mentions.jsonl'):
-        if (PROCESSED/name).exists():
-            shutil.copy2(PROCESSED/name, backup/name)
-    (PROCESSED/'entities.json').write_text(json.dumps(enriched), encoding='utf8')
-    with (PROCESSED/'synonym_additions.jsonl').open('a', encoding='utf8') as stream:
-        for addition in additions:
-            stream.write(json.dumps(addition)+'\n')
-    from medkg.graph.store import GraphStore, entity_alias_properties
-    from medkg.ingest.link import mentions
-    changed = {a['uid'] for a in additions}
-    store = GraphStore()
+    store = None
     try:
+        if args.apply:
+            from medkg.graph.store import GraphStore, entity_alias_properties
+            store = GraphStore()
+            # D101: verify before even the optional preview or backup is written.
+            store.verify()
+        if args.output:
+            with args.output.open('x', encoding='utf8') as stream:
+                json.dump({**report, 'proposed_additions': additions}, stream, indent=2)
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+        if not args.apply or not additions:
+            return
+        backup = ROOT/'.cache'/f'synonyms-{time.strftime("%Y%m%d-%H%M%S")}'
+        backup.mkdir(parents=True)
+        for name in ('entities.json', 'vector_aliases.json', 'alias_vectors.npy',
+                     'synonym_additions.jsonl', 'unlinked_mentions.jsonl'):
+            if (PROCESSED/name).exists():
+                shutil.copy2(PROCESSED/name, backup/name)
+        (PROCESSED/'entities.json').write_text(json.dumps(enriched), encoding='utf8')
+        with (PROCESSED/'synonym_additions.jsonl').open('a', encoding='utf8') as stream:
+            for addition in additions:
+                stream.write(json.dumps(addition)+'\n')
+        from medkg.ingest.link import mentions
+        changed = {a['uid'] for a in additions}
         for label in ('Drug', 'Disease'):
             rows = [{'uid': e['uid'], **entity_alias_properties(e)} for e in enriched
                     if e['uid'] in changed and e['label'] == label]
@@ -141,7 +145,8 @@ def main() -> None:
                             f'(n:{label} {{uid: row.b}}) MERGE (c)-[:MENTIONS]->(n)',
                             {'rows': linked[i:i+10000]})
     finally:
-        store.close()
+        if store is not None:
+            store.close()
     from scripts.embed_entities import main as embed
     embed()
     print(json.dumps({'applied': len(additions), 'mentions_edges': len(linked),

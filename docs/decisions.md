@@ -36,7 +36,7 @@ system and its evaluation today.
 | Benchmark | Fresh v3 batch b3, frozen before RxNorm and routing changes, with all previous anchors excluded | D098 |
 | Vocabulary | RxNorm single-ingredient brands with unique Drug joins, global unsafe-name exclusion and corpus-word filters | D099 |
 | Safety / benchmark | Recognize IU and units in dose guards; verify LiveQA in memory without requiring v1 | D100 |
-| Vocabulary | Keep RxNorm aliases exact-only, exclude 45 reviewed names, guard salt stripping and quarantine hetastarch | D101 |
+| Vocabulary | Keep RxNorm aliases exact-only through openFDA parsing, verify Neo4j before apply, exclude 45 reviewed names and quarantine 11 Pentastarch aliases | D101 |
 
 ## D001 — Environment and scope
 
@@ -2613,8 +2613,10 @@ Two additional plumbing choices preserve the contract across other entry points:
 
 - openFDA parsing uses distinct exact and ordinary fuzzy indexes. Rediscovering
   an existing exact-only name in a cached label does not copy it into ordinary
-  synonyms. Its existing unsafe-brand cleanup applies to both lists. The raw
-  alias audit examines both lists without hiding quarantined entries.
+  synonyms. After the R2c review, unsafe-brand cleanup applies only to ordinary
+  synonyms: an unmatched label ingredient does not invalidate an independently
+  sourced exact-only alias. The raw alias audit examines both lists without
+  hiding quarantined entries.
 - Neo4j `n.synonyms` remains a stable, deduplicated union for full-text retrieval.
   A separate `n.exact_synonyms` property retains exact-only metadata, and
   `GraphStore.entities()` subtracts those names when reconstructing ordinary
@@ -2643,9 +2645,11 @@ normalizer. Categories in the code explain why each group was supplied by the
   Vectical, OraVerse, Mitigare, Hurricaine.
 
 The report retains exclusive first-failure accounting: ingredient failures come
-first, followed by `review_excluded` before other name filters. Thus the counter
-need not equal 45. This preserves existing ingredient diagnostics; an alternative
-of counting every applicable rule would double-count brands.
+first, followed by `review_excluded` before other name filters. The preview counts
+43 rather than 45 review exclusions: K-Phos fails the salt guard first, and
+Hextend cannot join through the quarantined hetastarch alias. Both count as
+`ingredient_unlinked`. This preserves existing ingredient diagnostics; an
+alternative of counting every applicable rule would double-count brands.
 
 When exact ingredient lookup fails, terminal salt stripping may not reduce a
 name to potassium, sodium, calcium, magnesium, zinc, iron, lithium, aluminum,
@@ -2655,11 +2659,17 @@ ambiguous exact matches are never rescued by fallback. Alternative: remove salt
 fallback entirely; unnecessary because the specified guard preserves valid
 non-cation matches.
 
-Add the pair `DrugBank:DB09111` / `hetastarch` to `EXCLUDED_ALIASES`, increasing
-the policy from 28 to 29 pairs. The review identified MeSH D006895 (Hetastarch)
-on Pentastarch; hetastarch belongs to Hydroxyethyl Starch (DB09106). Quarantine
-is reversible and does not rewrite the source catalog. It also affects scoring
-Vocabulary, as intended. Source and licence remain those recorded in D099.
+R2b added the pair `DrugBank:DB09111` / `hetastarch` to `EXCLUDED_ALIASES`.
+R2c expands this to the 11 reviewed Pentastarch aliases, increasing the total
+policy from 29 to 39 pairs. All 13 original synonyms came from MeSH D006895,
+which denotes the broader hydroxyethyl starch class. Only Pentaspan and
+Pentafraction are retained as Pentastarch product names. The quarantined names
+are 2-Hydroxyethyl Starches, Elohes, HAES-steril, Hemohes, Hespan, Hetastarch,
+Hydroxyethyl Starch (130 KD-0.4 Substitution), Hydroxyethyl Starch 130-0.4,
+Hydroxyethyl Starch Derivatives, Hydroxyethylated Starches and Plasmasteril.
+Hetastarch belongs to Hydroxyethyl Starch (DB09106). Quarantine is reversible
+and does not rewrite the source catalog. It also affects scoring Vocabulary,
+as intended. Source and licence remain those recorded in D099.
 
 ### Complete alias-consumer audit
 
@@ -2667,9 +2677,9 @@ The tracked repository was searched for `synonyms` and `allowed_names`; indirect
 consumers of the linker's exact indexes were also checked. The table distinguishes
 matching, serialization, vectors, generation and initialization.
 
-| Use point | R2b handling |
+| Use point | R2b handling, with R2c corrections |
 |---|---|
-| `medkg_data/alias_policy.py:allowed_names`, `exact_names`, `EXCLUDED_ALIASES` | Preserve ordinary eligibility; add exact view and the 29th quarantine pair. |
+| `medkg_data/alias_policy.py:allowed_names`, `exact_names`, `EXCLUDED_ALIASES` | Preserve ordinary eligibility; add exact view; R2c expands quarantine to 39 pairs. |
 | `qa/linker.py:Linker.__init__` exact `aliases`, `by_label`, `separated`, `alias_sizes` | Use exact names; retain existing ownership and span rules. |
 | `qa/linker.py:drug_spellings`, `link` single-edit and token-sort stages | Use separate ordinary-name indexes only. |
 | `qa/linker.py:link` vector stage | Accept only current ordinary names for the same UID. |
@@ -2681,12 +2691,12 @@ matching, serialization, vectors, generation and initialization.
 | `ingest/medlineplus.py:parse` name index | Use exact names. |
 | `ingest/openfda.py:parse` name lookup and ownership conflicts | Use exact names. |
 | `ingest/openfda.py:parse` token-sort fallback | Use separate ordinary-name index. |
-| `ingest/openfda.py:parse` alias updates/unsafe cleanup | Prevent promotion of known exact-only aliases; apply unsafe cleanup to both lists. |
+| `ingest/openfda.py:parse` alias updates/unsafe cleanup | Prevent promotion of known exact-only aliases; R2c limits unsafe cleanup to ordinary synonyms. |
 | `medkg_data/synonyms.py:_index` and RxNorm/cached-FDA joins | Use exact names and enforce quarantine. |
 | `synonyms.py:mesh_drug_proposals`, `medlineplus_proposals` canonical-only joins | Clear both alias lists; preserve canonical-only joining. |
 | `synonyms.py:merge_synonyms`, `apply_additions` | Count both raw lists for ownership; route additions by source. |
 | `scripts/enrich_synonyms.py:coverage`, proposal/report orchestration | Coverage inherits exact linker aliases; report includes new rejection rule. |
-| `scripts/enrich_synonyms.py` Neo4j writer | Write full-text union and exact-only metadata; not executed. |
+| `scripts/enrich_synonyms.py` Neo4j writer | Write full-text union and exact-only metadata; R2c verifies connectivity before any apply file writes; live apply not executed. |
 | `scripts/load_text.py`, `scripts/repair_cached_text.py` graph writers | Use same serialization contract; repair graph backup includes metadata; not executed. |
 | `graph/store.py:entity_alias_properties`, `load`, `entities` | Preserve matching type across graph serialization and fallback reads. |
 | `qa/pipeline.py:__init__`, `local_pipeline` | No direct edit; graph fallback receives restored alias types. |
@@ -2705,7 +2715,7 @@ matching, serialization, vectors, generation and initialization.
 | `eval/generate.py:build.make` and lexical variants | Dataset generation unchanged. |
 | `eval/generate_v2.py:Builder.__init__`; `eval/generate_v3.py:Builder.invariance` | Dataset alias selection and perturbations unchanged. |
 
-### Preview and deterministic regression
+### R2b preview and deterministic regression
 
 The preview command, with `PYTHONPATH=src`, `PYTHONDONTWRITEBYTECODE=1` and
 `MEDKG_HOME` pointing to this worktree, was:
@@ -2769,7 +2779,7 @@ raw newly added brand spelling. All **4/4** changes satisfy that check; there
 are **0** changes without a literal new brand and **0** changed history entries.
 These bounded candidate comparisons do not establish improved answer accuracy.
 
-### Validation and execution boundaries
+### R2b validation and execution boundaries
 
 Baseline: **1,051 passed, 20 deselected**. Final: **1,164 passed, 20 deselected**
 with the mandated command and `PYTHONPATH=src`:
@@ -2796,3 +2806,94 @@ performed, no main-repository/data files were written, and no `--apply`, model
 call, service startup, dependency installation or download was performed.
 All task processes exited. Claude retains responsibility for git and any later
 live apply or evaluation.
+
+### R2c review corrections and validation (2026-10-24)
+
+R2c starts from R2b commit `38c1576` on `rxnorm-exact` in the same worktree.
+It makes only the three requested review corrections:
+
+1. openFDA unsafe-brand cleanup removes ordinary synonyms only. Salt-form or
+   biosimilar ingredient names can fail the label join without demonstrating
+   brand ambiguity, so `exact_synonyms` stays unchanged. This prevents later
+   text loading from removing the reviewed RxNorm aliases Zejula, Rubraca,
+   Tyenne, Xenleta, Ruxience, Vanflyta, Vegzelma, Nufymco and Abrilada. Tests
+   cover both an unmatched salt-form ingredient and a multi-ingredient label,
+   while verifying that ordinary unsafe aliases are still removed. Alternative:
+   repair ingredient joins here; outside this correction's specified scope.
+2. The enrichment apply path constructs `GraphStore()` and calls `verify()`
+   before any file writes, including optional `--output`, backup creation,
+   `entities.json` and `synonym_additions.jsonl`. Constructor or verification
+   failure propagates without changing files; an initialized store closes in
+   `finally`. The implementation also verifies an apply invocation with zero
+   additions before its optional preview output. Alternative: verify only when
+   additions exist; rejected because it would permit a file write despite the
+   required apply preflight. Preview without apply remains graph-free. Four
+   fake-store cases cover constructor/verification failure with zero/nonzero
+   additions, comparing the entire fixture directory tree and file bytes.
+   This is a connectivity preflight, not a transaction across local files and
+   Neo4j; failures after successful verification are not made atomic by R2c.
+3. Pentastarch quarantine now covers the 11 names listed above in both alias
+   fields, while Pentaspan, Pentafraction and the canonical name remain linkable.
+   Tests check direct linking, question scans, scorer extraction and unchanged
+   raw aliases. The existing total-policy fixture changes from 29 to 39 pairs.
+   Alternative: physically remove the aliases from the catalog; rejected to
+   preserve the reversible policy and read-only source data.
+
+The review's remaining items are retained explicitly: Chloraseptic Spray,
+Unisom, Medicone Hemorrhoidal and Next Choice One Dose are variant brands still
+eligible for exact matching only; they do not enter spelling correction and
+remain pending further review. `eval/build_liveqa.build_index` intentionally
+continues to index only canonical names and ordinary `synonyms`, because its
+dataset is frozen. R2c changes neither dataset generation nor existing datasets.
+
+The preview was regenerated with the same process-local environment and command
+as R2b, changing only the output to `.cache/rxnorm-preview-r2c.json`. It contains
+**1,901 additions**, all RxNorm Drug aliases, across **963 entities**. The
+`review_excluded` count remains **43**, and `ingredient_unlinked` remains **675**;
+the K-Phos/Hextend first-failure explanation above applies. The preview is
+byte-identical to the R2b preview, with SHA256
+`540d68ec9e573a0a46c936cf9e9ee7c8ee794c79a40f431f5d7237aba562a6b1`.
+
+The required deterministic regression was repeated with the current code:
+`Linker(base)` versus `Linker(apply_additions(base, preview_additions))`, entirely
+in memory. Only the four allowed absolute dataset paths were opened; sealed and
+b3 contents were not read. This measures the effect of adding aliases under the
+current policy, not a before/after comparison of the R2b and R2c code.
+
+| Dataset | Rows | Questions including history | Changed UID sets | Literal brand present |
+|---|---:|---:|---:|---:|
+| `structured_v1.jsonl` | 400 | 420 | 0 | 0 |
+| `structured_v2.jsonl` | 400 | 420 | 3 | 3 |
+| `structured_v3.jsonl` (b1/b2) | 390 | 402 | 1 | 1 |
+| `liveqa_v2.jsonl` | 208 | 208 | 0 | 0 |
+| Total | 1,398 | 1,450 | 4 | 4 |
+
+The four changed IDs, complete questions, added UIDs and literal brand spellings
+are exactly those in the R2b change table above: `v2-0142` (Tyenne/Tocilizumab),
+`v2-0143` (Abrilada/Adalimumab), `v2-0153` (Rubraca/Rucaparib) and `v3-b2-0093`
+(Zejula/Niraparib). There are **0 removed candidates**, **0 changes without a
+literal new brand**, and **0 changed history entries**. Catalog SHA256 matches
+the preview fingerprint above; catalog and all four dataset hashes were checked
+again after regression and remained unchanged. No regression files were written.
+These checks do not measure answer accuracy or clinical validity.
+
+The mandated full test command, with `PYTHONPATH=src`, passed:
+**1,194 passed, 20 deselected**, with the existing Starlette/httpx deprecation
+warning. `ruff check .` passed. The 30 additional cases comprise 25 Pentastarch
+cases, four apply-preflight cases and one additional openFDA case after replacing
+the old cleanup expectation. The first run of the new Pentastarch tests caught
+an implementation typo (`hae steril` instead of `haes steril`); all 22 affected
+new parameter cases passed after correcting it, and the combined quarantine
+suite passed all 31 cases. No existing test failed and no stop condition occurred.
+
+Read-only discovery encountered missing `rg`, initial PowerShell decoding issues,
+and nonexistent guessed test paths (`test_alias_policy.py`, `test_openfda.py`,
+`test_rxnorm.py`, `tests/conftest.py`); these were not sandbox denials. Searches
+used PowerShell/read-only git and text reads used explicit UTF-8. There were no
+sandbox-blocked commands. Process-local `MEDKG_HOME` and import paths were checked
+to resolve to the worktree; `PYTHONDONTWRITEBYTECODE=1` prevented bytecode writes
+to the shared environment. Test TEMP/TMP directories are retained under
+`.cache/r2c-temp`, `.cache/r2c-openfda-temp` and `.cache/r2c-apply-temp`.
+No files were deleted, no git mutations were run, no main-repository/data files
+were written, and no live apply, evaluation/model call, installation, download or
+background service was started. Git remains Claude's responsibility.

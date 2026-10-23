@@ -1,7 +1,7 @@
 """Reversible, pair-specific quarantine from the October 2026 source reviews.
 
-These 29 mappings have positive source evidence against exact identity (28 from
-2026-10-09 and one from the 2026-10-24 RxNorm review). This is
+These 39 mappings have positive source evidence against exact identity (28 from
+2026-10-09 and 11 from the 2026-10-24 RxNorm review). This is
 an engineering exclusion, not clinical validation. The 66 uncertain mappings are
 unchanged. Original catalog/source bytes remain available for a later review.
 See docs/history/reports/ai-review-2026-10-09.md and decision D072.
@@ -29,9 +29,16 @@ EXCLUDED_ALIASES: dict[str, frozenset[str]] = {
         'benzene hexachloride', 'epsilon hexachlorocyclohexane',
         'eta hexachlorocyclohexane',
     }),
-    # 2026-10-24 RxNorm review: MeSH D006895 (Hetastarch) was attached to
-    # Pentastarch; hetastarch is Hydroxyethyl Starch (DrugBank:DB09106).
-    'DrugBank:DB09111': frozenset({'hetastarch'}),
+    # 2026-10-24 RxNorm review: all 13 Pentastarch synonyms came from MeSH
+    # D006895, a broader hydroxyethyl starch class. Keep Pentaspan/Pentafraction;
+    # quarantine the other products/class names. Hetastarch belongs to
+    # Hydroxyethyl Starch (DrugBank:DB09106), not Pentastarch.
+    'DrugBank:DB09111': frozenset({
+        '2 hydroxyethyl starche', 'elohe', 'haes steril', 'hemohe', 'hespan',
+        'hetastarch', 'hydroxyethyl starch 130 kd 0 4 substitution',
+        'hydroxyethyl starch 130 0 4', 'hydroxyethyl starch derivative',
+        'hydroxyethylated starche', 'plasmasteril',
+    }),
 }
 
 
