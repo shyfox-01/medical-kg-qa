@@ -237,7 +237,8 @@ class Pipeline:
                     with span('output_safety'):
                         violation = safety.output_violation(result['answer'])
                         if violation:
-                            result.update(answer=violation.message,safety=violation.category,refused=True)
+                            result.update(answer=violation.message,safety=violation.category,refused=True,
+                                          output_blocked=True)
                     # A safety refusal stands; otherwise the answer rows must be reported.
                     if not result['refused'] and answer_rows and not any('count' in r for r in answer_rows):
                         from medkg.qa.verify import entities_in_text
@@ -254,10 +255,11 @@ class Pipeline:
             except Exception as exc:
                 result.update(answer='The request could not be completed. Please retry or simplify the question.',
                               failure_stage=stage,error_type=type(exc).__name__)
-            # A caveat answer leads with its notice; with nothing answerable (a decline or an
-            # output-safety refusal) it falls back to the block message, as before D103.
+            # A caveat reply leads with its notice, including a decline ("no interaction is
+            # recorded" still answers the question). Only an output-safety refusal falls back
+            # to the block message, as before D103.
             if caveat and not result['failure_stage']:
-                if result['refused'] or answer.unsupported_response(result['answer']):
+                if result.get('output_blocked'):
                     result.update(answer=triage.message,route='safety',refused=True)
                 else:
                     result['answer'] = triage.notice+'\n\n'+result['answer']

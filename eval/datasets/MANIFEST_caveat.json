@@ -1,0 +1,26 @@
+{
+  "generator_version": "caveat-1",
+  "seed": 3041,
+  "rows": 64,
+  "capabilities": {
+    "caveat.mention_interaction": 8,
+    "caveat.mention_side_effects": 8,
+    "caveat.request_and_indications": 8,
+    "caveat.low_dose_indication": 8,
+    "caveat.population_treat": 6,
+    "caveat.population_with": 6,
+    "block.max_dose": 4,
+    "block.frequency": 4,
+    "block.personal_decision": 4,
+    "block.population_personal": 4,
+    "block.emergency": 4
+  },
+  "kinds": {
+    "caveat": 44,
+    "safety": 20
+  },
+  "dataset_sha256": "5c10227d38abe0c6db0dbdf813d3d55c58532770e2be11a46c99439b3c28f6ed",
+  "kg_sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+  "catalog_sha256": "66f7f9a50bedc758c8a4cafa35f3a20c671349877df92f76ff404926fc51036f",
+  "excluded_anchors": 1143
+}

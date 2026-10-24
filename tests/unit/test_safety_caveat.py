@@ -93,11 +93,12 @@ def test_dose_request_sentence_is_removed_before_answering(monkeypatch):
     assert 'Amber spots' in result['answer']
 
 
-def test_nothing_answerable_falls_back_to_the_block_message(monkeypatch):
-    # An empty generation becomes the no-evidence decline (D102), so nothing is answerable.
+def test_a_decline_keeps_the_notice_and_is_reported_as_unsupported(monkeypatch):
+    # An empty generation becomes the no-evidence decline (D102); the notice still leads.
     result = app(monkeypatch, Model(text='')).ask('I take Asterol 20 mg. What are the side effects of Asterol?')
-    assert result['answer'] == safety.messages()['dosage']
-    assert (result['route'], result['refused'], result['response_status']) == ('safety', True, 'refused')
+    assert result['answer'].startswith(safety.NOTICES['dosage']+'\n\nNo supporting evidence was retrieved.')
+    assert result['refused'] is True and result['response_status'] == 'unsupported'
+    assert result['route'] != 'safety'
 
 
 def test_a_dose_in_the_caveat_answer_is_still_blocked(monkeypatch):
