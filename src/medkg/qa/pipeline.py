@@ -262,6 +262,9 @@ class Pipeline:
                 if result.get('output_blocked'):
                     result.update(answer=triage.message,route='safety',refused=True)
                 else:
+                    # Detect a decline before the notice hides the reply's opening sentence.
+                    if answer.unsupported_response(result['answer']):
+                        result['refused'] = True
                     result['answer'] = triage.notice+'\n\n'+result['answer']
             if self.settings.cache and not result['failure_stage']:
                 self.cache[key] = (time.monotonic()+self.settings.cache_ttl,copy.deepcopy(result))

@@ -101,6 +101,14 @@ def test_a_decline_keeps_the_notice_and_is_reported_as_unsupported(monkeypatch):
     assert result['route'] != 'safety'
 
 
+def test_a_worded_decline_behind_the_notice_is_still_a_decline(monkeypatch):
+    pipeline = app(monkeypatch, Model(text='Based on the provided evidence, there is no information about gluten.'))
+    monkeypatch.setattr('medkg.qa.answer.ensure_reported', lambda text, *args, **kwargs: (text, None))
+    result = pipeline.ask('I take Asterol 20 mg. What are the side effects of Asterol?')
+    assert result['answer'].startswith(safety.NOTICES['dosage'])
+    assert result['refused'] is True and result['response_status'] == 'unsupported'
+
+
 def test_a_dose_in_the_caveat_answer_is_still_blocked(monkeypatch):
     model = Model(text='Amber spots. Take 20 mg of Asterol twice a day.')
     result = app(monkeypatch, model).ask('I take Asterol 20 mg. What are the side effects of Asterol?')

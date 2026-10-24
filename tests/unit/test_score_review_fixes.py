@@ -62,7 +62,7 @@ def test_entity_support_never_pretends_to_evaluate_predicates_or_negation(relati
     assert measured['quality_passed_semantics']==(
         'automatic_diagnostic_not_semantic_or_clinical_validation')
     assert 'entailment' in measured['metric_semantics']['faithful']
-    assert measured['scorer_version']==VERSION=='deterministic-3.12'
+    assert measured['scorer_version']==VERSION=='deterministic-3.13'
 
 
 def test_empty_entity_extraction_is_visible_and_still_not_semantic_support():
