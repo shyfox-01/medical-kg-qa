@@ -24,10 +24,13 @@ the evidence rows; here a disease–drug–drug chain answered by the LLM planne
 - Every generated query passes a static guard, `EXPLAIN` and a read-only
   transaction. Answers are generated from retrieved evidence only, checked against
   it, and returned with sources and conflict notes.
-- Understands everyday wording: brand names (*Lipitor* → atorvastatin), consumer
-  terms (*high blood pressure*, *lazy eye*) and simple typos.
-- Refuses crisis, dosing and diagnosis requests before any model call, while still
-  answering knowledge questions that merely mention terms like *chest pain*.
+- Understands everyday wording: brand names (*Lipitor* → atorvastatin, plus 1,901
+  RxNorm brands matched exactly), consumer terms (*high blood pressure*, *lazy eye*)
+  and simple typos.
+- Blocks crisis, emergency, diagnosis and dose-only requests before any model call.
+  A question that only mentions a dose, or also asks for knowledge, gets the
+  knowledge part answered behind a fixed notice; an answer containing a dose or a
+  diagnosis is still replaced by a refusal.
 - CLI, FastAPI (JSON and SSE streaming), OpenTelemetry tracing, Docker Compose and
   CI against a fictional fixture graph.
 
@@ -110,6 +113,15 @@ The two systems are statistically indistinguishable (they disagree on 15 questio
 consumer names missing from the catalog. Most other failed answers explicitly say
 that no answer was found, rather than giving a wrong answer
 ([failure severity](docs/evaluation.md#failure-severity)).
+
+**Real consumer questions** (104 questions people sent to the US National Library
+of Medicine, TREC 2017 LiveQA): only 5 are single graph lookups, so they measure
+coverage and behaviour rather than accuracy. Only 45% of the entity names users
+wrote match the catalog. On the questions the system cannot fully answer, most
+replies are explicit declines, answers name entities found in the retrieved
+evidence, and none contains dosing content. Answering the knowledge part behind a
+safety notice instead of refusing whole questions cut safety refusals from 22 to 15
+([details](docs/evaluation.md#real-consumer-questions-trec-2017-liveqa-2026-10-24)).
 
 **Graph vs pure vector** (frozen v2 test split, 240 questions, cloud model; a
 pure-vector control retrieves from the same text plus one paragraph per entity;
@@ -243,6 +255,8 @@ docs/             evaluation, architecture, decision log, project history
 | openFDA | Public domain/CC0 with private-party exceptions; label text stays local |
 | MeSH (NLM) | Free with attribution |
 | BioRED | Research benchmark, used locally for extraction diagnostics |
+| RxNorm Current Prescribable Content (NLM) | No licence required; brand names used as aliases |
+| TREC 2017 LiveQA medical test set | CC BY 4.0 (Ben Abacha et al., 2017); questions stay local |
 | bge-small-en-v1.5 | MIT |
 
 The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
@@ -257,12 +271,18 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
 - Free-form generated Cypher still fails on some complex questions, and the free
   LLM endpoint used here times out and rate-limits under load. The local Gemma 4
   setup avoids that and matches it on dev, but needs about 32 GB of RAM.
-- Brand and consumer names outside the catalog (MeSH, cached openFDA labels,
-  MedlinePlus) are not recognised; a systematic brand-name source is the next step.
+- Consumer disease names and misspellings outside the catalog are not recognised:
+  on real questions only 45% of entity names match. RxNorm brands match exactly, so
+  misspelt brand names are not corrected.
 - Router rules cover the wordings seen during development; unseen phrasings fall
   back to the LLM planner, which recovers only some of them.
-- Questions are generated, not written by people; an acronym shared by several
-  entities stays ambiguous to the scorer.
+- Most questions are generated; the 104 real questions mostly fall outside what the
+  graph can answer. An acronym shared by several entities stays ambiguous to the
+  scorer.
+- The safety notice and refusal rules are deterministic patterns, not a clinical
+  safety classifier. Pregnancy questions and personal medication decisions that
+  mention a dose are refused rather than partly answered; personal decisions
+  without a dose ("Should I stop taking X?") are not gated at all.
 
 ## Documentation
 

@@ -283,12 +283,127 @@ python -m eval.severity eval/runs/v3_test_glm45_cloud_round1.jsonl eval/runs/v3_
 python -m eval.severity eval/runs/v3_b1_gemma4_local_round1.jsonl eval/runs/v3_b1_gemma4_local_fix2_round1.jsonl eval/runs/v3_b2_gemma4_local_round1.jsonl eval/runs/v3_b2_gemma4_local_fix2_round1.jsonl --dataset eval/datasets/structured_v3.jsonl --rescore --names b1-first b1-fixed b2-first b2-fixed
 ```
 
+## Real consumer questions: TREC 2017 LiveQA (2026-10-24)
+
+Every earlier question was generated. To see how the system behaves on questions
+people actually send, the 104 consumer health questions of the TREC 2017 LiveQA
+medical test set (sent to the US National Library of Medicine; CC BY 4.0) were
+turned into a benchmark (D097): each question in two wordings, the user's own
+message and NLM's short summary. Question type, focus and keywords come from NLM's
+manual annotations; entities are matched to the catalog exactly, not by the
+system's own linker; gold comes from the knowledge graph. An independent reviewer
+re-derived all 104 classifications and gold answers from the raw files with zero
+mismatches.
+
+**Scope.** Only 5 of the 104 questions are a single graph lookup or pair (2 yes/no
+questions and 3 dosage questions that must be refused). Most real questions are
+compound, personal, or ask for something the graph does not record (diagnosis,
+prognosis, storage, research, comparisons). The in-scope pass rate is therefore not
+an accuracy figure (a system that refuses everything would pass 8 of 10 rows); what
+this set measures is coverage and behaviour.
+
+**Entity coverage.** 53 of 118 annotated entities (44.9%) match a catalog name or
+synonym exactly: diseases 30/72, drugs 23/43. Real users write "ear wax", "leg
+cramps", "Jock itch", misspell drugs ("Gabamentine", "effextor") and use classes
+("NSAIDS"). Coverage of consumer wording, not graph reasoning, is the first
+bottleneck on real questions.
+
+**Behaviour** (local Gemma 4; "after" includes D100–D103 and the RxNorm aliases):
+
+| | Before | After |
+|---|---:|---:|
+| In-scope rows passed (of 10) | 7 | 9 |
+| Out-of-scope and catalog-gap rows (198): declined | 98 | 112 |
+| answered | 78 | 67 |
+| refused by the safety gate or asked to clarify | 17 | 9 |
+| error | 5 | 10 |
+| Answers containing dosing content | 0 | 0 |
+
+Before the fixes, 77 of the 78 answers named only entities present in the
+retrieved evidence. A language-model rating of those answers (one rater, not human
+labels) found 25 directly relevant, 42 partly relevant and 11 off-topic; 15 of
+the "answered" rows were declines the status classifier missed and 2 were empty
+after verification, both fixed in D102 (hence more declines after). Off-topic
+answers come mostly from planner queries that do not match the question, whose
+rows the completeness guard then reports faithfully. The extra errors after are
+3 model timeouts and 4 generated queries rejected by the Cypher guard; rerun on the
+same code, 3 of those 4 passed, so generated Cypher varies from run to run on long
+real messages (the earlier zero-flip noise baseline was measured on short template
+questions).
+
+**Safety gate on real wording.** Before D103, 22 rows were refused by the safety
+gate: 11 appropriately (dose, tapering, timing, allergy questions) and 11 only
+because the question mentioned a dose ("Zolmitriptan 5mg … contain gluten?",
+"Dicyclomine 20mg, phentermine … adverse effect?", "low dose naltrexone") or a
+population. One dose question was missed ("50,000 IUs per week"); IU and units were
+added to the dose units (D100).
+
+## RxNorm brand names (2026-10-24)
+
+RxNorm Current Prescribable Content (NLM, no licence required) maps brand names to
+ingredients. 1,901 single-ingredient brands were added as aliases of 963 catalog
+drugs (D099–D101). Two independent reviews shaped the change:
+
+- 45 proposed aliases were harmful: wrong mappings (Hextend, K-Phos) and ordinary
+  phrases or names that would link inside unrelated questions ("Morning After",
+  "P & S", "Terrell"); they are excluded.
+- Every long brand name became a target of the linker's single-edit typo
+  correction ("medicine" → Medicone). RxNorm brands are therefore exact-only
+  aliases: they link and score only by exact match, never through typo, fuzzy or
+  vector matching. The cost is that misspelt brands are not corrected.
+- An existing catalog error surfaced: MeSH's hydroxyethyl-starch descriptor had been
+  attached to Pentastarch; 11 of its 13 synonyms are quarantined.
+
+With the previous catalog, the new code links all 1,450 benchmark questions and
+rescores all 1,102 saved answers identically; with the aliases, linking changes
+for exactly four questions, each naming the brand. Measured on the fresh batch b3,
+generated and run before the change (D098):
+
+| | Before | After |
+|---|---:|---:|
+| b3 in scope (182) | 170 (93.4%, CI 88.8–96.2) | 172 (94.5%) |
+| v3 b2 in scope (186), regression | 184 | 185 |
+| v2 brand questions (Tyenne, Abrilada, Rubraca) | 0/3 | 3/3 |
+
+Both b3 fixes are brand-name questions (Nufymco, Ruxience); no question regressed.
+The b3 baseline also confirmed the router's weakness on unseen wordings: 5 of its
+16 failures are routing ("What is the purpose of …", "What specific forms of … are
+documented?").
+
+## Partial answers with a safety notice (2026-10-24)
+
+D103 replaces the whole-question safety gate: crisis, emergency, diagnosis requests,
+personal population advice, personal medication decisions and dose-only requests
+stay blocked before any model call; a question that only mentions a dose, mixes a
+dose request with a knowledge question, or asks impersonally about a condition in a
+population is answered from the graph behind a fixed notice. Against the old gate,
+no decision changes on any generated benchmark (all 83 blocked questions stay
+blocked); 11 LiveQA rows move to answered-with-notice.
+
+On a frozen caveat benchmark (64 template questions, anchors disjoint from every
+earlier benchmark), the local system passes 62: all 20 must-block questions are
+blocked, all 44 caveat answers lead with the notice and contain no dose, and the
+two failures are "Can a low dose of X be used to treat Y?" questions that the
+planner did not resolve (a routing gap, not a safety one). On LiveQA the 11
+changed rows gave 1 correct yes/no answer, 6 declines with the notice, 3 output-guard
+refusals (the answer repeated "5mg tablets" from the question) and 1 off-topic
+list; safety refusals fell from 22 to 15 with no dosing content in any answer. The
+caveat questions are templates written alongside the rules, so they show that the
+mechanism works end to end; the LiveQA rows are the real-wording check.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time
   (4/11 in the final round); coverage depends on the cached MeSH, openFDA and
-  MedlinePlus sources (D049, D060). Typo matching covers one edit in long drug
-  names (D065).
+  MedlinePlus sources (D049, D060) and, for brands, RxNorm (D099–D101, exact match
+  only). On real questions only 45% of annotated entities match the catalog;
+  consumer disease names and misspellings are the main gap. Typo matching covers one
+  edit in long drug names (D065).
+- **Unseen wordings.** Router rules cover the phrasings seen during development;
+  on fresh questions, phrasings such as "What is the purpose of X?" fall to the
+  planner, which does not always recover them (5 of 16 b3 failures).
+- **Run-to-run variation on long questions.** Generated Cypher for long, messy real
+  messages varies between runs; the guard rejects some of these queries.
 - **Generated Cypher and plans.** Invalid plans fell from 10 to 0 after boolean
   normalisation (D062). Intersections now use a template (D082); exclusions and
   multi-hop chains still depend on free-form generated Cypher.
@@ -300,7 +415,9 @@ python -m eval.severity eval/runs/v3_b1_gemma4_local_round1.jsonl eval/runs/v3_b
 
 - v3 questions come from one generator; LLM rewording covers part of the sealed test
   and scores 6–8 points lower, so wording generalisation is only partly measured.
-  There are no human-written questions.
+  The only human-written questions are the 104 LiveQA questions, of which 5 are
+  single graph lookups; their failures were used to design D100–D103, so LiveQA is
+  no longer a fresh measure of those changes.
 
 - Every fix round in D085–D088 was diagnosed on the same 160 dev questions; dev
   scores after these rounds overstate performance on new questions.
