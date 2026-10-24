@@ -15,7 +15,6 @@ import hashlib
 import json
 import random
 from collections import Counter
-from pathlib import Path
 
 from eval import generate_v2 as v2
 from eval.generate_v3 import RELATIONS, ROOT, Graph, anchors_of, single_query
