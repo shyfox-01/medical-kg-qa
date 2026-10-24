@@ -51,18 +51,20 @@ MEDICATION_CONTEXT = (r'\b(?:safe|safely|safety|take|taking|use|using|give|givin
                       r'dose|dosage)\b')
 
 
+ADVICE = (r'\b(?:should|can|could|may|safe|safely|safety|recommend\w*|prescri\w*|'
+          r'take|taking|give|giving|use|using|administer\w*|start|stop|suitable|best|'
+          r'choose|pick|select|advi\w*|ought|would|help)\b')
+
+
 def population_advice(question: str) -> bool:
     """Exempt explicit impersonal graph lookups, never personal medication advice."""
     if not (re.search(POPULATION, question, re.I) and
             re.search(MEDICATION_CONTEXT, question, re.I)):
         return False
-    advice = (r'\b(?:should|can|could|may|safe|safely|safety|recommend\w*|prescri\w*|'
-              r'take|taking|give|giving|use|using|administer\w*|start|stop|suitable|best|'
-              r'choose|pick|select|advi\w*|ought|would|help)\b')
     lookup = (r'^\s*(?:which|what|how many|list|show)\b[\s\S]*'
               r'\b(?:recorded|listed|associated|linked|indicated|contraindicated|'
               r'side effects?|interactions?|targets?)\b')
-    return bool(re.search(PERSONAL+'|'+advice, question, re.I) or
+    return bool(re.search(PERSONAL+'|'+ADVICE, question, re.I) or
                 not re.search(lookup, question, re.I))
 
 
@@ -96,20 +98,137 @@ class Assessment:
     blocked: bool = False
 
 
-def assess(question: str, region: str = 'US') -> Assessment:
+def messages(region: str = 'US') -> dict[str, str]:
     hotline, emergency = RESOURCES.get(region, RESOURCES['US'])
-    messages = {
+    return {
         'crisis': f'If you may harm yourself, contact {hotline} now. If there is immediate danger, call {emergency}. Reach out to someone you trust and avoid being alone.',
         'emergency': f'These symptoms may need urgent care. Call {emergency} or seek emergency medical care now.',
         'dosage': 'I cannot recommend a medication dose. Ask a clinician or pharmacist about your prescription.',
         'special_population': 'Medication safety for this population needs individual professional assessment. Consult a clinician or pharmacist.',
         'diagnosis_request': 'I cannot diagnose you. A clinician must assess your symptoms and medical history.',
     }
+
+
+def assess(question: str, region: str = 'US') -> Assessment:
+    """Whole-question gate: the first matching rule blocks the question."""
+    text = messages(region)
     question = question.replace('’', "'")
     for category, matches in RULES.items():
         if matches(question):
-            return Assessment(category, messages[category], True)
+            return Assessment(category, text[category], True)
     return Assessment()
+
+
+# --- Partial answers (D103) ---------------------------------------------------
+# A question that only mentions a dose, or asks for a dose in one sentence and for
+# knowledge in another, is answered from the graph with a fixed notice; the dose is
+# never given (the answer model is told so and output_violation still blocks any
+# dose or diagnosis in the answer). Crisis, emergency, diagnosis requests, personal
+# population advice and questions that are only a dose request stay blocked.
+NOTICES = {
+    'dosage': 'Note: dosing and decisions about your own medicines need a clinician or pharmacist; '
+              'this answer covers only what the knowledge graph records.',
+    'special_population': 'Note: these records are general, not specific to this population; '
+                          'ask a clinician or pharmacist whether they apply.',
+}
+CAUTION = ('The question also touches dosing or care for a particular person or population: '
+           'report only what the evidence records, and never state doses, dosing schedules, '
+           'diagnoses or personal recommendations.')
+_ANY_AMOUNT = DOSE_AMOUNT+r'|\b(?:high|higher|large|larger|low|lower|this|that|such an?(?: high| low)?|my|his|her|the|a)\s+doses?\b'
+DOSE_REQUEST = re.compile(
+    # How much or how many to take or give, and how often or how long.
+    r'\bhow (?:much|many)\b[^.?!]{0,60}\b(?:take|taken|taking|give|given|use|used|mg|tablets?|pills?|'
+    r'capsules?|units?|iu|doses?)\b|'
+    r'\bhow (?:often|frequently|long)\b[^.?!]{0,60}\b(?:take|taken|taking|use|used|give|given|inject\w*)\b|'
+    r'\bwhen (?:should|do|can|must) (?:i|we|he|she|they|you)\b[^.?!]{0,20}\b(?:take|give|use)\b|'
+    # Which dose: "the correct dosage", "maximum daily dose", "dosage of X", "what dose".
+    r'\b(?:correct|right|proper|recommended|usual|normal|standard|typical|maximum|max|minimum|min|safe|'
+    r'daily|starting|initial|maintenance)\s+(?:daily\s+)?(?:dose|doses|dosage|dosing|amount)\b|'
+    # "What is the dosage of X" asks for a dose; "high doses of X cause Y" only mentions one.
+    r'\bwhat\b[^.?!]{0,30}\b(?:dose|dosage|dosing)\b|'
+    # Whether an amount is safe: "is 50,000 IU safe", "such a high dose safe", "safe to take 20 mg".
+    r'(?:'+_ANY_AMOUNT+r')[^.?!]{0,60}\b(?:safe|safely|too (?:much|high|many)|ok|okay|enough|dangerous|'
+    r'fine|toxic|overdose)\b|'
+    r'\b(?:safe|ok|okay)\b[^.?!]{0,40}\b(?:to take|taking|to give|giving)\b[^.?!]{0,40}(?:'+_ANY_AMOUNT+r')|'
+    # Whether to take an amount or change a dose.
+    r'\b(?:can|should|may|could|must)\s+(?:i|we|he|she|they|you|my \w+)\s+(?:take|give|use|have)\b[^.?!]{0,40}'
+    r'(?:'+DOSE_AMOUNT+'|'+DOSE_SCHEDULE+r')|'
+    r'\b(?:increase|decrease|double|reduce|lower|raise|skip|split|cut|halve|stop)\s+(?:my|the|his|her|their|a|this)\s+'
+    r'(?:dose|doses|dosage|tablets?|pills?)\b', re.I)
+# A sentence naming a dose ("Recommend a dosage.", "Give me a drug dose.") asks for one,
+# unless it asks about something else: "high doses of X cause Y", "low dose X used for Y".
+DOSE_WORD = re.compile(r'\b(?:dose|doses|dosage|dosages|dosing)\b', re.I)
+OTHER_ASK = re.compile(r'\b(?:cause[sd]?|causing|side effects?|adverse|interact\w*|together|combin\w*|'
+                       r'mix\w*|contain\w*|gluten|ingredients?|used (?:to|for|in)|treat\w*|indicated|'
+                       r'reactions?)\b', re.I)
+# Whether someone should take, stop, switch or taper their medicine is a personal decision;
+# the output guard catches doses and diagnoses but not "it is safe for you", so such a
+# question that mentions a dose stays blocked.
+PERSONAL_DECISION = re.compile(
+    r"\b(?:should|can|could|may|must|is it (?:ok|okay|safe|alright|fine)|is this (?:ok|okay|safe|fine)|"
+    r"ok to|okay to|safe to|alright to)\b[^.?!]{0,60}\b(?:take|taking|use|using|stop|stopping|start|starting|"
+    r"switch\w*|continue|quit|give|giving)\b|"
+    r"\b(?:wean\w*|taper\w*|stop taking|stopped taking|come off|coming off|get off)\b", re.I)
+QUESTION_START = re.compile(r'^\s*(?:what|which|who|whom|whose|how|why|when|where|is|are|was|were|can|could|'
+                            r'does|do|did|should|will|would|may|might|has|have|any)\b', re.I)
+
+
+@dataclass
+class Triage:
+    mode: str = 'none'          # 'none', 'caveat' (answer with a notice) or 'block'
+    category: str = 'none'
+    message: str = ''           # the block message; also the reply when a caveat answer is empty
+    notice: str = ''            # prefixed to a caveat answer
+    question: str = ''          # text the pipeline answers (dose-request sentences removed)
+
+
+def sentences(question: str) -> list[str]:
+    """Sentences and lines: the unit in which a dose request is removed."""
+    parts = re.split(r'(?<=[.?!])\s+|\n+|\.{2,}\s*', question)
+    return [part.strip() for part in parts if part and part.strip()]
+
+
+def dose_request(sentence: str) -> bool:
+    return bool(DOSE_REQUEST.search(sentence) or
+                (DOSE_WORD.search(sentence) and not OTHER_ASK.search(sentence)))
+
+
+def is_question(text: str) -> bool:
+    return '?' in text or bool(QUESTION_START.search(text))
+
+
+def triage(question: str, region: str = 'US') -> Triage:
+    """Block, answer with a notice, or pass: the policy of D103."""
+    text = messages(region)
+    question = question.replace('’', "'")
+    for category in ('crisis', 'emergency', 'diagnosis_request'):
+        if RULES[category](question):
+            return Triage('block', category, text[category], question=question)
+    # Population advice is blocked when it is personal, asks what to do, or names no
+    # condition ("Medicines for a newborn?"). An impersonal lookup about a condition in a
+    # population ("treatments for children with X", "drugs that treat X in children") is
+    # answered with a notice.
+    population = population_advice(question)
+    if population and (re.search(PERSONAL+'|'+ADVICE, question, re.I) or not re.search(
+            POPULATION+r'\s+(?:with|who (?:have|has)|having|diagnosed with|suffering from)\b|'
+            r'\btreat\w*\b[^.?!]{1,60}\b(?:in|for|among)\s+(?:\w+\s+)?'+POPULATION, question, re.I)):
+        return Triage('block', 'special_population', text['special_population'], question=question)
+    answer_text, categories = question, (['special_population'] if population else [])
+    if RULES['dosage'](question):
+        parts = sentences(question)
+        rest = [part for part in parts if not dose_request(part)]
+        if len(rest) < len(parts):
+            residual = ' '.join(rest)
+            if len(re.findall(r'[A-Za-z]+', residual)) < 3 or not is_question(residual):
+                return Triage('block', 'dosage', text['dosage'], question=question)
+            answer_text = residual
+        if re.search(PERSONAL, answer_text, re.I) and PERSONAL_DECISION.search(answer_text):
+            return Triage('block', 'dosage', text['dosage'], question=question)
+        categories.insert(0, 'dosage')
+    if not categories:
+        return Triage(question=question)
+    return Triage('caveat', categories[0], text[categories[0]],
+                  '\n'.join(NOTICES[c] for c in categories), answer_text)
 
 
 # Function words of the questions' language. Entity names (Sjögren, de Quervain) carry

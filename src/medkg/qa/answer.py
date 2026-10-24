@@ -79,14 +79,16 @@ def bound_queries(queries: list[dict],max_chars: int = 6000) -> tuple[list[dict]
 
 
 def messages(question: str, rows: list[dict], feedback: str = '',queries: list[dict] | None = None,
-             entities: list[dict] | None = None) -> list[dict]:
-    """entities: question mentions and the graph entities they were linked to (D085)."""
+             entities: list[dict] | None = None, caution: str = '') -> list[dict]:
+    """entities: question mentions and the graph entities they were linked to (D085).
+    caution: the extra rule for questions answered with a safety notice (D103)."""
     def encode(obj):
         return json.dumps(obj).replace('<','\\u003c').replace('>','\\u003e')
     evidence = {'rows':rows,'executed_graph_queries':queries or []}
     if entities:
         evidence['question_entities'] = entities
-    return [{'role':'system','content':PROMPT+('\nVerification feedback: '+feedback if feedback else '')},
+    return [{'role':'system','content':PROMPT+('\n'+caution if caution else '')+
+             ('\nVerification feedback: '+feedback if feedback else '')},
             {'role':'user','content':'<question>'+encode(question)+'</question>\n<evidence>'+encode(
                 evidence)+'</evidence>'}]
 

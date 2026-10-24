@@ -39,11 +39,17 @@ class Pipeline:
                       'trace_id':trace_id,'safety':'none','focus':[],'intent':None,
                       'failure_stage':None,'refused':False,'truncated':False}
             with span('safety'):
-                assessment = safety.assess(question,self.settings.safety_region)
-                result['safety'] = assessment.category
-                if assessment.blocked:
-                    result.update(answer=assessment.message,route='safety',refused=True)
+                # Block, answer the knowledge part with a fixed notice, or pass (D103).
+                triage = safety.triage(question,self.settings.safety_region)
+                result['safety'] = triage.category
+                if triage.mode=='block':
+                    result.update(answer=triage.message,route='safety',refused=True)
                     return self._finish(result,start,before)
+                caveat = triage.mode=='caveat'
+                if caveat:
+                    result['safety_mode'] = 'caveat'
+                asked = triage.question if caveat else question
+                caution = safety.CAUTION if caveat else ''
                 if not safety.english(question):
                     result.update(answer='This demo supports English questions only.',route='language',refused=True)
                     return self._finish(result,start,before)
@@ -62,7 +68,7 @@ class Pipeline:
             stage = 'linking'
             try:
                 with span('linking') as attrs:
-                    resolved,previous = session.resolve(question,history)
+                    resolved,previous = session.resolve(asked,history)
                     candidates,unresolved = self.linker.question_mentions(resolved)
                     result['candidates'] = self.linker.describe(candidates)
                     result['unresolved_mentions'] = unresolved
@@ -214,13 +220,13 @@ class Pipeline:
                     shown = [{k:v for k,v in row.items() if k!='synonyms'} for row in rows]
                     with span('generation'):
                         result['answer'] = self.llm.chat(answer.messages(resolved,shown,queries=query_evidence,
-                                                                         entities=entities))
+                                                                         entities=entities,caution=caution))
                     if self.settings.phase>=3:
                         stage = 'verification'
                         with span('verification'):
                             from medkg.qa.verify import verify_answer
                             result['answer'] = verify_answer(self.llm,resolved,result['answer'],result['contexts'],self.linker,
-                                                             query_evidence,entities)
+                                                             query_evidence,entities,caution)
                     # Verification notices and source footers are not an answer (D102).
                     body = re.split(r'(?m)^\s*(?:Sources:|Research demo;)',result['answer'],maxsplit=1)[0]
                     body = body.replace('Some entries were removed because their entities '
@@ -248,6 +254,13 @@ class Pipeline:
             except Exception as exc:
                 result.update(answer='The request could not be completed. Please retry or simplify the question.',
                               failure_stage=stage,error_type=type(exc).__name__)
+            # A caveat answer leads with its notice; with nothing answerable (a decline or an
+            # output-safety refusal) it falls back to the block message, as before D103.
+            if caveat and not result['failure_stage']:
+                if result['refused'] or answer.unsupported_response(result['answer']):
+                    result.update(answer=triage.message,route='safety',refused=True)
+                else:
+                    result['answer'] = triage.notice+'\n\n'+result['answer']
             if self.settings.cache and not result['failure_stage']:
                 self.cache[key] = (time.monotonic()+self.settings.cache_ttl,copy.deepcopy(result))
                 if len(self.cache)>256:
@@ -301,7 +314,8 @@ class Pipeline:
     def _finish(self,result: dict,start: float,before: dict) -> dict:
         if result['failure_stage']:
             result['response_status'] = 'error'
-        elif result['route'] in ('safety','language','scope') or result['safety']!='none':
+        elif result['route'] in ('safety','language','scope') or (
+                result['safety']!='none' and result.get('safety_mode')!='caveat'):
             result['response_status'] = 'refused'
         elif result['refused'] or answer.unsupported_response(result['answer']):
             result.update(response_status='unsupported',refused=True)
