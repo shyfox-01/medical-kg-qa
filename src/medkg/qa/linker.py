@@ -25,6 +25,50 @@ class Candidate:
     span: tuple[int,int] | None = None
 
 
+# D106: words that end a noun phrase or do not change which entity it names.
+PHRASE_BREAK = frozenset('''
+a an the of for about with without and or but nor between versus vs is are was were be been being
+am do does did can could may might must shall should will would to from in on at by into onto over
+under after before during while than as if then that this these those there here what which who whom
+whose how why when where i me my we our you your he him his she her they them their it its any some
+all no not each every both other such own same so very also just only even still please thank thanks
+yes ok okay drug drugs medicine medicines medication medications treatment treatments therapy disease
+diseases condition conditions disorder disorders illness symptom symptoms sign signs side effect
+effects gene genes protein proteins phenotype phenotypes entity entitie entities target targets
+patient patients people person treat treats treated treating cause causes caused causing use used
+uses using take takes taking taken give given help helps prevent prevents prevented detect detected
+indicated prescribed approved contraindicated recorded listed associated linked known documented
+reported present presents presenting occur occurs include includes belong belongs trigger triggers
+represent represents produce produces manifest manifests capable safe safely unsafe transmitted
+contagious inherited hereditary aggravated similar possible especially beneficial stay receive
+received manufactured expired always often usually storage requirement requirements interact
+interacts interaction interactions combined right left new old get got have has had know tell show
+list find search explain mean means name names called beside besides off stop stopping start
+starting taper tapering wean weaning switch switching describe describes described define defines
+definition overview information info details regarding concerning medlineplus say says write
+experience experiences experiencing experienced provide provides drink drinks drinking eat eats
+catch catches caught buy buying really hi hello hey location general health
+'''.split())
+# Common words also end a phrase, except a few that modify a medical name ("cold" sore,
+# "high" voltage shock, "red" eye).
+PHRASE_COMMON = COMMON_WORDS - {'cold', 'hot', 'high', 'low', 'red', 'eye'}
+NEUTRAL_MODIFIERS = frozenset('''
+severe mild moderate acute chronic bad terrible early late advanced recurrent frequent persistent
+constant sudden occasional serious extreme current suspected diagnosed long term stage huge big
+large small little tiny slight minor
+tablet tablets capsule capsules patch patches pill pills mg mcg ml dose doses dosage xl xr er sr cr
+extended release strength extra regular generic brand oral topical
+'''.split())
+PHRASE_STOP = PHRASE_BREAK | PHRASE_COMMON | NEUTRAL_MODIFIERS
+# Head nouns that name a different thing than the word before them ("sodium deficiency" is
+# not Sodium). An overdose, vaccine, surgery or withdrawal of X is answered from X's own
+# evidence (the label's overdose section), so those words do not start a check.
+HEAD_NOUNS = frozenset('''
+deficiency deficiencies allergy allergies intolerance injury injuries infection infections
+cancer tumor tumour syndrome
+'''.split())
+
+
 class Linker:
     def __init__(self, entities: list[dict], embedder=None, vectors=None, vector_aliases=None):
         self.entities = {e['uid']: e for e in entities}
@@ -137,6 +181,52 @@ class Linker:
             ambiguous = len(ranked)>1 and ranked[0][1]-ranked[1][1]<0.02
             return [self._candidate(uid, score, 'vector', ambiguous) for uid, score in ranked]
         return []
+
+    def partial_phrases(self, question: str, candidates: list[Candidate]) -> list[tuple[str, list[Candidate]]]:
+        """Exact matches that cover only part of a noun phrase (D106).
+
+        A modifier on the left ("giant cell" vasculitis, "jock" itch, "sleep" paralysis) or
+        a head noun on the right (iron "overdose") can name a different entity than the
+        matched part. Question words, relation and meta words, severity and time words,
+        doses and product forms do not.
+        """
+        words = normalize(question).split()
+        tokens = list(re.finditer(r'\w+', question))
+        original = [t.group() for t in tokens]
+        if len(words) != len(tokens):
+            # Case folding split a word ("İ" -> "i" + a combining dot); spans cannot be mapped.
+            return []
+        # A phrase does not run across punctuation ("on [DATE]. Pains started") and stops at
+        # a possessive "s" ("the patient's itch"); hyphens join ("auto-immune").
+        joined = [bool(re.fullmatch(r"[ \t'’-]*", question[a.end():b.start()]))
+                  for a, b in zip(tokens, tokens[1:])]
+        spans: dict[tuple, list[Candidate]] = {}
+        for candidate in candidates:
+            if candidate.method == 'exact' and candidate.span:
+                spans.setdefault(tuple(candidate.span), []).append(candidate)
+        # Every kept name is occupied, including a corrected one ("hydrochlorothiazid").
+        occupied = {i for c in candidates if c.span for i in range(*c.span)}
+
+        def forms(i: int) -> set[str]:
+            # Both forms: the plural strip turns "always" into "alway", "allergies" into "allergie".
+            return {words[i], original[i].casefold()}
+
+        def content(i: int) -> bool:
+            return (i not in occupied and words[i].isalpha() and words[i] != 's'
+                    and not forms(i) & PHRASE_STOP)
+        found = []
+        for (start, end), group in sorted(spans.items()):
+            left = start
+            while left > 0 and joined[left - 1] and content(left - 1):
+                left -= 1
+            right = end
+            while (right < len(words) and joined[right - 1] and forms(right) & HEAD_NOUNS
+                   and right not in occupied):
+                right += 1
+            if left < start or right > end:
+                # The phrase as written, so a confirmed name can replace it in the question.
+                found.append((' '.join(original[left:right]), group))
+        return found
 
     def lookalikes(self, mention: str, exclude: set[str], max_edits: int = 2) -> set[str]:
         """Drugs and diseases other than `exclude` with an alias within `max_edits` edits (D105)."""

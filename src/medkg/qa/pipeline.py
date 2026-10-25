@@ -84,6 +84,10 @@ class Pipeline:
                     return self._finish(result,start,before)
                 # Corrected names are confirmed by the user, or used with a visible note (D105).
                 checked = confirm.review(self.linker,candidates,unresolved)
+                # A partly matched phrase ("iron overdose" -> Iron) is checked by the model (D106).
+                if not checked.suggestions:
+                    checked = confirm.check_phrases(self.linker,resolved,checked,confirm.model_judge(self.llm),
+                                                    typed=question)
                 if checked.suggestions:
                     result.update(answer=confirm.clarification(checked.suggestions),route='linking',
                                   refused=True,suggestions=confirm.describe(checked.suggestions))

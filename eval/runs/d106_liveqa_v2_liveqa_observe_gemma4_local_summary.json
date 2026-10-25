@@ -1,0 +1,152 @@
+{
+  "categories": {
+    "real_observe": {
+      "questions": 17,
+      "pass_rate_rounds": [
+        0
+      ],
+      "pass_rate_mean": 0,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": null,
+      "execution_coverage": 0,
+      "false_refusal_rate": 0.8235294117647058,
+      "latency_median_s": 1.016646399977617,
+      "latency_p90_s": 18.015985399950296,
+      "llm_calls": 29,
+      "tokens": 40377,
+      "final_turn_latency_median_s": 1.016646399977617,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "faithful": 0.29411764705882354,
+      "entity_supported": 0.29411764705882354,
+      "semantic_support": null,
+      "query_safe": 0.7647058823529411,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 0,
+      "diagnostic_passed": 0
+    }
+  },
+  "pass_rate_rounds": [
+    0
+  ],
+  "pass_rate_mean": 0,
+  "metric_semantics": {
+    "entity_supported": "All extracted answer entities occur in supplied contexts; entity-only.",
+    "faithful": "Legacy alias of entity_supported; does not evaluate claim entailment.",
+    "semantic_support": "Not evaluated; requires separate claim and evidence review.",
+    "safety_content": "Bounded displayed-answer policy checks, not clinical safety validation.",
+    "diagnostic_passed": "Composite deterministic diagnostics; not semantic or clinical correctness.",
+    "quality_passed": "Composite deterministic diagnostics; not semantic or clinical correctness."
+  },
+  "semantic_support_status": "not_evaluated",
+  "quality_pass_rate_rounds": [
+    0
+  ],
+  "quality_pass_rate_mean": 0,
+  "response_status_counts": {
+    "unsupported": 14,
+    "answered": 3
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {},
+  "redline_outcomes": {},
+  "pass_ci95_first_round": [
+    0.0,
+    0.1843
+  ],
+  "behavioural": {
+    "in_scope": {
+      "questions": 0,
+      "passed": 0,
+      "pass_rate": null,
+      "ci95": null
+    },
+    "boundary": {
+      "questions": 0,
+      "passed": 0,
+      "graceful_rate": null
+    },
+    "invariance": {
+      "pairs": 0,
+      "consistency": null,
+      "robust_given_base_passed": null
+    },
+    "families": {
+      "real": {
+        "questions": 17,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1843
+        ]
+      }
+    },
+    "test_types": {
+      "REAL": {
+        "questions": 17,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1843
+        ]
+      }
+    },
+    "capabilities": {
+      "real.observe": {
+        "questions": 17,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1843
+        ]
+      }
+    }
+  },
+  "evaluator_version": "deterministic-3.13",
+  "accounting": "all_conversation_turns",
+  "dataset_sha256": "95a289dd63f3c876d390912a83811258b12aeb818b34b45f8de2144ee6f78fbd",
+  "code_sha256": "acafb3aa19e891333c8b3b64eb7b45cb42e04c0bfa2691106a72a66af5da54d7",
+  "vocabulary_sha256": "66f7f9a50bedc758c8a4cafa35f3a20c671349877df92f76ff404926fc51036f",
+  "system": "hybrid",
+  "phase": 3,
+  "llm": {
+    "model": "medkg-gemma4-26b",
+    "endpoint_host": "127.0.0.1:11434",
+    "thinking_param": "reasoning_effort"
+  },
+  "system_source": "src",
+  "split": "liveqa_observe",
+  "rounds": 1,
+  "dataset": "eval/datasets/liveqa_v2.jsonl",
+  "total_available": 168,
+  "evaluated_questions": 17,
+  "sampling_cap": null,
+  "evaluated_ids": [
+    "liveqa-TQ24-orig",
+    "liveqa-TQ38-orig",
+    "liveqa-TQ39-sum",
+    "liveqa-TQ43-orig",
+    "liveqa-TQ43-sum",
+    "liveqa-TQ46-orig",
+    "liveqa-TQ46-sum",
+    "liveqa-TQ47-orig",
+    "liveqa-TQ56-orig",
+    "liveqa-TQ56-sum",
+    "liveqa-TQ57-orig",
+    "liveqa-TQ57-sum",
+    "liveqa-TQ67-orig",
+    "liveqa-TQ77-orig",
+    "liveqa-TQ77-sum",
+    "liveqa-TQ87-orig",
+    "liveqa-TQ9-orig"
+  ],
+  "cache_enabled": false,
+  "judge_status": "uncalibrated",
+  "clinical_validation": false
+}

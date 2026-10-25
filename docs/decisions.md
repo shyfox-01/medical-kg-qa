@@ -41,6 +41,7 @@ system and its evaluation today.
 | Safety | Answer the knowledge part with a fixed notice; keep emergencies, dose-only requests and personal decisions blocked | D103 |
 | Safety | Personal medication decisions without a dose are blocked; "Can I take A with B?" is answered behind a notice | D104 |
 | Linking | Corrected names are confirmed ("Did you mean …?") or used with a visible note; vector matches never become silent anchors | D105 |
+| Linking | A match that covers part of a phrase ("jock itch" → ITCH) is checked by the model choosing among catalog entries; a different choice is asked back, never used silently | D106 |
 
 ## D001 — Environment and scope
 
@@ -3172,3 +3173,60 @@ candidates of mixed quality ("drug and young people" → substance-related
 disorder) and none of the 16 names real users wrote that the catalog lacks; those
 are misspellings (now asked back), drug classes ("NSAIDS"), vaccines ("Shingles
 shot") and modified names ("severe depression").
+
+## D106 — Check partly matched phrases with the model (2026-10-25)
+
+An exact match can cover only part of what the user named: "jock itch" matched the
+gene ITCH, "Ear Ache" the gene ACHE, "sleep paralysis" Paralysis, "electrical high
+voltage shock" circulatory Shock and "giant cell vasculitis" plain Vasculitis. The
+rest of the phrase was ignored, so the answer was about a different entity or
+nothing was found. Rules cannot tell "jock itch" (a different condition) from
+"severe depression" (the same one); the model can, if it only has to choose.
+
+`Linker.partial_phrases` finds exact matches with an extra word in the same clause:
+a content word on the left (not a question, relation, meta or common word, not a
+severity, size, dose or product-form word) or, on the right, a head noun that names
+a different thing (deficiency, allergy, intolerance, injury, infection, cancer,
+tumour, syndrome). Punctuation and a possessive "s" end a phrase, and a name
+corrected by D105 is never part of one. Overdose, vaccine, surgery and
+withdrawal are not head nouns here: earlier runs answered "iron overdose" from the
+Iron label's overdose section and "shingles vaccine" from herpes zoster evidence.
+
+For each phrase, `confirm.check_phrases` shows the answer model up to six catalog
+entries (the matched entity plus linker lookups of the whole phrase) and asks for
+one number, or 0 for none (JSON, temperature 0, phrase lower-cased because the
+choice changed with letter case). The matched entity keeps the question as before.
+A different entity, or none, becomes a "Did you mean …?" question with the model's
+choice first. It never becomes a silent anchor. A failed or invalid reply keeps the
+match. The check is skipped when D105 already asks. The demo page replaces the
+phrase as written with the confirmed name, and the resubmitted question does not
+trigger again. A phrase that only a follow-up rewrite produced ("that deficiency" →
+"Iron deficiency") is not checked, because the page could not replace it. An
+independent review found these cases, plus a crash on letters that case folding
+splits ("İ"), before the commit.
+
+Feasibility probe (local Gemma 4; expected choices set by Claude before the run, a
+judgement, not human labels): 19/20 on development phrases after one prompt
+revision, 5/6 on held-out ones (the miss, "aspirin overdose", no longer triggers).
+
+Measured (local Gemma 4, live run matches the offline decisions):
+
+| Set | Questions | Trigger | Asked back |
+|---|---|---|---|
+| Generated v1, v2, v3 b1–b3, caveat | 1,445 | 0 | 0 |
+| LiveQA v2 | 208 | 19 | 14 |
+| Text v1 (MedlinePlus, phase 2) | 80 | 5 | 3 |
+
+Of the 14 LiveQA rows asked back, 10 had been refused or had failed, 3 were already
+asked back for another name, and 1 had been answered about the wrong entity
+("facial itch" checked against the gene ITCH). Claude's reading of the 14 (not
+human labels): 6 now offer a better entry (temporal arteritis, streptococcal
+infection, ear pain, pruritus, autoimmune disease of blood), 6 show that the match
+is a different thing (ITCH, Shock, Paralysis), and 2 are debatable ("rib cage pain"
+→ Pain). The 3 text rows were answered from MedlinePlus before and now need one
+confirmation ("Anal Cancer" → anus neoplasm, "Steatotic Liver Disease" → fatty
+liver disease, "Hemorrhagic Stroke" → stroke disorder). A triggered question costs
+one extra model call; questions asked back stop after it (1.1 s mean).
+
+LiveQA rows were used to set the stop words and head nouns, so LiveQA is not a
+fresh measure of D106.

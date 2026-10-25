@@ -94,6 +94,64 @@ def review(linker, candidates: list, unresolved: list[str]) -> Review:
     return result
 
 
+JUDGE_PROMPT = (
+    'You map a phrase from a medical question to entries of a knowledge graph. Choose the entry '
+    'that names what the phrase refers to in this question. Words that only describe the question '
+    '(safe, transmitted, prevent, storage, a dose or tablet strength, how severe or how long) do not '
+    'change the entry. An entry that is broader than the phrase, or a different thing that shares a '
+    'word, does not match: "hay fever" is not Fever, "skin cancer" is not just Cancer, "sodium '
+    'deficiency" is not Sodium. If no entry names what the user means, answer 0. Reply with JSON '
+    '{"choice": <number>} only.')
+
+
+def model_judge(llm):
+    """The answer model as a constrained chooser among catalog entries (D106); None on failure."""
+    def judge(question: str, phrase: str, options: list) -> int | None:
+        listing = '\n'.join(f'{i}. {c.name} ({c.label})' for i, c in enumerate(options, 1))
+        try:
+            reply = llm.chat_json([{'role': 'system', 'content': JUDGE_PROMPT},
+                                   {'role': 'user', 'content': f'Question: {question}\nPhrase: "{phrase.casefold()}"\n'
+                                                               f'Entries:\n{listing}\n0. none of these'}], 60)
+            choice = int(reply.get('choice'))
+        except Exception:
+            return None
+        return choice if 0 <= choice <= len(options) else None
+    return judge
+
+
+def written(phrase: str, text: str) -> bool:
+    """The phrase occurs in the text as typed (the demo page replaces it there)."""
+    pattern = r'\W+'.join(map(re.escape, phrase.split()))
+    return bool(re.search(rf'(?<!\w){pattern}(?!\w)', text, re.I))
+
+
+def check_phrases(linker, question: str, checked: Review, judge, typed: str | None = None) -> Review:
+    """Ask the model whether a partly matched phrase names the matched entity (D106).
+
+    The model only chooses among catalog entries found by the linker; a different choice,
+    or none of them, becomes a "Did you mean" question for the user, never a silent anchor.
+    A failed or invalid reply keeps the exact match, as before. A phrase that is not in
+    the typed question (it came from a follow-up rewrite) is not checked, since the
+    confirmed name could not replace it.
+    """
+    if judge is None:
+        return checked
+    for phrase, group in linker.partial_phrases(question, checked.kept):
+        if typed is not None and not written(phrase, typed):
+            continue
+        options = {c.uid: c for c in group}
+        for c in linker.link(phrase):
+            options.setdefault(c.uid, c)
+        options = list(options.values())[:6]
+        choice = judge(question, phrase, options)
+        if choice is None or (choice and options[choice-1].uid in {c.uid for c in group}):
+            continue
+        offered = ([options[choice-1]] if choice else []) + group
+        checked.kept = [c for c in checked.kept if c not in group]
+        checked.suggestions.append((phrase, offered))
+    return checked
+
+
 def describe(groups: list) -> list[dict]:
     return [{'mention': mention, 'options': [{'uid': c.uid, 'name': c.name, 'label': c.label} for c in group]}
             for mention, group in groups]

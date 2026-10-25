@@ -252,7 +252,7 @@
     function replaceMention(question, mention, name) {
       // The confirmed name replaces what was typed; mentions are matched case-insensitively.
       const escaped = mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\W+");
-      const pattern = new RegExp(escaped, "i");
+      const pattern = new RegExp(`(?<!\\w)${escaped}(?!\\w)`, "i");
       return pattern.test(question) ? question.replace(pattern, name) : `${question} (${name})`;
     }
 

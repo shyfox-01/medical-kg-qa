@@ -406,6 +406,15 @@ need one confirmation, six had failed and now get the right suggestion, and one
 consumer-term question ("pinworms") regresses. On real LiveQA messages, vector
 matches of ordinary words ("hands", "Ear", "clear") no longer become anchors.
 
+D106 checks exact matches that cover only part of a phrase ("jock itch" → the gene
+ITCH, "sleep paralysis" → Paralysis): the answer model chooses among catalog
+entries, and a different choice is asked back. No generated benchmark question
+triggers it (0 of 1,445). On LiveQA 19 of 208 rows trigger and 14 are asked back;
+10 of those had been refused or had failed, and 6 now offer a better entry
+(temporal arteritis for "giant cell vasculitis", pruritus for "facial itch"). Three
+text-set questions now need one confirmation. These LiveQA rows were used to set
+the rules.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time
@@ -431,7 +440,7 @@ matches of ordinary words ("hands", "Ear", "clear") no longer become anchors.
 - v3 questions come from one generator; LLM rewording covers part of the sealed test
   and scores 6–8 points lower, so wording generalisation is only partly measured.
   The only human-written questions are the 104 LiveQA questions, of which 5 are
-  single graph lookups; their failures were used to design D100–D103, so LiveQA is
+  single graph lookups; their failures were used to design D100–D106, so LiveQA is
   no longer a fresh measure of those changes.
 
 - Every fix round in D085–D088 was diagnosed on the same 160 dev questions; dev
