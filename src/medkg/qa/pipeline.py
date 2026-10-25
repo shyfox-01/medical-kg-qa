@@ -9,7 +9,7 @@ from collections import OrderedDict
 from medkg.config import ROOT, Settings
 from medkg.graph.store import GraphStore
 from medkg.llm import LLMClient
-from medkg.qa import answer, planner, safety, scope, session
+from medkg.qa import answer, confirm, planner, safety, scope, session
 from medkg.qa.linker import Linker, label_choices
 from medkg.qa.router import is_count, route, wants_shared
 from medkg.retrieval import templates, text2cypher
@@ -50,6 +50,7 @@ class Pipeline:
                     result['safety_mode'] = 'caveat'
                 asked = triage.question if caveat else question
                 caution = safety.CAUTION if caveat else ''
+                notices = [triage.notice] if caveat else []
                 if not safety.english(question):
                     result.update(answer='This demo supports English questions only.',route='language',refused=True)
                     return self._finish(result,start,before)
@@ -81,6 +82,19 @@ class Pipeline:
                                'Please provide the exact drug name before I continue.',
                         route='linking', refused=True, quarantined_mentions=quarantined)
                     return self._finish(result,start,before)
+                # Corrected names are confirmed by the user, or used with a visible note (D105).
+                checked = confirm.review(self.linker,candidates,unresolved)
+                if checked.suggestions:
+                    result.update(answer=confirm.clarification(checked.suggestions),route='linking',
+                                  refused=True,suggestions=confirm.describe(checked.suggestions))
+                    return self._finish(result,start,before)
+                candidates,unresolved = checked.kept,checked.unresolved
+                result['candidates'] = self.linker.describe(candidates)
+                result['unresolved_mentions'] = unresolved
+                result['focus'] = [c.name for c in candidates if not c.ambiguous][:2]
+                if checked.corrections:
+                    result['corrections'] = confirm.describe(checked.corrections)
+                    notices.append(confirm.correction_notice(checked.corrections))
                 # A name with several readings of one label (two diseases called
                 # "open-angle glaucoma") is resolved by the user, not guessed (D093).
                 if candidates and label_choices(candidates) is None:
@@ -258,14 +272,16 @@ class Pipeline:
             # A caveat reply leads with its notice, including a decline ("no interaction is
             # recorded" still answers the question). Only an output-safety refusal falls back
             # to the block message, as before D103.
-            if caveat and not result['failure_stage']:
+            # Name corrections (D105) are noted the same way.
+            if notices and not result['failure_stage']:
                 if result.get('output_blocked'):
-                    result.update(answer=triage.message,route='safety',refused=True)
+                    if caveat:
+                        result.update(answer=triage.message,route='safety',refused=True)
                 else:
                     # Detect a decline before the notice hides the reply's opening sentence.
                     if answer.unsupported_response(result['answer']):
                         result['refused'] = True
-                    result['answer'] = triage.notice+'\n\n'+result['answer']
+                    result['answer'] = '\n'.join(notices)+'\n\n'+result['answer']
             if self.settings.cache and not result['failure_stage']:
                 self.cache[key] = (time.monotonic()+self.settings.cache_ttl,copy.deepcopy(result))
                 if len(self.cache)>256:

@@ -138,6 +138,34 @@ class Linker:
             return [self._candidate(uid, score, 'vector', ambiguous) for uid, score in ranked]
         return []
 
+    def lookalikes(self, mention: str, exclude: set[str], max_edits: int = 2) -> set[str]:
+        """Drugs and diseases other than `exclude` with an alias within `max_edits` edits (D105)."""
+        key, found = normalize(mention), set()
+        for label in ('Drug', 'Disease'):
+            index = self.by_label.get(label, {})
+            for alias, _, _ in process.extract(key, index.keys(), scorer=DamerauLevenshtein.distance,
+                                               score_cutoff=max_edits, limit=None):
+                found.update(index[alias])
+        return found - exclude
+
+    def edits_to(self, mention: str, uid: str) -> int:
+        """Fewest edits from the mention to any exact alias of the entity."""
+        key = normalize(mention)
+        return min((DamerauLevenshtein.distance(key, normalize(alias))
+                    for alias in exact_names(self.entities[uid])), default=99)
+
+    def nearest(self, mention: str, max_edits: int = 2, limit: int = 3) -> list[Candidate]:
+        """Drugs and diseases closest in spelling to an unresolved name, for a suggestion."""
+        key, ranked = normalize(mention), {}
+        for label in ('Drug', 'Disease'):
+            index = self.by_label.get(label, {})
+            for alias, distance, _ in process.extract(key, index.keys(), scorer=DamerauLevenshtein.distance,
+                                                      score_cutoff=max_edits, limit=None):
+                for uid in index[alias]:
+                    ranked[uid] = min(distance, ranked.get(uid, 99))
+        order = sorted(ranked, key=lambda uid: (ranked[uid], self.entities[uid]['name']))[:limit]
+        return [self._candidate(uid, 100 - 10 * ranked[uid], 'suggestion', len(order) > 1) for uid in order]
+
     def _candidate(self, uid: str, score: float, method: str, ambiguous: bool) -> Candidate:
         entity = self.entities[uid]
         return Candidate(uid, entity['name'], entity['label'], score, method, ambiguous)

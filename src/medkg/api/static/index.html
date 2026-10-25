@@ -104,6 +104,26 @@
       min-width: 0;
     }
     .answer { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .notes {
+      margin: 0 0 14px;
+      padding: 10px 14px;
+      border-left: 4px solid var(--notice-text);
+      border-radius: 6px;
+      background: var(--notice);
+      color: var(--notice-text);
+      font-weight: 600;
+      white-space: pre-wrap;
+    }
+    .confirm {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      background: var(--soft);
+    }
+    .confirm p { margin: 0 0 10px; font-size: 1.05rem; font-weight: 650; }
+    .confirm .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .confirm .choose { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
     .thinking { color: var(--muted); }
     .error { color: var(--error); }
     .badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
@@ -229,8 +249,51 @@
       section.append(wrapper);
     }
 
-    function renderResult(card, result) {
-      card.replaceChildren(element("div", "answer", result.answer ?? ""));
+    function replaceMention(question, mention, name) {
+      // The confirmed name replaces what was typed; mentions are matched case-insensitively.
+      const escaped = mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\W+");
+      const pattern = new RegExp(escaped, "i");
+      return pattern.test(question) ? question.replace(pattern, name) : `${question} (${name})`;
+    }
+
+    function confirmBox(card, result, question) {
+      // D105: a corrected name is confirmed by the user before anything is answered.
+      const box = element("div", "confirm");
+      box.setAttribute("role", "group");
+      for (const group of result.suggestions) {
+        const options = group.options ?? [];
+        box.append(element("p", "", options.length === 1
+          ? `Did you mean “${options[0].name}”? You wrote “${group.mention}”.`
+          : `Did you mean one of these? You wrote “${group.mention}”.`));
+        const choices = element("div", "choices");
+        for (const option of options) {
+          const button = element("button", "choose", `Yes, ${option.name} (${option.label})`);
+          button.type = "button";
+          button.addEventListener("click", () => {
+            input.value = replaceMention(question, group.mention, option.name);
+            form.requestSubmit();
+          });
+          choices.append(button);
+        }
+        box.append(choices);
+      }
+      const none = element("button", "", "None of these");
+      none.type = "button";
+      none.addEventListener("click", () => { box.remove(); input.focus(); });
+      box.append(element("div", "choices"));
+      box.lastChild.append(none);
+      card.append(box);
+    }
+
+    function renderResult(card, result, question) {
+      // Leading "Note:" lines (safety notice, name corrections) are shown highlighted.
+      const lines = (result.answer ?? "").split("\n");
+      let split = 0;
+      while (split < lines.length && lines[split].startsWith("Note:")) split++;
+      card.replaceChildren();
+      if (split) card.append(element("div", "notes", lines.slice(0, split).join("\n")));
+      card.append(element("div", "answer", lines.slice(split).join("\n").replace(/^\n+/, "")));
+      if (result.suggestions?.length) confirmBox(card, result, question);
       const badges = element("div", "badges");
       badges.append(element("span", "badge route", routeNames.get(result.route) ?? result.route ?? ""));
       badges.append(element("span", "badge", result.response_status ?? ""));
@@ -301,7 +364,7 @@
           card.replaceChildren(element("p", "error", message));
         } else {
           const result = await response.json();
-          renderResult(card, result);
+          renderResult(card, result, question);
           history.push({question, focus: result.focus || [], intent: result.intent ?? null});
         }
       } catch {

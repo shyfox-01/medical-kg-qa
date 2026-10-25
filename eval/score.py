@@ -27,7 +27,7 @@ COUNT_LABEL = re.compile(r'\bcount\s*[:=]\s*(\+?\d[\d,]*(?:\.\d+)?)',re.I)
 DENIAL = re.compile(r"\b(?:no (?:recorded |known |documented )?interactions?|(?:does|do) not (?:\w+ )?interact"
                     r"|doesn't interact|not (?:known|recorded) to interact|no (?:supporting )?evidence|not recorded"
                     r"|there (?:is|are) no|cannot (?:answer|determine|confirm))\b",re.I)
-CLARIFY = re.compile(r'clarif|which .{0,40} do you mean|please (?:provide|specify|check)|'
+CLARIFY = re.compile(r'clarif|which .{0,40} do you mean|did you mean|please (?:provide|specify|check|confirm)|'
                      r'(?:could|can) ?not (?:find|identify|recogni[sz]e)|not (?:found|recogni[sz]ed)|'
                      r'no (?:matching|such) (?:entity|drug|disease)|unable to (?:find|identify)|'
                      r'does not uniquely identify',re.I)
