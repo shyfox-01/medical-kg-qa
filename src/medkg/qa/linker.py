@@ -70,6 +70,8 @@ cancer tumor tumour syndrome
 # D107: a name joined to a product or function word ("metformintablets", normalised).
 SPACING_TAILS = frozenset('tablet pill capsule dose dosage injection cream with and for side'.split())
 SPACING_MIN_CHARS = 7
+# Endings of contractions and possessives ("what's", "don't", "I'd", "mother's").
+CLITICS = frozenset('s t d ll re ve m'.split())
 SPACING_MAX_WORDS = 8
 # Words that never start or end a space fix: "ramipril at" is not Ramiprilat, "me
 # prednisone" is not Meprednisone, "the coma" is not thecoma. A name may still end in a
@@ -309,12 +311,13 @@ class Linker:
         words = normalize(question).split()
         original = re.findall(r'\w+',question)
         candidates, occupied, quarantined = {}, set(), []
+        clitics = self.clitics(question, words)
         for size in self.alias_sizes:
             if size>len(words):
                 continue
             for start in range(len(words)-size+1):
                 positions = set(range(start, start+size))
-                if occupied & positions:
+                if occupied & positions or start in clitics:
                     continue
                 key = ' '.join(words[start:start+size])
                 if key in GENERIC_ANCHORS or ambiguous_word(key,' '.join(original[start:start+size])):
@@ -333,7 +336,7 @@ class Linker:
                     quarantined.append(key)
         if exact_only:
             return list(candidates.values()),quarantined
-        self._spacing(question, words, candidates, occupied)
+        self._spacing(question, words, candidates, occupied, clitics)
         cues = {'of','for','about','with','does','and','between','versus','vs','is','are',
                 'can','could','may'}
         stops = cues | {'interact','interacts','target','targets','treat','treats','is',
@@ -390,7 +393,20 @@ class Linker:
                 unresolved.append(mention)
         return list(candidates.values()),unresolved
 
-    def _spacing(self, question: str, words: list[str], candidates: dict, occupied: set) -> None:
+    @staticmethod
+    def clitics(question: str, words: list[str]) -> set[int]:
+        """Word positions that end a contraction or possessive. Such an "s" never starts a
+        name: "What's warfarin for?" is not (S)-Warfarin (D109). A name may still contain
+        one ("Crohn's disease")."""
+        tokens = list(re.finditer(r'\w+', question))
+        if len(tokens) != len(words):
+            return set()
+        return {i for i in range(1, len(tokens))
+                if re.fullmatch(r"['\u2019]", question[tokens[i - 1].end():tokens[i].start()])
+                and tokens[i].group().casefold() in CLITICS}
+
+    def _spacing(self, question: str, words: list[str], candidates: dict, occupied: set,
+                 clitics: frozenset = frozenset()) -> None:
         """Names typed with a missing or extra space (D107).
 
         Up to eight adjacent words are joined and looked up without spaces ("para
@@ -415,7 +431,7 @@ class Linker:
                 window = range(start, start + size)
                 end = start + size - 1
                 # Commas occur inside names ("bone dysplasia, lethal Holmgren").
-                if (not all(words[i].isalnum() for i in window)
+                if (start in clitics or not all(words[i].isalnum() for i in window)
                         or forms(start) & SPACING_STOP or forms(end) & SPACING_STOP
                         or all(forms(i) & self.known_words for i in window)
                         or any(not re.fullmatch(r'[ \t,-]*', gaps[i]) for i in window[:-1])):

@@ -44,6 +44,7 @@ system and its evaluation today.
 | Linking | A match that covers part of a phrase ("jock itch" → ITCH) is checked by the model choosing among catalog entries; a different choice is asked back, never used silently | D106 |
 | Linking | Names with a missing or extra space ("heartfailure", "para cetamol") are matched without spaces and used with a note | D107 |
 | Routing | An unrouted question about one name without a relation word is read by the model as a choice with probabilities: a clear reading is answered with a note, a spread one is asked | D108 |
+| Linking | The end of a contraction or possessive ("what's", "mother's") never starts a name, so "What's warfarin" is Warfarin, not (S)-Warfarin | D109 |
 
 ## D001 — Environment and scope
 
@@ -3341,3 +3342,15 @@ and must pass the safety triage (a disease name with "newborn" is a population
 question), the off-label question is worded so that the rules route it, text-only
 words (warnings, summary, explain) go to the planner, count questions are not read,
 and an endpoint without log-probabilities is asked only once.
+
+## D109 — Contractions do not start a name (2026-10-26)
+
+The exact pass matched aliases that begin with a single letter across an apostrophe:
+"What's warfarin for?" and "my mother's warfarin" became (S)-Warfarin, because
+"what's warfarin" normalises to "what s warfarin" and "s warfarin" is an alias of
+the enantiomer. The catalog has 117 aliases starting with "s", 108 with "t" and 95
+with "d". A word that ends a contraction or possessive (s, t, d, ll, re, ve or m right
+after an apostrophe) can no longer start a name, in the exact pass or the space fix
+(D107); a name may still contain one ("Crohn's disease"). Found through the D108
+development questions. On all 1,573 non-sealed questions one linking outcome
+changes: a LiveQA message saying "I'm a 58 year old man" no longer links microtia.
