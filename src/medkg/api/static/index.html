@@ -124,6 +124,8 @@
     .confirm p { margin: 0 0 10px; font-size: 1.05rem; font-weight: 650; }
     .confirm .choices { display: flex; flex-wrap: wrap; gap: 8px; }
     .confirm .choose { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+    .confirm.other { border-width: 1px; border-color: var(--border); background: transparent; }
+    .confirm.other p { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
     .thinking { color: var(--muted); }
     .error { color: var(--error); }
     .badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
@@ -206,7 +208,7 @@
       ["template", "Cypher template"], ["planner", "LLM planner"],
       ["vector", "Vector search"], ["safety", "Safety gate"],
       ["language", "Language gate"], ["scope", "Scope gate"],
-      ["linking", "Clarification"]
+      ["linking", "Clarification"], ["intent", "Which question?"]
     ]);
     let history = [];
     let pending = false;
@@ -285,6 +287,30 @@
       card.append(box);
     }
 
+    function intentBox(card, result) {
+      // D108: when no rule fits, the model's reading of the question is confirmed. A spread
+      // reading is a choice; a clear one was answered, and the other questions are offered.
+      const asking = result.route === "intent";
+      const box = element("div", asking ? "confirm" : "confirm other");
+      box.setAttribute("role", "group");
+      box.append(element("p", "", asking ? "Which question do you mean?" : "Not what you asked? Ask instead:"));
+      const choices = element("div", "choices");
+      for (const option of result.intent_options) {
+        const button = element("button", asking ? "choose" : "", option.question);
+        button.type = "button";
+        button.addEventListener("click", () => { input.value = option.question; form.requestSubmit(); });
+        choices.append(button);
+      }
+      if (asking) {
+        const other = element("button", "", "Something else");
+        other.type = "button";
+        other.addEventListener("click", () => { box.remove(); input.focus(); });
+        choices.append(other);
+      }
+      box.append(choices);
+      card.append(box);
+    }
+
     function renderResult(card, result, question) {
       // Leading "Note:" lines (safety notice, name corrections) are shown highlighted.
       const lines = (result.answer ?? "").split("\n");
@@ -294,6 +320,7 @@
       if (split) card.append(element("div", "notes", lines.slice(0, split).join("\n")));
       card.append(element("div", "answer", lines.slice(split).join("\n").replace(/^\n+/, "")));
       if (result.suggestions?.length) confirmBox(card, result, question);
+      if (result.intent_options?.length && result.route !== "safety") intentBox(card, result);
       const badges = element("div", "badges");
       badges.append(element("span", "badge route", routeNames.get(result.route) ?? result.route ?? ""));
       badges.append(element("span", "badge", result.response_status ?? ""));

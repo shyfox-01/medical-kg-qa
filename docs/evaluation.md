@@ -421,6 +421,14 @@ found 433/443 times (235 before) and split names 271/278 (156 before); linking i
 unchanged on all 1,573 non-sealed questions, and on 55,163 correctly spelled source
 sentences it fires only on real spacing variants.
 
+D108 reads unrouted questions about one name without a relation word ("What is the
+purpose of X?") as a choice among the template questions, with probabilities from
+the local model's log-probabilities. No generated question changes its route. On 28
+development questions written by Claude it reads all 24 it reaches as labelled, and
+15 are answered from templates, where the planner had answered about 8. On LiveQA,
+two "inherited" questions get associated genes instead of a refusal. The reading
+takes 0.55 s median locally; TypeSafe reports 70–500 ms for its hosted Jev model.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time

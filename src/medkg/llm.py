@@ -1,6 +1,7 @@
 """Bounded OpenAI-compatible JSON/text calls with a task-wide persistent ledger."""
 
 import json
+import math
 import os
 import re
 import time
@@ -121,6 +122,7 @@ class LLMClient:
         self.client = OpenAI(api_key=self.settings.llm_api_key, base_url=self.settings.llm_base_url,
                              timeout=self.settings.llm_timeout, max_retries=0)
         self.usage = {'calls': 0, 'prompt_tokens': 0, 'completion_tokens': 0, 'seconds': 0.0}
+        self.no_logprobs = False
         self.ledger = ROOT/'eval/runs/usage_log.jsonl'
 
     def _record(self, record: dict) -> None:
@@ -147,15 +149,43 @@ class LLMClient:
             'not_before':time.time()+delay if delay else 0.0}),encoding='utf8')
         pending.replace(path)
 
-    def chat(self, messages: list[dict], max_tokens: int = 1400) -> str:
+    def chat(self, messages: list[dict], max_tokens: int = 1400, top_logprobs: int = 0,
+             sink: list | None = None) -> str:
         before = dict(self.usage)
         with span('llm',model=self.model,**{'openinference.span.kind':'LLM'}) as attrs:
             try:
-                return self._chat(messages,max_tokens)
+                return self._chat(messages,max_tokens,top_logprobs,sink)
             finally:
                 attrs.update({k:self.usage[k]-before[k] for k in before})
 
-    def _chat(self, messages: list[dict], max_tokens: int = 1400) -> str:
+    def choose(self, messages: list[dict], options: int) -> dict[int, float] | None:
+        """Probabilities of the replies 0..options, read from the first output token (D108).
+
+        The model answers with one number; the log-probabilities of its first token give a
+        distribution over the options, as a decision model would. A reply that is not one
+        of the numbers ("None", "The") counts as 0, "something else". None when the
+        endpoint returns no log-probabilities; after that the endpoint is not asked again.
+        """
+        if self.no_logprobs:
+            return None
+        sink: list = []
+        try:
+            self.chat(messages, max_tokens=1, top_logprobs=min(20, options + 5), sink=sink)
+        except ValueError:
+            pass                                  # an empty first token: its probabilities still count
+        if not sink:
+            self.no_logprobs = True
+            return None
+        scores = dict.fromkeys(range(options + 1), 0.0)
+        for item in sink:
+            token = item.token.strip()
+            number = int(token) if re.fullmatch(r'[0-9]', token) else None
+            scores[number if number is not None and number <= options else 0] += math.exp(item.logprob)
+        total = sum(scores.values())
+        return {k: v / total for k, v in scores.items() if v} if total else None
+
+    def _chat(self, messages: list[dict], max_tokens: int = 1400, top_logprobs: int = 0,
+              sink: list | None = None) -> str:
         reserve = sum(len(m['content'].encode('utf8')) + 100 for m in messages) + max_tokens
         identifier = str(uuid.uuid4())
         lock = self.ledger.with_suffix('.lock')
@@ -174,6 +204,8 @@ class LLMClient:
         tokens, status, failure = {}, 'failed', {}
         try:
             kwargs = dict(model=self.model, messages=messages, temperature=0, max_tokens=max_tokens)
+            if top_logprobs:
+                kwargs.update(logprobs=True, top_logprobs=top_logprobs)
             # The existing free endpoint rejects concurrent requests (HTTP 429).
             # A process-shared slot bounds concurrency without SDK retry storms;
             # LLM_COOLDOWN_S (default 1) spaces calls and can be 0 for paid providers.
@@ -198,6 +230,9 @@ class LLMClient:
                         time.sleep(self.settings.llm_cooldown)
             usage = response.usage
             tokens = {'prompt_tokens': usage.prompt_tokens, 'completion_tokens': usage.completion_tokens} if usage else {}
+            if top_logprobs and sink is not None:
+                logprobs = response.choices[0].logprobs
+                sink.extend(logprobs.content[0].top_logprobs if logprobs and logprobs.content else [])
             content = (response.choices[0].message.content or '').strip()
             if not content:
                 raise ValueError('Empty completion')

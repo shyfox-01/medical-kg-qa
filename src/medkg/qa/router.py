@@ -163,5 +163,21 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
     return None
 
 
+RELATION_CUES = (INTERACT, SIDE+r'|phenotype|symptom|feature', CONTRA, TARGET,
+                 r'(?<!contra)indicat|used for|treat|therap|prescri', SUBTYPE, PARENT, DRUG_WORDS,
+                 r'\b(?:genes?|proteins?|diseases?|conditions?)\b', r'off label', r'\bcaus|\btrigger|\binduc',
+                 r'\b(?:and also|but not|through|compare|versus|vs)\b',
+                 # Text questions the router leaves to the planner.
+                 r'\b(?:warnings?|summary|explain|according to)\b')
+
+
+def has_relation_cue(question: str, candidates: list[Candidate]) -> bool:
+    """Any relation or entity-type word besides the anchors. An unrouted question with
+    one is a compound or unsupported relation and goes to the planner; only a question
+    without one ("What is the purpose of X?") is read by the model (D108)."""
+    q = _without_anchors(question, candidates)
+    return any(re.search(pattern, q) for pattern in RELATION_CUES)
+
+
 def is_count(question: str) -> bool:
     return bool(re.search(r'\b(how many|count|number of)\b',question,re.I))

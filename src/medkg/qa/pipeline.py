@@ -10,8 +10,9 @@ from medkg.config import ROOT, Settings
 from medkg.graph.store import GraphStore
 from medkg.llm import LLMClient
 from medkg.qa import answer, confirm, planner, safety, scope, session
+from medkg.qa import intent as intents
 from medkg.qa.linker import Linker, label_choices
-from medkg.qa.router import is_count, route, wants_shared
+from medkg.qa.router import has_relation_cue, is_count, route, wants_shared
 from medkg.retrieval import templates, text2cypher
 from medkg.tracing import request_trace, span
 
@@ -116,6 +117,29 @@ class Pipeline:
                         result.update(answer='Please clarify the unresolved drug names before checking interactions.',
                                       route='linking',refused=True)
                         return self._finish(result,start,before)
+                    # No rule fits a question about one name and no relation word is used
+                    # ("What is the purpose of X?"): the model reads which question is meant (D108).
+                    reading = None
+                    if (intent is None and not unresolved and self.mode!='vector' and candidates
+                            and len({c.span for c in candidates})==1 and not is_count(resolved)
+                            and not has_relation_cue(resolved,candidates)):
+                        region = self.settings.safety_region
+                        reading = intents.read(self.llm,resolved,candidates,
+                                               allowed=lambda q:safety.triage(q,region).mode!='block')
+                    if reading:
+                        result['intent_reading'] = {'mode':reading.mode,'other':round(reading.other,3),
+                                                    'options':reading.offered(len(reading.ranked))}
+                        if reading.mode=='ask':
+                            # Safety and correction notices stay in front of the question.
+                            asked_back = intents.clarification(reading)
+                            result.update(answer='\n'.join([*notices,'',asked_back]) if notices else asked_back,
+                                          route='intent',refused=True,intent_options=reading.offered())
+                            return self._finish(result,start,before)
+                        if reading.mode=='answer':
+                            # Answered, but the guess is shown and the other questions are offered.
+                            intent = reading.ranked[0][0]
+                            notices.append(intents.note(reading))
+                            result['intent_options'] = reading.offered(intents.OFFER+1)[1:]
                     result['intent'] = intent
                     if self.mode=='vector':
                         steps = [planner.Step(tool='vector_search',args={'query':resolved})]
@@ -257,6 +281,7 @@ class Pipeline:
                         if violation:
                             result.update(answer=violation.message,safety=violation.category,refused=True,
                                           output_blocked=True)
+                            result.pop('intent_options',None)
                     # A safety refusal stands; otherwise the answer rows must be reported.
                     if not result['refused'] and answer_rows and not any('count' in r for r in answer_rows):
                         from medkg.qa.verify import entities_in_text

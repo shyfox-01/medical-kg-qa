@@ -32,6 +32,9 @@ the evidence rows; here a disease–drug–drug chain answered by the LLM planne
   ("heartfailure", "para cetamol") is fixed the same way. When a match covers only
   part of a phrase ("jock itch" → the gene ITCH), the model picks among catalog
   entries and a different pick is asked back, never used silently.
+- When no rule fits ("What is the purpose of Lynparza?"), the local model scores the
+  questions the graph can answer about that name: a clear winner is answered with a
+  note and the other questions offered, a close call is asked back as buttons.
 - Blocks crisis, emergency, diagnosis and dose-only requests before any model call.
   A question that only mentions a dose, or also asks for knowledge, gets the
   knowledge part answered behind a fixed notice; an answer containing a dose or a
@@ -280,8 +283,9 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
   and partly matched names ("jock itch") are now asked back, but drug classes
   ("NSAIDs") and vaccines are still not recognised, and a lay name the catalog lacks
   can only be declined.
-- Router rules cover the wordings seen during development; unseen phrasings fall
-  back to the LLM planner, which recovers only some of them.
+- Router rules cover the wordings seen during development. A question about one name
+  without a relation word is read by the model (D108), but compound questions in new
+  wordings still fall back to the LLM planner, which recovers only some of them.
 - Most questions are generated; the 104 real questions mostly fall outside what the
   graph can answer. An acronym shared by several entities stays ambiguous to the
   scorer.

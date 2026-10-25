@@ -1,0 +1,28 @@
+{"id": "intent-dev-01", "split": "dev", "question": "What is the purpose of metformin?", "intent": "indications"}
+{"id": "intent-dev-02", "split": "dev", "question": "What is ibuprofen good for?", "intent": "indications"}
+{"id": "intent-dev-03", "split": "dev", "question": "Why would a doctor give someone warfarin?", "intent": "indications"}
+{"id": "intent-dev-04", "split": "dev", "question": "What's warfarin for?", "intent": "indications"}
+{"id": "intent-dev-05", "split": "dev", "question": "Which illnesses can sertraline help?", "intent": "indications"}
+{"id": "intent-dev-06", "split": "dev", "question": "What can go wrong when taking lisinopril?", "intent": "side_effects"}
+{"id": "intent-dev-07", "split": "dev", "question": "What problems can amoxicillin bring?", "intent": "side_effects"}
+{"id": "intent-dev-08", "split": "dev", "question": "Is atorvastatin hard on the body?", "intent": "side_effects"}
+{"id": "intent-dev-09", "split": "dev", "question": "What should I not mix with sertraline?", "intent": "interactions"}
+{"id": "intent-dev-10", "split": "dev", "question": "What clashes with warfarin?", "intent": "interactions"}
+{"id": "intent-dev-11", "split": "dev", "question": "Who should stay away from amoxicillin?", "intent": "contraindications"}
+{"id": "intent-dev-12", "split": "dev", "question": "How does sertraline work in the body?", "intent": "targets"}
+{"id": "intent-dev-13", "split": "dev", "question": "What helps with gout?", "intent": "drugs_for"}
+{"id": "intent-dev-14", "split": "dev", "question": "What options exist for psoriasis?", "intent": "drugs_for"}
+{"id": "intent-dev-15", "split": "dev", "question": "How does psoriasis show up on the body?", "intent": "phenotypes"}
+{"id": "intent-dev-16", "split": "dev", "question": "What does epilepsy look like?", "intent": "phenotypes"}
+{"id": "intent-dev-17", "split": "dev", "question": "What signs point to lupus?", "intent": "phenotypes"}
+{"id": "intent-dev-18", "split": "dev", "question": "Is lupus hereditary?", "intent": "genes"}
+{"id": "intent-dev-19", "split": "dev", "question": "Does asthma run in families?", "intent": "genes"}
+{"id": "intent-dev-20", "split": "dev", "question": "What kinds of epilepsy are there?", "intent": "subtypes"}
+{"id": "intent-dev-21", "split": "dev", "question": "Tell me about metformin", "intent": null}
+{"id": "intent-dev-22", "split": "dev", "question": "What is asthma?", "intent": null}
+{"id": "intent-dev-23", "split": "dev", "question": "How long does ibuprofen stay in the body?", "intent": null}
+{"id": "intent-dev-24", "split": "dev", "question": "How should warfarin be stored?", "intent": null}
+{"id": "intent-dev-25", "split": "dev", "question": "How much does lisinopril cost?", "intent": null}
+{"id": "intent-dev-26", "split": "dev", "question": "What is the history of aspirin?", "intent": null}
+{"id": "intent-dev-27", "split": "dev", "question": "Is psoriasis contagious?", "intent": null}
+{"id": "intent-dev-28", "split": "dev", "question": "Who discovered penicillin?", "intent": null}

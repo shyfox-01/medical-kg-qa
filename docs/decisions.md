@@ -43,6 +43,7 @@ system and its evaluation today.
 | Linking | Corrected names are confirmed ("Did you mean …?") or used with a visible note; vector matches never become silent anchors | D105 |
 | Linking | A match that covers part of a phrase ("jock itch" → ITCH) is checked by the model choosing among catalog entries; a different choice is asked back, never used silently | D106 |
 | Linking | Names with a missing or extra space ("heartfailure", "para cetamol") are matched without spaces and used with a note | D107 |
+| Routing | An unrouted question about one name without a relation word is read by the model as a choice with probabilities: a clear reading is answered with a note, a spread one is asked | D108 |
 
 ## D001 — Environment and scope
 
@@ -3279,3 +3280,64 @@ Measured without the model:
   rerun during these fixes, so it is a development measure too.
 - Not handled: two drug names joined ("lisinoprilhydrochlorothiazide") and splits
   into two real words ("hyper tension").
+
+## D108 — The model reads which question is meant (2026-10-26)
+
+Router rules cover the wordings seen in development. A question about one name with
+no relation word ("What is the purpose of Lynparza?", "How does sertraline work?",
+"Does asthma run in families?") went to the LLM planner, which often found nothing.
+A decision model would pick the intended question from a short list and say how sure
+it is; TypeSafe's Jev does this as a hosted API. The same works locally:
+`LLMClient.choose` asks the answer model for one number and reads the
+log-probabilities of that token (Ollama returns them) as probabilities over the
+options, so no extra model is needed and no question leaves the machine.
+
+`medkg.qa.intent.read` lists the template questions the graph can answer about the
+mention ("What is Metformin used to treat?", "What are the side effects of
+Metformin?" …), a general description, and "something else". It runs only when no
+rule routes the question, one name is linked, nothing is unresolved and the question
+has no relation or entity-type word. An unrouted question with one is a compound or
+unsupported relation: before this filter, the 21 such development questions read
+were all multi-hop, and the model was confidently wrong on 2 ("drugs that target
+genes linked to X" read as "drugs for X").
+
+| Reading | Behaviour |
+|---|---|
+| Best question at 0.85 or more | Answered from its template, with a note ("answered as …") and the other questions offered as buttons |
+| "Something else" or a description at 0.5 or more | Planner, as before |
+| Otherwise | Asked: the three likeliest questions as buttons, plus "Something else" |
+
+A clear guess is still shown, because it is a guess about what the user asked. The
+thresholds were set on 28 development questions written by Claude with Claude's
+intent labels (eval/datasets/intent_dev_v1.jsonl; not human labels). Without log-
+probabilities (a cloud endpoint or a test fixture) nothing changes.
+
+Measured with local Gemma 4:
+
+- Generated questions are unaffected: of all non-sealed generated questions, only two
+  b3 questions and one text question are read, and all three go to the planner as
+  before.
+- Development questions: 24 read, all 24 as labelled (17 answered with the right
+  question, 7 passed). End to end, 15 were answered from templates; without D108 the
+  planner had answered about 8 of those on topic (Claude's reading of the answers)
+  and found nothing for the others. Answered questions took 5.6 s on average
+  instead of 8.0 s. One of them ("What's warfarin for?") linked the wrong entity, an
+  older linker bug fixed in D109.
+- b3 (check): both "What is the purpose of X?" questions go to the planner, as before
+  (Lynparza: 0.32 for "used to treat", most of the rest on the description option).
+- LiveQA: 28 rows read, 25 go to the planner. "Is dementia inherited or acquired?"
+  and "How is rickets inherited?" are answered with associated genes instead of a
+  refusal or one sentence of text; the quinine question is asked back.
+- Speed: the reading takes 0.55 s median and 0.61 s at the 90th percentile on an
+  8 GB GPU (first call 1.3 s while the model loads). TypeSafe reports 70–500 ms for
+  Jev and 114 ms in its own demo, so the local reading is about five times slower
+  than that demo and just above the top of Jev's range, at no cost and with no data
+  sent out.
+
+An independent review found that a reply that is not a number ("None") was
+normalised away, so the remaining digits looked confident; it now counts as
+"something else". The review also led to: offered questions use the user's own name
+and must pass the safety triage (a disease name with "newborn" is a population
+question), the off-label question is worded so that the rules route it, text-only
+words (warnings, summary, explain) go to the planner, count questions are not read,
+and an endpoint without log-probabilities is asked only once.
