@@ -415,6 +415,12 @@ triggers it (0 of 1,445). On LiveQA 19 of 208 rows trigger and 14 are asked back
 text-set questions now need one confirmation. These LiveQA rows were used to set
 the rules.
 
+D107 matches names typed with a missing or extra space when one of the joined words
+is unknown. On generated questions with the anchor name perturbed, merged names are
+found 433/443 times (235 before) and split names 271/278 (156 before); linking is
+unchanged on all 1,573 non-sealed questions, and on 55,163 correctly spelled source
+sentences it fires only on real spacing variants.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time

@@ -28,9 +28,10 @@ the evidence rows; here a disease–drug–drug chain answered by the LLM planne
   RxNorm brands matched exactly) and consumer terms (*high blood pressure*, *lazy
   eye*). Misspelt names are never corrected silently: a confident one-letter fix is
   shown as a note, anything less certain is asked back ("Did you mean
-  Gabapentin?") with one button per option. When a match covers only part of a
-  phrase ("jock itch" → the gene ITCH), the model picks among catalog entries and
-  a different pick is asked back, never used silently.
+  Gabapentin?") with one button per option. A missing or extra space
+  ("heartfailure", "para cetamol") is fixed the same way. When a match covers only
+  part of a phrase ("jock itch" → the gene ITCH), the model picks among catalog
+  entries and a different pick is asked back, never used silently.
 - Blocks crisis, emergency, diagnosis and dose-only requests before any model call.
   A question that only mentions a dose, or also asks for knowledge, gets the
   knowledge part answered behind a fixed notice; an answer containing a dose or a

@@ -42,6 +42,7 @@ system and its evaluation today.
 | Safety | Personal medication decisions without a dose are blocked; "Can I take A with B?" is answered behind a notice | D104 |
 | Linking | Corrected names are confirmed ("Did you mean …?") or used with a visible note; vector matches never become silent anchors | D105 |
 | Linking | A match that covers part of a phrase ("jock itch" → ITCH) is checked by the model choosing among catalog entries; a different choice is asked back, never used silently | D106 |
+| Linking | Names with a missing or extra space ("heartfailure", "para cetamol") are matched without spaces and used with a note | D107 |
 
 ## D001 — Environment and scope
 
@@ -3230,3 +3231,51 @@ one extra model call; questions asked back stop after it (1.1 s mean).
 
 LiveQA rows were used to set the stop words and head nouns, so LiveQA is not a
 fresh measure of D106.
+
+## D107 — Names typed with a missing or extra space (2026-10-26)
+
+Spelling correction (D065, D105) compares letters within one word or one span, so a
+space in the wrong place defeated it: "para cetamol" and "schizo phrenia" were not
+found, nor were "heartfailure", "highblood pressure" and "kidneystones". The linker
+now also looks names up without spaces. Up to eight adjacent words are joined,
+through commas but not brackets or sentence punctuation, and compared with every
+name with its spaces removed (with and without the plural strip, which differs
+inside a joined word: "diabetesinsipidus"). A single word may also be a name joined
+to a product or function word ("metformintablets").
+
+A fix needs evidence of a wrong space: one of the joined words must be unknown (in
+no catalog name and not a common word). Two known words are taken as written on
+purpose, so "lip edema" is not Lipedema and "ramipril at" is not Ramiprilat. A
+window may not start or end with a common, relation or generic word ("me
+prednisone", "the coma"), a phrase that is a name as written is left to the exact
+pass, and generic names ("medical condition") and names with a single letter
+("protein S deficiency", "Advantage-S") are not targets. RxNorm-only brand names are
+not targets either (D101). The longest window wins and may replace exact matches
+inside it ("type2 diabetes" over "diabetes"), unless that entity is also named
+elsewhere in the question.
+
+The letters are the name's own, so the D105 review treats a space fix like a
+confident one-edit correction: it is used with a visible note when one name matches
+(or one reading per label, as for an exact name) and no look-alike is near, and
+asked back otherwise.
+
+Measured without the model:
+
+- Linking and name-review outcomes are identical on all 1,573 non-sealed questions
+  (generated v1–v3, LiveQA, caveat, text).
+- Each unique anchor name that links exactly in the generated v2 and v3 b1–b3
+  questions was perturbed once: a multi-word name lost its first space (443) and a
+  one-word name of 8+ letters was split in the middle (278). Found (used, noted, or
+  asked with the right entity): merged 235/443 → 433/443, split 156/278 → 271/278,
+  none worse. Most misses split into two known words ("lymph edema", "plasma
+  cytoma"), which the evidence rule leaves alone.
+- On 55,163 correctly spelled MedlinePlus and label sentences, the space fix fires on
+  10 distinct phrases, all of them real spacing variants in the source ("l omustine",
+  "folliclestimulating hormone", "CYP 2C19").
+- An independent review of the first version found that function words joined onto
+  names ("ramipril at" → Ramiprilat, "me prednisone" → Meprednisone, "lip edema" →
+  Lipedema) and that generic phrases came back ("medical conditions"). The evidence
+  and edge rules above fix all 21 reported examples. The perturbation check was
+  rerun during these fixes, so it is a development measure too.
+- Not handled: two drug names joined ("lisinoprilhydrochlorothiazide") and splits
+  into two real words ("hyper tension").

@@ -67,6 +67,18 @@ HEAD_NOUNS = frozenset('''
 deficiency deficiencies allergy allergies intolerance injury injuries infection infections
 cancer tumor tumour syndrome
 '''.split())
+# D107: a name joined to a product or function word ("metformintablets", normalised).
+SPACING_TAILS = frozenset('tablet pill capsule dose dosage injection cream with and for side'.split())
+SPACING_MIN_CHARS = 7
+SPACING_MAX_WORDS = 8
+# Words that never start or end a space fix: "ramipril at" is not Ramiprilat, "me
+# prednisone" is not Meprednisone, "the coma" is not thecoma. A name may still end in a
+# category word ("majordepressive disorder", "Ehlers-Danlossyndrome, vascular type").
+SPACING_HEADS = frozenset('''
+disease diseases disorder disorders illness syndrome syndromes infection infections cancer cancers
+type types
+'''.split())
+SPACING_STOP = (PHRASE_STOP | COMMON_WORDS | GENERIC_ANCHORS) - SPACING_HEADS
 
 
 class Linker:
@@ -114,6 +126,32 @@ class Linker:
         self.quarantined_keys = set(self.excluded_by_key)
         self.alias_sizes = sorted({len(key.split()) for key in
                                    self.aliases.keys() | self.quarantined_keys}, reverse=True)
+        # Names written with a missing or extra space ("hyper tension", "heartfailure"),
+        # from the same names as spelling correction (no RxNorm-only aliases, D101).
+        # A single word may only be a joined multi-word name: one-word names that the exact
+        # pass skipped ("disease", common words) must not come back here.
+        # Both with and without the plural strip, which differs inside a joined word
+        # ("diabetesinsipidus", "toras emide"). Generic names ("medical condition") and
+        # names with a single letter ("protein S deficiency", "Advantage-S") are left out:
+        # their joined form is an ordinary word or phrase.
+        self.compact_aliases: dict[str, set[str]] = {}
+        self.joined_names: set[str] = set()
+        # Words a space fix can treat as written on purpose: one of the joined words must
+        # be none of these ("metfor min", "heartfailure"), so "lip edema" stays two words.
+        self.known_words = set(COMMON_WORDS | PHRASE_STOP)
+        for e in entities:
+            for alias in allowed_names(e):
+                key = normalize(alias)
+                parts = re.findall(r'\w+', alias.casefold())
+                self.known_words.update(key.split(), parts)
+                if (not key or (e['uid'] in truncated and key == normalize(e['name']))
+                        or key in GENERIC_ANCHORS or any(len(p) < 2 and not p.isdigit() for p in parts)):
+                    continue
+                for compact in {key.replace(' ', ''), ''.join(parts)}:
+                    if len(compact) >= SPACING_MIN_CHARS and compact not in COMMON_WORDS:
+                        self.compact_aliases.setdefault(compact, set()).add(e['uid'])
+                        if ' ' in key:
+                            self.joined_names.add(compact)
         # Single-edit correction is limited to long drug-name tokens. Short
         # acronyms, gene symbols and ordinary words require the existing rules.
         self.drug_spellings = {key:ids for key,ids in self.fuzzy_by_label.get('Drug',{}).items()
@@ -295,6 +333,7 @@ class Linker:
                     quarantined.append(key)
         if exact_only:
             return list(candidates.values()),quarantined
+        self._spacing(question, words, candidates, occupied)
         cues = {'of','for','about','with','does','and','between','versus','vs','is','are',
                 'can','could','may'}
         stops = cues | {'interact','interacts','target','targets','treat','treats','is',
@@ -350,6 +389,80 @@ class Linker:
             else:
                 unresolved.append(mention)
         return list(candidates.values()),unresolved
+
+    def _spacing(self, question: str, words: list[str], candidates: dict, occupied: set) -> None:
+        """Names typed with a missing or extra space (D107).
+
+        Up to eight adjacent words are joined and looked up without spaces ("para
+        cetamol", "heartfailure", "autoimmunehemolytic anemia"); a single word may also be
+        a name joined to a product or function word ("metformintablets"). A fix needs
+        evidence of a wrong space: one of the words must be unknown (in no name and not a
+        common word), so "lip edema" is not lipedema and "ramipril at" is not Ramiprilat.
+        The window may not start or end with a common, relation or generic word, a phrase
+        that is a name as written is left to the exact pass, and the longest window wins,
+        replacing exact matches inside it. The name review uses a space fix with a note.
+        """
+        tokens = list(re.finditer(r'\w+', question))
+        if len(tokens) != len(words):
+            return
+        raw = [t.group().casefold() for t in tokens]
+        gaps = [question[a.end():b.start()] for a, b in zip(tokens, tokens[1:])]
+
+        def forms(i: int) -> set[str]:
+            return {words[i], raw[i]}
+        for size in range(min(SPACING_MAX_WORDS, len(words)), 0, -1):
+            for start in range(len(words) - size + 1):
+                window = range(start, start + size)
+                end = start + size - 1
+                # Commas occur inside names ("bone dysplasia, lethal Holmgren").
+                if (not all(words[i].isalnum() for i in window)
+                        or forms(start) & SPACING_STOP or forms(end) & SPACING_STOP
+                        or all(forms(i) & self.known_words for i in window)
+                        or any(not re.fullmatch(r'[ \t,-]*', gaps[i]) for i in window[:-1])):
+                    continue
+                inside = [c for c in candidates.values()
+                          if c.span and start <= c.span[0] and c.span[1] <= start + size]
+                covered = {i for c in inside for i in range(*c.span)}
+                if (occupied - covered) & set(window):
+                    continue
+                spaced = {' '.join(words[start:start + size]), ' '.join(raw[start:start + size])}
+                if any(s in self.aliases or s in self.fuzzy_aliases for s in spaced):
+                    continue
+                ids = set()
+                for compact in {s.replace(' ', '') for s in spaced}:
+                    if size > 1 or compact in self.joined_names:
+                        ids |= self.compact_aliases.get(compact, set())
+                if not ids and size == 1:
+                    ids = set(self._joined_tail(words[start]))
+                # An entity already named elsewhere in the question keeps that mention.
+                ids -= candidates.keys() - {c.uid for c in inside}
+                if not ids:
+                    continue
+                for c in inside:
+                    if not self._named_outside(words, c, window):
+                        del candidates[c.uid]
+                for uid in sorted(ids):
+                    candidates[uid] = self._candidate(uid, 100, 'spacing', len(ids) > 1)
+                    candidates[uid].mention = ' '.join(t.group() for t in tokens[start:start + size])
+                    candidates[uid].span = (start, start + size)
+                occupied.update(window)
+
+    @staticmethod
+    def _named_outside(words: list[str], candidate: Candidate, window: range) -> bool:
+        """The candidate's mention also occurs outside the window ("diabetes ... type2 diabetes")."""
+        key = normalize(candidate.mention or '').split()
+        return any(words[p:p + len(key)] == key and not set(range(p, p + len(key))) & set(window)
+                   for p in range(len(words) - len(key) + 1)) if key else False
+
+    def _joined_tail(self, word: str) -> list[str]:
+        """A name of 5+ letters followed by a product or function word, as one word."""
+        if not word.isalpha() or len(word) < 9 or word in self.aliases:
+            return []
+        for cut in range(5, len(word) - 2):
+            head, tail = word[:cut], word[cut:]
+            if tail in SPACING_TAILS and head in self.fuzzy_aliases and head not in SPACING_STOP:
+                return sorted(set(self.fuzzy_aliases[head]))
+        return []
 
     def quarantined_mentions(self, unresolved: list[str]) -> list[str]:
         """Only unresolved reviewed names trigger the conservative query gate."""

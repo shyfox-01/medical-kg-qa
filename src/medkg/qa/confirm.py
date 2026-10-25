@@ -64,9 +64,15 @@ def review(linker, candidates: list, unresolved: list[str]) -> Review:
         uids = {c.uid for c in group}
         # Several readings are confident only when they share one name (a Disease and a
         # Phenotype both called "methemoglobinemia"); two different names are asked back.
-        confident = (len({normalize(c.name) for c in group}) == 1
+        # A space fix may also have one reading per label ("heartfailure": the Disease heart
+        # failure and the Phenotype Congestive heart failure), as an exact name would.
+        spacing = {c.method for c in group} == {'spacing'}
+        one_name = len({normalize(c.name) for c in group}) == 1 or (
+            spacing and len({c.label for c in group}) == len(group))
+        confident = (one_name
                      and len(normalize(mention).replace(' ', '')) >= CONFIDENT_MIN_CHARS
-                     and all(linker.edits_to(mention, c.uid) <= 1 for c in group)
+                     # A space fix keeps the name's own letters (D107).
+                     and all(c.method == 'spacing' or linker.edits_to(mention, c.uid) <= 1 for c in group)
                      and not linker.lookalikes(mention, uids))
         if confident:
             result.kept.extend(group)
