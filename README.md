@@ -282,7 +282,7 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
 - The safety notice and refusal rules are deterministic patterns, not a clinical
   safety classifier. Pregnancy questions and personal medication decisions that
   mention a dose are refused rather than partly answered; personal decisions
-  without a dose ("Should I stop taking X?") are not gated at all.
+  without a dose ("Should I stop taking X?") are refused too (D104).
 
 ## Documentation
 

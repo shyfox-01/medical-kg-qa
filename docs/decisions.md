@@ -39,6 +39,7 @@ system and its evaluation today.
 | Vocabulary | Keep RxNorm aliases exact-only through openFDA parsing, verify Neo4j before apply, exclude 45 reviewed names and quarantine 11 Pentastarch aliases | D101 |
 | Answer | Decline empty verified bodies; recognize bounded opening decline paraphrases | D102 |
 | Safety | Answer the knowledge part with a fixed notice; keep emergencies, dose-only requests and personal decisions blocked | D103 |
+| Safety | Personal medication decisions without a dose are blocked; "Can I take A with B?" is answered behind a notice | D104 |
 
 ## D001 — Environment and scope
 
@@ -3100,3 +3101,32 @@ answers); let a model decide what may be answered (not deterministic before the
 model call). Open: personal medication decisions without a dose ("Should I stop
 taking amlodipine?") were never gated and still are not; population questions
 about pregnancy stay blocked.
+
+## D104 — Personal medication decisions without a dose (2026-10-25)
+
+D103 blocked personal medication decisions only when they mentioned a dose;
+"Should I stop taking amlodipine?" passed the gate untouched. A personal decision
+is now its own category, `medication_decision`:
+
+- blocked before any model call: "Should I stop taking X?", "Can I start taking
+  X?", "Is it ok for me to take X?", "Should my son use X?", "What can I take for
+  Y?" (message: individual advice, ask your clinician or pharmacist);
+- answered behind a notice when it also asks whether two medicines interact
+  ("Can I take A with B?", "Is it safe to take my meds with wine?");
+- not a decision: questions that only narrate ("I stopped taking X last week. What
+  are its side effects?") or are impersonal ("Can people take A with B?").
+
+The decision pattern requires the asker (or someone they care for) as the subject
+of the modal ("should I", "can my son", "is it ok for me to"), present-tense
+tapering words, or "what can I take", and never spans a line break: an earlier
+draft read a subject line and the next line as one sentence ("Can cancer spread
+through blood contact / Sir, after giving an injection ...") and blocked a
+knowledge question. The router treats "take/use/mix A with B" as an interaction
+question only when both anchors are drugs, so "Can I take A with B?" reaches the
+pairwise template.
+
+Checks: against the D103 gate, no decision changes on v1, v2, v3 b1/b2 or b3; on
+LiveQA 3 rows become blocked ("Can I stop using the patch?" in both wordings, "what
+I can get my doctor to prescribe") and 1 becomes answered with a notice (meds with
+wine). Router decisions are identical on all 1,334 routable benchmark questions.
+The scorer accepts the new category with a professional-referral check.

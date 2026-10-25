@@ -120,3 +120,48 @@ def test_dose_only_requests_never_reach_the_model(monkeypatch):
     model = Model()
     result = app(monkeypatch, model).ask('What is the maximum daily dose of Asterol?')
     assert result['refused'] and result['safety'] == 'dosage' and model.usage['calls'] == 0
+
+
+@pytest.mark.parametrize('question', [
+    'Should I stop taking Asterol?',
+    'Can I start taking Asterol?',
+    'Is it ok for me to take Asterol?',
+    'Should my son use Asterol?',
+    'What can I take for Orion syndrome?',
+    'When can i stop using the Asterol patch?',
+])
+def test_personal_medication_decisions_are_blocked(question):
+    triage = safety.triage(question)
+    assert (triage.mode, triage.category) == ('block', 'medication_decision')
+
+
+@pytest.mark.parametrize('question,mode', [
+    ('Can I take Asterol with Brinex?', 'caveat'),
+    ('Is it safe to take my Asterol with Brinex?', 'caveat'),
+    ('I take Asterol. Can it cause Amber spots?', 'none'),
+    ('I stopped taking Asterol last week. What are the side effects of Asterol?', 'none'),
+    ('Can people take Asterol with Brinex?', 'none'),
+    ('Can cancer spread through blood contact\nSir, after giving an injection to my uncle, is there a problem?', 'none'),
+])
+def test_combination_questions_get_a_notice_and_narration_is_not_a_decision(question, mode):
+    assert safety.triage(question).mode == mode
+
+
+def test_decision_questions_stop_before_the_model_and_combinations_are_answered(monkeypatch):
+    model = Model()
+    blocked = app(monkeypatch, model).ask('Should I stop taking Asterol?')
+    assert blocked['refused'] and blocked['safety'] == 'medication_decision' and model.usage['calls'] == 0
+    answered = app(monkeypatch, Model()).ask('Can I take Asterol with Brinex?')
+    assert answered['answer'].startswith(safety.NOTICES['medication_decision'])
+    assert answered['safety_mode'] == 'caveat'
+
+
+def test_take_a_with_b_routes_to_interactions_only_for_two_drugs():
+    from medkg.qa.linker import Linker
+    from medkg.qa.router import route
+    from tests.unit.test_review_regressions import ENTITIES
+    linker = Linker(ENTITIES)
+    two, _ = linker.question_mentions('Can I take Asterol with Brinex?')
+    one, _ = linker.question_mentions('Can I take Asterol with food?')
+    assert route('Can I take Asterol with Brinex?', two) == 'interactions'
+    assert route('Can I take Asterol with food?', one) != 'interactions'

@@ -12,6 +12,8 @@ CONTRA = (r'contraindicat|should.*avoid|must.*avoid|\b(?:should|must)\b.*\bnot b
 # Relation wordings, matched on the normalized question (plural "s" stripped; D092).
 SIDE = r'side effect|adverse (?:effect|reaction|event)|unwanted effect|undesirable effect'
 INTERACT = r'interact|\bcombin(?:e|ed|ing) with\b|\btaken together\b'
+# "Can I take A with B?" asks about an interaction only when both A and B are drugs (D104).
+PAIR_TAKE = r'\b(?:take|taking|use|using|mix|mixing)\b[^.?!\n]{0,40}\b(?:with|together|alongside|along with)\b'
 TARGET = r'target|protein|gene|\bact(?:s)? on\b|\bmolecular\b|\bbind(?:s|ing)?\b'
 PARENT = r'\b(?:parent|supertype|belong(?:s)? to|categor\w*|broader|classified (?:as|under))\b'
 SUBTYPE = r'\b(?:subtype|subclass\w*|children|a (?:form|type|kind) of|(?:specific |different )?form of)\b'
@@ -89,6 +91,7 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
         return None
     labels = {c.label for c in candidates}
     q = _without_anchors(question, candidates)
+    interact = INTERACT+('|'+PAIR_TAKE if labels=={'Drug'} and len(candidates)==2 else '')
     shared = bool(re.search(SHARED, q))
     if shared and not (len(candidates)==2 and len(labels)==1):
         return None
@@ -97,7 +100,7 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
     # A single-hop template cannot preserve two requested relation families.
     # Entity-type words alone are not relations ("drugs for a disease" is simple).
     families = (
-        INTERACT, SIDE+r'|phenotype|symptom|feature',
+        interact, SIDE+r'|phenotype|symptom|feature',
         CONTRA, TARGET,
         r'(?<!contra)indicat|used for|treat',
     )
@@ -119,10 +122,10 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
     # Multiple explicit anchors may express an intersection or comparison. Only a
     # two-anchor intersection ("both", "in common") or the pairwise interaction
     # question has an unambiguous template meaning; the pipeline sets shared=True.
-    if len(candidates)>1 and not shared and not ('Drug' in labels and re.search(INTERACT,q)):
+    if len(candidates)>1 and not shared and not ('Drug' in labels and re.search(interact,q)):
         return None
     if 'Drug' in labels:
-        for pattern, intent in [(INTERACT,'interactions'), (SIDE,'side_effects'),
+        for pattern, intent in [(interact,'interactions'), (SIDE,'side_effects'),
             (CONTRA,'contraindications'),
             ('off label','off_label'),
             (TARGET,'targets'), ('indicat|used for|treat|condition|disease','indications')]:

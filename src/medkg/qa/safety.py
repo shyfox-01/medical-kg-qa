@@ -106,6 +106,8 @@ def messages(region: str = 'US') -> dict[str, str]:
         'dosage': 'I cannot recommend a medication dose. Ask a clinician or pharmacist about your prescription.',
         'special_population': 'Medication safety for this population needs individual professional assessment. Consult a clinician or pharmacist.',
         'diagnosis_request': 'I cannot diagnose you. A clinician must assess your symptoms and medical history.',
+        'medication_decision': 'Starting, stopping, switching or combining your medicines needs individual '
+                               'advice. Ask your clinician or pharmacist.',
     }
 
 
@@ -130,7 +132,12 @@ NOTICES = {
               'this answer covers only what the knowledge graph records.',
     'special_population': 'Note: these records are general, not specific to this population; '
                           'ask a clinician or pharmacist whether they apply.',
+    'medication_decision': 'Note: whether to take or combine your medicines is a decision for your '
+                           'clinician or pharmacist; this answer covers only what the knowledge graph records.',
 }
+# "Can I take A with B?" also asks whether A and B interact, which the graph records.
+COMBINE_ASK = re.compile(r'\b(?:take|taking|use|using|mix|mixing|combine|combining)\b[^.?!]{1,60}'
+                         r'\b(?:with|together with|alongside|along with|and)\b', re.I)
 CAUTION = ('The question also touches dosing or care for a particular person or population: '
            'report only what the evidence records, and never state doses, dosing schedules, '
            'diagnoses or personal recommendations.')
@@ -164,11 +171,17 @@ OTHER_ASK = re.compile(r'\b(?:cause[sd]?|causing|side effects?|adverse|interact\
 # Whether someone should take, stop, switch or taper their medicine is a personal decision;
 # the output guard catches doses and diagnoses but not "it is safe for you", so such a
 # question that mentions a dose stays blocked.
+_DECIDE = r'(?:take|taking|use|using|stop|stopping|start|starting|switch\w*|continue|quit|give|giving|try|keep)'
 PERSONAL_DECISION = re.compile(
-    r"\b(?:should|can|could|may|must|is it (?:ok|okay|safe|alright|fine)|is this (?:ok|okay|safe|fine)|"
-    r"ok to|okay to|safe to|alright to)\b[^.?!]{0,60}\b(?:take|taking|use|using|stop|stopping|start|starting|"
-    r"switch\w*|continue|quit|give|giving)\b|"
-    r"\b(?:wean\w*|taper\w*|stop taking|stopped taking|come off|coming off|get off)\b", re.I)
+    # The person deciding is the asker or someone they care for: "should I stop", "can my son use".
+    r"\b(?:should|can|could|may|must|shall)\s+(?:i|we|my\s+\w+|he|she|they)\s+(?:\w+\s+){0,2}?"+_DECIDE+r"\b|"
+    r"\bis\s+(?:it|this|that)\s+(?:ok|okay|safe|alright|fine)\s+(?:for\s+(?:me|us|him|her|them|my\s+\w+)\s+)?"
+    r"to\s+"+_DECIDE+r"\b|"
+    r"\b(?:ok|okay|safe|alright)\s+for\s+(?:me|us|him|her|them|my\s+\w+)\s+to\s+"+_DECIDE+r"\b|"
+    r"\bwhat\s+(?:i|we)\s+(?:can|should)\s+(?:take|use|try|get)\b|"
+    r"\bwhat\s+(?:can|should)\s+(?:i|we)\s+(?:take|use|try|get)\b|"
+    # Present-tense requests only: "I stopped taking X last week" narrates, it does not ask.
+    r"\b(?:wean|weaning|taper|tapering|stop taking|come off|coming off|get off)\b", re.I)
 QUESTION_START = re.compile(r'^\s*(?:what|which|who|whom|whose|how|why|when|where|is|are|was|were|can|could|'
                             r'does|do|did|should|will|would|may|might|has|have|any)\b', re.I)
 
@@ -225,6 +238,12 @@ def triage(question: str, region: str = 'US') -> Triage:
         if re.search(PERSONAL, answer_text, re.I) and PERSONAL_DECISION.search(answer_text):
             return Triage('block', 'dosage', text['dosage'], question=question)
         categories.insert(0, 'dosage')
+    elif re.search(PERSONAL, question, re.I) and PERSONAL_DECISION.search(question):
+        # A personal decision without a dose (D104): "Can I take A with B?" is answered as
+        # an interaction question behind a notice; "Should I stop taking X?" is blocked.
+        if not COMBINE_ASK.search(question):
+            return Triage('block', 'medication_decision', text['medication_decision'], question=question)
+        categories.insert(0, 'medication_decision')
     if not categories:
         return Triage(question=question)
     return Triage('caveat', categories[0], text[categories[0]],
