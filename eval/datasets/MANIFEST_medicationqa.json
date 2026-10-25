@@ -1,0 +1,24 @@
+{
+  "source": "https://github.com/abachaa/Medication_QA_MedInfo2019",
+  "license": "CC BY 4.0",
+  "citation": "Ben Abacha A, Mrabet Y, Sharp M, Goodwin T, Shooshan SE, Demner-Fushman D. Bridging the Gap between Consumers' Medication Questions and Trusted Answers. MEDINFO 2019.",
+  "source_sha256": "4f13d0e3b195bd6a5d72a1872f9118cb5f69fd02c370001695330cfc9e3b5832",
+  "spreadsheet_rows": 690,
+  "questions": 651,
+  "mapped": 197,
+  "by_intent": {
+    "indications": 54,
+    "side_effects": 51,
+    "interactions": 49,
+    "contraindications": 11,
+    "targets": 32
+  },
+  "type_to_intent": {
+    "Indication": "indications",
+    "Side effects": "side_effects",
+    "Interaction": "interactions",
+    "Contraindication": "contraindications",
+    "Action": "targets"
+  },
+  "output_sha256": "d8e895e8f6e477b5ae249b9be353699598ba0857aef0b518bfeaf05f1745481d"
+}

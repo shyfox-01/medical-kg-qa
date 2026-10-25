@@ -16,6 +16,7 @@ data/processed/
 eval/datasets/structured*.jsonl
 eval/datasets/liveqa*.jsonl
 eval/datasets/caveat*.jsonl
+eval/datasets/medicationqa*.jsonl
 eval/datasets/text_graph_gold.jsonl
 eval/runs/*
 !eval/runs/*_summary.json
