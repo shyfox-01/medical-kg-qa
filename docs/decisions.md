@@ -40,6 +40,7 @@ system and its evaluation today.
 | Answer | Decline empty verified bodies; recognize bounded opening decline paraphrases | D102 |
 | Safety | Answer the knowledge part with a fixed notice; keep emergencies, dose-only requests and personal decisions blocked | D103 |
 | Safety | Personal medication decisions without a dose are blocked; "Can I take A with B?" is answered behind a notice | D104 |
+| Linking | Corrected names are confirmed ("Did you mean …?") or used with a visible note; vector matches never become silent anchors | D105 |
 
 ## D001 — Environment and scope
 
@@ -3130,3 +3131,44 @@ LiveQA 3 rows become blocked ("Can I stop using the patch?" in both wordings, "w
 I can get my doctor to prescribe") and 1 becomes answered with a notice (meds with
 wine). Router decisions are identical on all 1,334 routable benchmark questions.
 The scorer accepts the new category with a professional-referral check.
+
+## D105 — Confirm corrected names before answering (2026-10-25)
+
+The linker corrected names silently: a one-edit typo of a long drug name, a
+token-similarity match, or an alias-vector match became an anchor without the user
+seeing it. On real LiveQA messages the vector pass turned ordinary words into
+entities ("hands" → Small hand, "Ear" → EARS2, "clear" → Naphazoline, "sleep" →
+Drowsiness), one source of off-topic answers. Look-alike and sound-alike drug
+names are a known cause of medication errors, so a wrong silent correction is
+worse than a question. `medkg.qa.confirm.review` now decides, before routing and
+before any model call:
+
+| Name | Behaviour |
+|---|---|
+| Exact match | Used |
+| One edit from a name of 8+ characters, one name, no drug or disease within two edits | Used, with a note ("read \"Metfromin\" as Metformin") |
+| Any other fuzzy match, or a look-alike nearby | Asked: "Did you mean …?" |
+| Vector match next to recognised entities | Dropped (the mention stays unresolved) |
+| Vector match alone that shares a word stem with the mention | Asked |
+| Unresolved single word spelled like a drug or disease (two edits from nine letters, one from seven) | Asked with the nearest names |
+
+The thresholds come from the audit: two edits on seven-letter words made ordinary
+words look like drugs ("pension" → Edrophonium, "testing" → Estradiol), and
+vector matches without a shared stem were unrelated ("MEDICINE" → multiple
+epiphyseal dysplasia, "HIV" → AIDS). The demo page shows notes highlighted and the
+question with one button per option; choosing one asks again with the confirmed
+name. The scorer reads "Did you mean" as a clarification.
+
+Measured on the 42 generated questions whose names change (local Gemma 4, against
+their latest earlier runs): 26 now carry a note, of which 25 pass (24 before, 1
+newly); 14 misspelling questions are asked back and every suggestion contains the
+intended entity (14/14). 8 of those had been answered through silent correction
+and now need one confirmation; 6 had failed and now get the right suggestion. One
+consumer-term question regresses ("pinworms", previously a vector match to
+enterobiasis). On LiveQA 14 rows drop a vector-matched ordinary word and 14 ask.
+
+Not done: lay disease names from MedlinePlus single-MeSH topics. The audit found 92
+candidates of mixed quality ("drug and young people" → substance-related
+disorder) and none of the 16 names real users wrote that the catalog lacks; those
+are misspellings (now asked back), drug classes ("NSAIDS"), vaccines ("Shingles
+shot") and modified names ("severe depression").

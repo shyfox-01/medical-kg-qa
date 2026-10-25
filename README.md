@@ -25,8 +25,10 @@ the evidence rows; here a disease–drug–drug chain answered by the LLM planne
   transaction. Answers are generated from retrieved evidence only, checked against
   it, and returned with sources and conflict notes.
 - Understands everyday wording: brand names (*Lipitor* → atorvastatin, plus 1,901
-  RxNorm brands matched exactly), consumer terms (*high blood pressure*, *lazy eye*)
-  and simple typos.
+  RxNorm brands matched exactly) and consumer terms (*high blood pressure*, *lazy
+  eye*). Misspelt names are never corrected silently: a confident one-letter fix is
+  shown as a note, anything less certain is asked back ("Did you mean
+  Gabapentin?") with one button per option.
 - Blocks crisis, emergency, diagnosis and dose-only requests before any model call.
   A question that only mentions a dose, or also asks for knowledge, gets the
   knowledge part answered behind a fixed notice; an answer containing a dose or a
@@ -271,9 +273,9 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
 - Free-form generated Cypher still fails on some complex questions, and the free
   LLM endpoint used here times out and rate-limits under load. The local Gemma 4
   setup avoids that and matches it on dev, but needs about 32 GB of RAM.
-- Consumer disease names and misspellings outside the catalog are not recognised:
-  on real questions only 45% of entity names match. RxNorm brands match exactly, so
-  misspelt brand names are not corrected.
+- On real questions only 45% of entity names match the catalog exactly. Misspellings
+  are now asked back, but drug classes ("NSAIDs"), vaccines and modified names
+  ("severe depression") are still not recognised.
 - Router rules cover the wordings seen during development; unseen phrasings fall
   back to the LLM planner, which recovers only some of them.
 - Most questions are generated; the 104 real questions mostly fall outside what the

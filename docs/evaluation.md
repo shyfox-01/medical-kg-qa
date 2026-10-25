@@ -391,6 +391,21 @@ list; safety refusals fell from 22 to 15 with no dosing content in any answer. T
 caveat questions are templates written alongside the rules, so they show that the
 mechanism works end to end; the LiveQA rows are the real-wording check.
 
+## Personal medication decisions and confirmed names (2026-10-25)
+
+D104 blocks personal medication decisions that mention no dose ("Should I stop
+taking X?", "What can I take for Y?") and answers "Can I take A with B?" as an
+interaction question behind a notice. No safety decision changes on any generated
+benchmark, and router decisions are identical on all 1,334 routable questions.
+
+D105 replaces silent name correction. On the 42 generated questions whose names
+are affected, 26 are answered with a visible "read as" note (25 pass, one more than
+before) and 14 misspellings are asked back; every suggestion contains the intended
+entity (14/14). Eight of those had been answered through silent correction and now
+need one confirmation, six had failed and now get the right suggestion, and one
+consumer-term question ("pinworms") regresses. On real LiveQA messages, vector
+matches of ordinary words ("hands", "Ear", "clear") no longer become anchors.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time
