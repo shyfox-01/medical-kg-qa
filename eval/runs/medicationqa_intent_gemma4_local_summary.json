@@ -1,0 +1,80 @@
+{
+  "dataset": "eval\\datasets\\medicationqa_v1.jsonl",
+  "model": "medkg-gemma4-26b",
+  "questions": 651,
+  "mapped": 197,
+  "unmapped": 454,
+  "mapped_rules_only": {
+    "blocked": 5,
+    "clarify": 12,
+    "planner": 161,
+    "right_intent": 16,
+    "wrong_intent": 3
+  },
+  "mapped_with_d108": {
+    "asked_with_right_option": 1,
+    "asked_without_it": 1,
+    "blocked": 5,
+    "clarify": 12,
+    "planner": 130,
+    "right_intent": 43,
+    "wrong_intent": 5
+  },
+  "mapped_by_intent_with_d108": {
+    "contraindications": {
+      "blocked": 2,
+      "clarify": 1,
+      "planner": 7,
+      "right_intent": 1
+    },
+    "indications": {
+      "asked_without_it": 1,
+      "clarify": 1,
+      "planner": 32,
+      "right_intent": 19,
+      "wrong_intent": 1
+    },
+    "interactions": {
+      "blocked": 1,
+      "clarify": 1,
+      "planner": 35,
+      "right_intent": 11,
+      "wrong_intent": 1
+    },
+    "side_effects": {
+      "asked_with_right_option": 1,
+      "blocked": 2,
+      "clarify": 6,
+      "planner": 33,
+      "right_intent": 7,
+      "wrong_intent": 2
+    },
+    "targets": {
+      "clarify": 3,
+      "planner": 23,
+      "right_intent": 5,
+      "wrong_intent": 1
+    }
+  },
+  "unmapped_rules_only": {
+    "blocked": 58,
+    "clarify": 17,
+    "planner": 373,
+    "template_for_unmapped": 6
+  },
+  "unmapped_with_d108": {
+    "asked_without_it": 3,
+    "blocked": 58,
+    "clarify": 17,
+    "planner": 366,
+    "template_for_unmapped": 10
+  },
+  "dose_questions": 64,
+  "dose_outcomes": {
+    "caveat": 9,
+    "blocked": 27,
+    "planner": 26,
+    "clarify": 2
+  },
+  "reading_seconds_median": 0.51
+}

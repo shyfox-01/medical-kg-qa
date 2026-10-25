@@ -429,6 +429,18 @@ development questions written by Claude it reads all 24 it reaches as labelled, 
 two "inherited" questions get associated genes instead of a refusal. The reading
 takes 0.55 s median locally; TypeSafe reports 70–500 ms for its hosted Jev model.
 
+## Human-labelled intent: MedicationQA (2026-10-26)
+
+651 real consumer questions about medicines with their authors' question-type
+labels (MedicationQA, CC BY 4.0) measure whether the system recognises what is
+asked (D110). The mapping from type to template intent was committed before one
+run. Of the 197 questions whose type has a template, the rules alone answer 16 with
+the labelled intent and 3 with another; with D108, 43 and 5. D108's own readings are
+right 27 times out of 29. Most of the rest go to the planner because no entity is
+linked (40), two names are given (34) or a word stays unresolved (34). Of 64
+questions labelled Dose, 26 pass the input dose patterns (the output guard still
+applies); this is recorded, not tuned on this set.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time

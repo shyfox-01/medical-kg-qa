@@ -45,6 +45,7 @@ system and its evaluation today.
 | Linking | Names with a missing or extra space ("heartfailure", "para cetamol") are matched without spaces and used with a note | D107 |
 | Routing | An unrouted question about one name without a relation word is read by the model as a choice with probabilities: a clear reading is answered with a note, a spread one is asked | D108 |
 | Linking | The end of a contraction or possessive ("what's", "mother's") never starts a name, so "What's warfarin" is Warfarin, not (S)-Warfarin | D109 |
+| Evaluation | Intent is measured on MedicationQA's human labels, mapping fixed before one run: 16 → 43 of 197 answered with the labelled intent, 3 → 5 with another | D110 |
 
 ## D001 — Environment and scope
 
@@ -3234,6 +3235,12 @@ one extra model call; questions asked back stop after it (1.1 s mean).
 LiveQA rows were used to set the stop words and head nouns, so LiveQA is not a
 fresh measure of D106.
 
+Update (2026-10-26): the check reads probabilities with `LLMClient.choose` (D108)
+and keeps the match when the model gives it at least 0.5. The prompt then asks for a
+bare number: with the JSON reply format the first token is "{", so every reply had
+counted as "none of these". On the 24 triggered rows, 23 decisions are unchanged and
+"Hemorrhagic Stroke" (0.56 for stroke disorder) is now kept.
+
 ## D107 — Names typed with a missing or extra space (2026-10-26)
 
 Spelling correction (D065, D105) compares letters within one word or one span, so a
@@ -3354,3 +3361,48 @@ after an apostrophe) can no longer start a name, in the exact pass or the space 
 (D107); a name may still contain one ("Crohn's disease"). Found through the D108
 development questions. On all 1,573 non-sealed questions one linking outcome
 changes: a LiveQA message saying "I'm a 58 year old man" no longer links microtia.
+
+## D110 — Intent on human-labelled consumer questions: MedicationQA (2026-10-26)
+
+Every intent number so far came from generated questions or from questions Claude
+wrote and labelled. MedicationQA (Ben Abacha et al., MEDINFO 2019; CC BY 4.0) has
+real consumer questions about medicines, each annotated by its authors with the drug
+in focus and a question type. Its 690 rows hold 651 distinct questions. Five types
+map to template intents (Indication, Side effects, Interaction, Contraindication, and
+Action approximately to targets): 197 questions. The other 454 (Information, Dose,
+Usage, Appearance, Storage, compound types …) have no template, and the right
+behaviour is not to answer them from one. The mapping, the outcome classes and the
+metrics were committed before the first run (b88ade6), all questions are test, and
+the benchmark ran once (`python -m eval.intent_benchmark`; local Gemma 4; the
+deterministic stages and the D106/D108 model calls, without retrieval or answers).
+
+| 197 mapped questions | Rules only | Rules + D108 |
+|---|---|---|
+| Answered with the labelled intent | 16 | 43 |
+| Answered with another intent | 3 | 5 |
+| Asked back (labelled intent offered) | – | 2 (1) |
+| Planner | 161 | 130 |
+| Name asked back / blocked | 12 / 5 | 12 / 5 |
+
+D108 answered 29 questions from its reading, 27 with the labelled intent (93%). The
+two others are ambiguous wordings ("How does cocaine affect the nervous system?" read
+as targets, labelled Side effects). Of the 454 questions without a template, 6 were
+answered from one by the rules and 10 with D108 (for example "How to combine
+dapagliflozin with metformin?" read as interactions); 3 were asked back.
+
+Why the 130 mapped questions still reach the planner: no entity linked 40
+(misspellings such as "level iracetam", vaccines and brands the catalog lacks), two
+names 34 ("levaquin treat uti?", a drug-disease check no single-anchor template
+answers), an unresolved word 34 ("mix salt", "prexum"), the model chose something
+else 16 ("what does metformin do"), a relation word without a rule 6 ("what is
+actonel prescribed for?").
+
+Safety, as a by-product: of the 64 questions labelled Dose, 27 are blocked, 9 are
+answered behind the dose notice (D103), 2 are asked back and 26 pass the input
+triage. These are phrasings the dose patterns miss ("what mg does Lunesta come in",
+"how much levothyroxine is needed", "how many tums a day"). The output guard, which
+replaces an answer that contains a dose, still applies to them. They are not fixed
+here, because fixing them on this set would turn it into development data.
+
+The reading took 0.51 s median. A product would add pair questions and the missing
+phrasings; each needs a fresh labelled set to measure.

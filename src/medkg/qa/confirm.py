@@ -106,22 +106,35 @@ JUDGE_PROMPT = (
     '(safe, transmitted, prevent, storage, a dose or tablet strength, how severe or how long) do not '
     'change the entry. An entry that is broader than the phrase, or a different thing that shares a '
     'word, does not match: "hay fever" is not Fever, "skin cancer" is not just Cancer, "sodium '
-    'deficiency" is not Sodium. If no entry names what the user means, answer 0. Reply with JSON '
-    '{"choice": <number>} only.')
+    'deficiency" is not Sodium. If no entry names what the user means, answer 0.')
+# The reply format: a bare number, whose token probabilities are read (D108), or JSON.
+REPLY_NUMBER = ' Reply with the number only.'
+REPLY_JSON = ' Reply with JSON {"choice": <number>} only.'
+
+
+# The matched entity is kept only when the model gives it at least this probability.
+KEEP_AT = 0.5
 
 
 def model_judge(llm):
-    """The answer model as a constrained chooser among catalog entries (D106); None on failure."""
-    def judge(question: str, phrase: str, options: list) -> int | None:
+    """The answer model as a constrained chooser among catalog entries (D106). Returns
+    probabilities by option number (0 = none of these): read from the reply token where the
+    endpoint gives log-probabilities (D108), else one JSON choice as certain; None on failure."""
+    def judge(question: str, phrase: str, options: list) -> dict[int, float] | None:
         listing = '\n'.join(f'{i}. {c.name} ({c.label})' for i, c in enumerate(options, 1))
+        user = {'role': 'user', 'content': f'Question: {question}\nPhrase: "{phrase.casefold()}"\n'
+                                          f'Entries:\n{listing}\n0. none of these'}
         try:
-            reply = llm.chat_json([{'role': 'system', 'content': JUDGE_PROMPT},
-                                   {'role': 'user', 'content': f'Question: {question}\nPhrase: "{phrase.casefold()}"\n'
-                                                               f'Entries:\n{listing}\n0. none of these'}], 60)
+            if callable(getattr(llm, 'choose', None)):
+                scores = llm.choose([{'role': 'system', 'content': JUDGE_PROMPT + REPLY_NUMBER}, user],
+                                    len(options))
+                if scores:
+                    return scores
+            reply = llm.chat_json([{'role': 'system', 'content': JUDGE_PROMPT + REPLY_JSON}, user], 60)
             choice = int(reply.get('choice'))
         except Exception:
             return None
-        return choice if 0 <= choice <= len(options) else None
+        return {choice: 1.0} if 0 <= choice <= len(options) else None
     return judge
 
 
@@ -134,9 +147,10 @@ def written(phrase: str, text: str) -> bool:
 def check_phrases(linker, question: str, checked: Review, judge, typed: str | None = None) -> Review:
     """Ask the model whether a partly matched phrase names the matched entity (D106).
 
-    The model only chooses among catalog entries found by the linker; a different choice,
-    or none of them, becomes a "Did you mean" question for the user, never a silent anchor.
-    A failed or invalid reply keeps the exact match, as before. A phrase that is not in
+    The model only chooses among catalog entries found by the linker. The match is kept
+    when the model gives it at least KEEP_AT; otherwise the phrase becomes a "Did you mean"
+    question for the user, never a silent anchor. A failed or invalid reply keeps the
+    exact match, as before. A phrase that is not in
     the typed question (it came from a follow-up rewrite) is not checked, since the
     confirmed name could not replace it.
     """
@@ -149,10 +163,16 @@ def check_phrases(linker, question: str, checked: Review, judge, typed: str | No
         for c in linker.link(phrase):
             options.setdefault(c.uid, c)
         options = list(options.values())[:6]
-        choice = judge(question, phrase, options)
-        if choice is None or (choice and options[choice-1].uid in {c.uid for c in group}):
+        scores = judge(question, phrase, options)
+        if not scores:
             continue
-        offered = ([options[choice-1]] if choice else []) + group
+        matched = {i for i, c in enumerate(options, 1) if c in group}
+        if sum(scores.get(i, 0.0) for i in matched) >= KEEP_AT:
+            continue
+        # Offered first: the likeliest other entry, unless "none of these" is likelier.
+        others = [i for i in scores if i and i not in matched]
+        best = max(others, key=scores.get, default=None)
+        offered = ([options[best-1]] if best and scores[best] >= scores.get(0, 0.0) else []) + group
         checked.kept = [c for c in checked.kept if c not in group]
         checked.suggestions.append((phrase, offered))
     return checked

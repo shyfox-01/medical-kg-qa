@@ -46,7 +46,8 @@ def run(question, choice, lookup=None):
 
     def judge(q, phrase, options):
         seen.append([c.name for c in options])
-        return choice(options) if callable(choice) else choice
+        picked = choice(options) if callable(choice) else choice
+        return picked if picked is None or isinstance(picked, dict) else {picked: 1.0}
     return confirm.check_phrases(linker, question, checked, judge), seen
 
 
@@ -122,3 +123,20 @@ def test_the_model_judge_returns_none_on_bad_output():
         def chat_json(self, *args):
             return {'choice': 'many'}
     assert confirm.model_judge(Broken())('q', 'p', []) is None
+
+
+def test_an_unsure_keep_is_asked_back_with_the_likeliest_other_entry_first():
+    pruritus = Candidate('p:pruritus', 'Pruritus', 'Phenotype', 0.9, 'fuzzy', False, 'facial itch', None)
+    checked, _ = run('Are rashes and facial itch side effects of Iron?', {1: 0.4, 2: 0.35, 0: 0.25},
+                     lambda phrase: [pruritus])
+    assert [(p, [c.name for c in g]) for p, g in checked.suggestions] == [('facial itch', ['Pruritus', 'ITCH'])]
+    checked, _ = run('Are rashes and facial itch side effects of Iron?', {1: 0.6, 0: 0.4}, lambda phrase: [pruritus])
+    assert not checked.suggestions
+
+
+def test_the_model_judge_reads_probabilities_when_the_endpoint_gives_them():
+    class Probabilities:
+        def choose(self, messages, options):
+            return {0: 0.7, 1: 0.3}
+    iron = Candidate('d:iron', 'Iron', 'Drug', 100, 'exact', False, 'iron', (0, 1))
+    assert confirm.model_judge(Probabilities())('q', 'p', [iron]) == {0: 0.7, 1: 0.3}

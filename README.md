@@ -131,6 +131,12 @@ evidence, and none contains dosing content. Answering the knowledge part behind 
 safety notice instead of refusing whole questions cut safety refusals from 22 to 15
 ([details](docs/evaluation.md#real-consumer-questions-trec-2017-liveqa-2026-10-24)).
 
+**Human-labelled intent** (651 real consumer medication questions, MedicationQA):
+of the 197 whose labelled type has a template, the rules alone answer 16 with the
+labelled intent; with the model reading unclear questions (D108), 43, while answers
+with another intent go from 3 to 5. The mapping was fixed before a single run
+([details](docs/evaluation.md#human-labelled-intent-medicationqa-2026-10-26)).
+
 **Graph vs pure vector** (frozen v2 test split, 240 questions, cloud model; a
 pure-vector control retrieves from the same text plus one paragraph per entity;
 scorer 3.12, saved outputs rescored offline):
@@ -265,6 +271,7 @@ docs/             evaluation, architecture, decision log, project history
 | BioRED | Research benchmark, used locally for extraction diagnostics |
 | RxNorm Current Prescribable Content (NLM) | No licence required; brand names used as aliases |
 | TREC 2017 LiveQA medical test set | CC BY 4.0 (Ben Abacha et al., 2017); questions stay local |
+| MedicationQA (MEDINFO 2019) | CC BY 4.0 (Ben Abacha et al., 2019); questions stay local |
 | bge-small-en-v1.5 | MIT |
 
 The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
