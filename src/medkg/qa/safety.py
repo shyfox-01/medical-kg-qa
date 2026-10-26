@@ -27,25 +27,45 @@ DOSE_SCHEDULE = (r'\b(?:take|use|inject|swallow|administer|apply)\b[^\n.!?]{0,12
                  +QUANTITY+r'\s+times?\s+(?:(?:a|per|each)\s+)?(?:day|week|month)|'
                  r'(?:every|each)\s+(?:morning|afternoon|evening|night|day|week)|'
                  r'every (?:\d+|one|two|four|six|eight|twelve) hours?)\b')
-# Which strengths a product comes in, how much is needed, how many a day, how often a
-# booster is due, an infusion rate, or a bare "X mg?" (D111). Found missing on the
-# human-labelled MedicationQA dose questions; written from separate examples.
-STRENGTH = r'(?:mgs?|milligrams?|strengths?(?!\s+(?:training|exercises?))|dosages?|doses?)'
-DOSE_ASK = (r'\b(?:what|which|different|available)\s+'+STRENGTH+r'\b|'
-            r'\b'+STRENGTH+r'\b[^.?!\n]{0,40}\b(?:comes? in|available|are there)\b|'
-            r'\bsize doses?\b|'
-            r'\bhow much\b[^.?!\n]{0,60}\b(?:need|needs|needed|required|recommended|should|a day|per day|daily|'
-            r'a week|per week|at once|at a time|for an? (?:adult|child|teenager)|to treat|is (?:ok|okay|safe)|'
-            r'too much)\b|'
-            r'\bhow many\b[^.?!\n]{0,40}\b(?:a|per|each|in)\s+(?:day|24 hours|week|night|dose|serving)\b|'
-            r'\bhow many\s+(?:mgs?|milligrams?|grams?|tablets?|pills?|capsules?|puffs?|drops?|units?)\b|'
-            r'\b(?:daily|recommended|right|correct|safe|usual)\s+amount\b|\b(?:what|which)\s+amount\b|'
-            r'\bamount of\b[^.?!\n]{0,40}\b(?:to take|to use|to give|should|needed)\b|'
-            r'\bhow (?:often|frequently)\b[^.?!\n]{0,60}\b(?:needed|due|repeated|boosters?)\b|'
-            r'\b(?:infusion|injection|administration)\s+rate\b|\brate of (?:infusion|injection|administration)\b|'
-            r'\b(?:mg|mgs|milligrams?)\s*\?')
+# Which strengths a product comes in, an infusion rate or a bare "X mg?" asks for a dose
+# (D111). Found missing on the human-labelled MedicationQA dose questions; written from
+# separate examples.
+STRENGTH = r'(?:mgs?|milligrams?|strengths?(?!\s+(?:training|exercises?|of evidence))|dosages?|doses?)'
+DOSE_PRODUCT = (r'\b(?:what|which|different|available)\s+'+STRENGTH+r'\b|'
+                r'\b'+STRENGTH+r'\b[^.?!\n]{0,40}\b(?:comes? in|available|are there)\b|'
+                r'\bsize doses?\b|'
+                r'\b(?:daily|recommended|right|correct|safe|usual)\s+amount\b|'
+                r'\b(?:infusion|injection|administration)\s+rate\b|\brate of (?:infusion|injection|administration)\b|'
+                r'(?-i:\b(?:mg|mgs|milligrams?)\s*\?)')
 # "How many people take X" counts people, not doses.
-NOT_A_DOSE_COUNT = r'(?!\s+(?:people|patients|persons|users|americans|adults|women|men)\b)'
+NOT_A_DOSE_COUNT = (r'(?!\s+(?:people|patients|persons|users|americans|adults|women|men|children|kids|babies|'
+                    r'deaths|cases|times|types|kinds)\b)')
+# How much is needed, how many a day, how often a booster is due: a dose request only
+# when a medicine is named ("How much sleep do adults need?" is not one), never about cost.
+DOSE_AMOUNT_ASK = (r'\bhow much\b[^.?!\n]{0,60}\b(?:need|needs|needed|required|recommended|should|a day|per|daily|'
+                   r'a week|at once|at a time|to treat|is (?:ok|okay|safe)|too much|'
+                   r'for (?:an? |my |the )?(?:adults?|child|children|kids?|bab(?:y|ies)|infants?|toddlers?|'
+                   r'teen(?:ager)?s?|\d+[- ](?:years?|months?)[- ]old))\b|'
+                   r'\bhow many\b'+NOT_A_DOSE_COUNT+r'[^.?!\n]{0,40}\b(?:a|per|each|in)\s+'
+                   r'(?:day|24 hours|week|night|dose|serving)\b|'
+                   r'\bhow many\s+(?:mgs?|milligrams?|grams?|tablets?|pills?|capsules?|puffs?|drops?|units?)\b|'
+                   r'\b(?:what|which)\s+amount\b|'
+                   r'\bamount of\b[^.?!\n]{0,40}\b(?:to take|to use|to give|should|needed)\b|'
+                   r'\bhow (?:often|frequently)\b[^.?!\n]{0,60}\b(?:need|needed|due|repeated|boosters?)\b|'
+                   r'\b(?:max|maximum|min|minimum)\b[^.?!\n]{0,40}\b(?:per|a|each)\s+(?:day|dose|week)\b')
+MEDICINE_WORDS = (r'\b(?:drugs?|medicines?|medications?|meds|pills?|tablets?|capsules?|doses?|dosages?|shots?|'
+                  r'vaccines?|boosters?|injections?|supplements?|vitamins?|antibiotics?|puffs?|drops?|inhalers?|'
+                  r'syrups?|powders?|creams?|ointments?|patch(?:es)?)\b')
+COST = r'\b(?:cost|costs|price|prices|pay|paying|insurance|afford|spend)\b'
+
+
+def amount_ask(text: str, medicine: bool = False) -> bool:
+    """How much, how many or how often of a medicine (D111). `medicine` says that the
+    question names a drug; a medicine word ("tablets", "booster") also counts."""
+    return bool((medicine or re.search(MEDICINE_WORDS, text, re.I)) and not re.search(COST, text, re.I)
+                and re.search(DOSE_AMOUNT_ASK, text, re.I))
+
+
 # Entity names alone ("chest pain", "heart attack", "suicidal ideation", "ectopic
 # pregnancy") are ordinary knowledge-graph questions. Emergency and crisis rules
 # need a personal or situational cue; population rules need a medication context.
@@ -65,7 +85,7 @@ POPULATION = (r'\b(?:pregnant|(?:during|in|while in|throughout) pregnancy|breast
               r'nursing (?:mother|baby|infant)s?|infants?|newborns?|bab(?:y|ies)|child|children|'
               r'kids?|toddlers?|elderly|older adults?|seniors?|'
               r'\d+[- ](?:years?|months?|weeks?)[- ]old)\b')
-MEDICATION_CONTEXT = (r'\b(?:safe|safely|safety|take|taking|use|using|give|giving|drugs?|medicines?|'
+MEDICATION_CONTEXT = (r'\b(?:safe|safely|safety|take|taking|use|using|used|give|giving|drugs?|medicines?|'
                       r'medications?|meds|treatments?|treat|therapy|recommend\w*|prescri\w*|'
                       r'dose|dosage)\b')
 
@@ -93,8 +113,8 @@ RULES = {
     'emergency': lambda q: bool(re.search(EMERGENCY_TERM,q,re.I) and (
         re.search(PERSONAL,q,re.I) or re.search(SITUATION,q,re.I))),
     'dosage': lambda q: bool(re.search(
-        r'\b(dosages?|doses?|how (much|many)'+NOT_A_DOSE_COUNT+r'.*(take|mg|tablets)|milligrams|dosing)\b|'
-        +DOSE_ASK+'|'
+        r'\b(dosage|dose|how (much|many)'+NOT_A_DOSE_COUNT+r'.*(take|mg|tablets)|milligrams|dosing)\b|'
+        +DOSE_PRODUCT+'|'
         # Frequency and duration of use are dosing questions too (D092).
         r'\bhow (?:often|frequently|long)\b[^.?!]{0,60}\b(?:take|taken|use|used|give|given|inject\w*)\b|'
         +DOSE_AMOUNT+'|'+DOSE_ARTICLE+'|'+DOSE_SCHEDULE,q,re.I)),
@@ -166,7 +186,6 @@ DOSE_REQUEST = re.compile(
     # How much or how many to take or give, and how often or how long.
     r'\bhow (?:much|many)\b'+NOT_A_DOSE_COUNT+r'[^.?!]{0,60}\b(?:take|taken|taking|give|given|use|used|mg|'
     r'tablets?|pills?|capsules?|units?|iu|doses?)\b|'
-    +DOSE_ASK+'|'
     r'\bhow (?:often|frequently|long)\b[^.?!]{0,60}\b(?:take|taken|taking|use|used|give|given|inject\w*)\b|'
     r'\bwhen (?:should|do|can|must) (?:i|we|he|she|they|you)\b[^.?!]{0,20}\b(?:take|give|use)\b|'
     # Which dose: "the correct dosage", "maximum daily dose", "dosage of X", "what dose".
@@ -222,17 +241,22 @@ def sentences(question: str) -> list[str]:
     return [part.strip() for part in parts if part and part.strip()]
 
 
-def dose_request(sentence: str) -> bool:
-    return bool(DOSE_REQUEST.search(sentence) or
-                (DOSE_WORD.search(sentence) and not OTHER_ASK.search(sentence)))
+def dose_request(sentence: str, medicine: bool = False) -> bool:
+    # A sentence that only names doses or strengths may ask something else ("side effects
+    # of different doses of X"); an amount of a medicine is always a request (D111).
+    return bool(DOSE_REQUEST.search(sentence) or amount_ask(sentence, medicine) or
+                ((DOSE_WORD.search(sentence) or re.search(DOSE_PRODUCT, sentence, re.I))
+                 and not OTHER_ASK.search(sentence)))
 
 
 def is_question(text: str) -> bool:
     return '?' in text or bool(QUESTION_START.search(text))
 
 
-def triage(question: str, region: str = 'US') -> Triage:
-    """Block, answer with a notice, or pass: the policy of D103."""
+def triage(question: str, region: str = 'US', drug_named: bool = False) -> Triage:
+    """Block, answer with a notice, or pass: the policy of D103. `drug_named` says that the
+    question names a drug (the pipeline checks exact catalog names first), which makes
+    "how much X a day" a dose request (D111)."""
     text = messages(region)
     question = question.replace('’', "'")
     for category in ('crisis', 'emergency', 'diagnosis_request'):
@@ -248,9 +272,10 @@ def triage(question: str, region: str = 'US') -> Triage:
             r'\btreat\w*\b[^.?!]{1,60}\b(?:in|for|among)\s+(?:\w+\s+)?'+POPULATION, question, re.I)):
         return Triage('block', 'special_population', text['special_population'], question=question)
     answer_text, categories = question, (['special_population'] if population else [])
-    if RULES['dosage'](question):
+    medicine = drug_named or bool(re.search(MEDICINE_WORDS, question, re.I))
+    if RULES['dosage'](question) or amount_ask(question, medicine):
         parts = sentences(question)
-        rest = [part for part in parts if not dose_request(part)]
+        rest = [part for part in parts if not dose_request(part, medicine)]
         if len(rest) < len(parts):
             residual = ' '.join(rest)
             if len(re.findall(r'[A-Za-z]+', residual)) < 3 or not is_question(residual):

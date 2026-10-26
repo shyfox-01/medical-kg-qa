@@ -3432,6 +3432,24 @@ MedicationQA, which is no longer a fresh set for this: Dose-labelled questions c
 temperature: "in how much temp … should store"). Most of the 12 still missed are
 misspelt ("strenths", "milagrams", "aday").
 
+An independent review then found that the new amount rules blocked ordinary
+questions without a medicine ("How much sleep do adults need?", "How often is a
+colonoscopy needed?", "How many deaths per day are caused by malaria?", "What is
+MG?"), and that a sentence naming doses while asking something else ("What are the
+side effects of different doses of prednisone?") was blocked instead of answered
+behind the notice. The rules are now split. Strengths, infusion rates and a
+lower-case "X mg?" are dose requests as before, but a sentence that only names doses
+and asks something else gets the D103 notice. "How much / how many / how often …
+needed" counts only when a medicine is named, by a medicine word or a drug name that
+the pipeline matches exactly before the triage, and never for cost. The "people"
+exemption covers every "how many" rule, and amounts for a child or a baby, "need a
+shot" and "max … per day" were added. The 75 development questions (35 requests, 40
+look-alikes, including the reviewer's examples) are all classified as intended.
+Against the triage before D111, only one question on the other non-sealed sets
+changes: "Could effexor cause ED and in what doses?" now gets the notice. On
+MedicationQA (second use) 50 of the 64 Dose questions are caught and 4 of 587 others
+are newly flagged (two ask how often a vaccine is needed).
+
 ## D112 — Yes/no questions about a drug and a disease (2026-10-26)
 
 "Does levaquin treat UTI?", "Is X contraindicated in Y?", "Can X cause Y?" name two
@@ -3457,3 +3475,23 @@ system answered 0 of 7 recorded contraindications. Mean latency 5.9 s → 0.7 s 
 model call). On the existing non-sealed sets, routes change only for 8 caveat
 questions ("Can a low dose of X be used to treat Y?"), which pass 6 → 8 live;
 generated and LiveQA routes are unchanged.
+
+An independent review found four faults, fixed before release.
+- Count questions: a count query always returns a row, so "Can heparin cause low
+  platelet count?" became a "Yes". The count test now ignores anchor names, and a
+  count is never a pair check.
+- An unqualified "Yes" for a person or a population: "Is metformin used for type 2
+  diabetes during pregnancy?" passed the triage, because "used" was not a medication
+  word for the population rule; it is now, so it is blocked. The verdict no longer
+  starts with "Yes", and a personal question ("in my son") gets the
+  medication-decision notice.
+- Questions that are not one pair: negations ("Is X not used for Y?"), comparisons
+  ("better than", "the best"), other drugs ("anything besides X"), a second name
+  ("X or Z", "bleeding and nausea") and a second sentence now go to the planner.
+- After an empty pair, unrelated conflict records for the drug were listed; conflicts
+  now concern only the pair.
+
+The verdict also names entities as the user wrote them ("low platelet count
+(Thrombocytopenia)"). After the fixes, b4 (a second run) is still 40/40, b4_dev 20/20
+and the 8 caveat questions pass; routes and count decisions are unchanged on every
+other non-sealed set.

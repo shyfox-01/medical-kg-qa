@@ -15,6 +15,7 @@ from medkg.qa.linker import Linker, label_choices
 from medkg.qa.router import has_relation_cue, is_count, route, wants_shared
 from medkg.retrieval import templates, text2cypher
 from medkg.tracing import request_trace, span
+from medkg_data.lexicon import normalize
 
 
 class Pipeline:
@@ -41,7 +42,10 @@ class Pipeline:
                       'failure_stage':None,'refused':False,'truncated':False}
             with span('safety'):
                 # Block, answer the knowledge part with a fixed notice, or pass (D103).
-                triage = safety.triage(question,self.settings.safety_region)
+                # A named drug makes "how much X a day" a dose request (D111).
+                named = self.linker.question_mentions(question,exact_only=True)[0]
+                triage = safety.triage(question,self.settings.safety_region,
+                                       drug_named=any(c.label=='Drug' for c in named))
                 result['safety'] = triage.category
                 if triage.mode=='block':
                     result.update(answer=triage.message,route='safety',refused=True)
@@ -121,7 +125,7 @@ class Pipeline:
                     # ("What is the purpose of X?"): the model reads which question is meant (D108).
                     reading = None
                     if (intent is None and not unresolved and self.mode!='vector' and candidates
-                            and len({c.span for c in candidates})==1 and not is_count(resolved)
+                            and len({c.span for c in candidates})==1 and not is_count(resolved,candidates)
                             and not has_relation_cue(resolved,candidates)):
                         region = self.settings.safety_region
                         reading = intents.read(self.llm,resolved,candidates,
@@ -149,11 +153,12 @@ class Pipeline:
                         # The route may have chosen one label of a same-name pair.
                         anchors = [c for c in candidates if c.label==label]
                         result['focus'] = [c.name for c in anchors][:2]
-                        args = {'intent':intent,'uids':[c.uid for c in anchors],'count':is_count(resolved),
+                        args = {'intent':intent,'uids':[c.uid for c in anchors],'count':is_count(resolved,candidates),
                                 'shared':wants_shared(resolved,anchors)}
                         # A yes/no question about a drug and a disease checks that one pair (D112).
                         targets = [c for c in candidates if c.label==other and other!=label]
-                        if len(targets)==1 and intent in templates.PAIR_PHRASES and len(anchors)==1:
+                        if (len(targets)==1 and intent in templates.PAIR_PHRASES and len(anchors)==1
+                                and not args['count']):
                             args['target'] = targets[0].uid
                             result['focus'] = [anchors[0].name,targets[0].name]
                         steps = [planner.Step(tool='template',args=args)]
@@ -224,7 +229,8 @@ class Pipeline:
                             attrs['fallback_rows'] = len(text.rows)
                 if self.mode!='vector' and self.settings.phase>=3:
                     with span('tool.conflict_evidence') as attrs:
-                        claims,partial = self._conflicting_claims(candidates,rows,intent)
+                        pair_target = steps[0].args.get('target') if len(steps)==1 else None
+                        claims,partial = self._conflicting_claims(candidates,rows,intent,pair_target)
                         rows = claims + rows
                         result['truncated'] |= partial
                         attrs['rows'] = len(claims)
@@ -262,9 +268,12 @@ class Pipeline:
                 # records that one pair, stated in code like the interaction pair (D112).
                 target = steps[0].args.get('target') if result['route']=='template' and len(steps)==1 else None
                 if target:
-                    name = lambda uid: self.linker.entities.get(uid,{}).get('name',uid)  # noqa: E731
-                    result['answer'] = templates.pair_verdict(intent,name(steps[0].args['uids'][0]),name(target),
-                                                              bool(answer_rows))
+                    by_uid = {c.uid:c for c in candidates}
+                    result['answer'] = templates.pair_verdict(intent,self._written(by_uid,steps[0].args['uids'][0]),
+                                                              self._written(by_uid,target),bool(answer_rows))
+                    # About a person or a population: what the graph records is not advice for them.
+                    if not caveat and re.search(safety.PERSONAL+'|'+safety.POPULATION,resolved,re.I):
+                        notices.append(safety.NOTICES['medication_decision'])
                 elif not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
                 elif recorded:
@@ -352,12 +361,22 @@ class Pipeline:
             return value
         return resolve(args)
 
-    def _conflicting_claims(self,candidates,rows,intent):
+    def _written(self,by_uid: dict,uid: str) -> str:
+        """The name as the user wrote it, with the catalog name when they differ (D112)."""
+        name = self.linker.entities.get(uid,{}).get('name',uid)
+        candidate = by_uid.get(uid)
+        mention = candidate.mention if candidate and candidate.method=='exact' else None
+        if mention and normalize(mention)!=normalize(name):
+            return f'{mention} ({name})'
+        return name
+
+    def _conflicting_claims(self,candidates,rows,intent,target=None):
         if intent not in {'indications','drugs_for','contraindications','contraindicated_drugs'} and not any(
             r.get('conflict') for r in rows):
             return [],False
         anchors = [c.uid for c in candidates if not c.ambiguous]
-        targets = sorted({r['uid'] for r in rows if r.get('uid')})[:25]
+        # A pair check concerns only its own pair, even when no row was returned (D112).
+        targets = [target] if target else sorted({r['uid'] for r in rows if r.get('uid')})[:25]
         if not anchors:
             return [],False
         claims = self.store.read('MATCH (a:Drug)-[r:INDICATED_FOR|CONTRAINDICATED_FOR]->(b:Disease) '

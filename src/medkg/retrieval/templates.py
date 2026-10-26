@@ -65,8 +65,9 @@ PAIR_VERDICTS = {
 
 def pair_verdict(intent: str, anchor: str, target: str, recorded: bool) -> str:
     subject, predicate = (part.format(a=anchor, b=target) for part in PAIR_VERDICTS[intent])
+    # No bare "Yes": the graph records a relation; it does not advise a person.
     if recorded:
-        return f'Yes. The knowledge graph records {subject} as {predicate}.'
+        return f'The knowledge graph records {subject} as {predicate}.'
     return f'{subject[0].upper()}{subject[1:]} is not recorded as {predicate} in the knowledge graph.'
 
 

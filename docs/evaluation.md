@@ -441,8 +441,9 @@ linked (40), two names are given (34) or a word stays unresolved (34). Of 64
 questions labelled Dose, 26 pass the input dose patterns (the output guard still
 applies); this is recorded, not tuned on this set. D111 then added these phrasings
 from separate development questions; measured again on MedicationQA (no longer
-fresh), 52 of the 64 Dose questions are caught, and 2 of 587 others are newly
-flagged.
+fresh), 50 of the 64 Dose questions are caught, and 4 of 587 others are newly
+flagged; amount rules need a named medicine, after a review found that they had
+blocked questions such as "How much sleep do adults need?".
 
 ## Drug-disease yes/no questions (2026-10-26)
 

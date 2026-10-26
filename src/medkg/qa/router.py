@@ -37,13 +37,18 @@ PAIRS = {
 }
 
 
+# Not a check of one pair: a negation, a comparison, other drugs, a second name or clause.
+PAIR_EXCLUDE = (r'\b(?:not|no|never|longer|best|better|worse|worst|safer|safest|more|less|most|least|than|'
+                r'instead|compared|versus|vs|any|other|others|besides|anything|else|only|and|or|but)\b')
+
+
 def pair_intent(question: str, q: str, candidates: list[Candidate]) -> str | None:
-    """The relation asked about between a drug and a disease or phenotype, for a yes/no question."""
+    """The relation asked about between a drug and a disease or phenotype, for one yes/no question."""
     labels = frozenset(c.label for c in candidates)
     if len(candidates) != 2 or len(labels) != 2 or labels not in PAIRS or not re.match(YES_NO, question, re.I):
         return None
-    # A second clause ("Is X a steroid and is it contraindicated in Y?") is a compound question.
-    if re.search(r'\b(?:and|or|but)\s+(?:is|are|does|do|can|could|will|would|should|what|how|which)\b', q):
+    # One question only ("Is X used to treat Y? Is it safe?" asks two), and one pair.
+    if re.search(r'[.?!;]\s+\S', question.strip()) or re.search(PAIR_EXCLUDE, q):
         return None
     found = [intent for pattern, intent in PAIRS[labels] if re.search(pattern, q)]
     return found[0] if len(found) == 1 else None
@@ -202,5 +207,7 @@ def has_relation_cue(question: str, candidates: list[Candidate]) -> bool:
     return any(re.search(pattern, q) for pattern in RELATION_CUES)
 
 
-def is_count(question: str) -> bool:
-    return bool(re.search(r'\b(how many|count|number of)\b',question,re.I))
+def is_count(question: str, candidates: list[Candidate] | None = None) -> bool:
+    """A count question; anchor names are removed first ("low platelet count" is a phenotype)."""
+    text = _without_anchors(question, candidates) if candidates else question
+    return bool(re.search(r'\b(how many|count|number of)\b',text,re.I))

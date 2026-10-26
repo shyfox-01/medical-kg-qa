@@ -54,8 +54,12 @@ class Step(BaseModel):
             if self.args['intent'] not in SPECS:
                 raise ValueError('Unknown template intent')
             # A yes/no pair check names its one target entity (D112).
-            if 'target' in self.args and (not isinstance(self.args['target'],str) or not self.args['target']):
-                raise ValueError('Invalid pair target')
+            if 'target' in self.args:
+                from medkg.retrieval.templates import PAIR_PHRASES
+                if (not isinstance(self.args['target'],str) or not self.args['target']
+                        or self.args['intent'] not in PAIR_PHRASES
+                        or not isinstance(self.args['uids'],list) or len(self.args['uids'])!=1):
+                    raise ValueError('Invalid pair target')
         if self.tool=='expand' and self.args.get('hops',2) not in (1,2):
             raise ValueError('Expansion is bounded to two hops')
         if 'source' in self.args:
