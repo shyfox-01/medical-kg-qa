@@ -71,6 +71,22 @@ def pair_verdict(intent: str, anchor: str, target: str, recorded: bool) -> str:
     return f'{subject[0].upper()}{subject[1:]} is not recorded as {predicate} in the knowledge graph.'
 
 
+def interaction_verdict(names: dict, uids: list[str], rows: list[dict]) -> str:
+    """Every pair among several drugs, recorded or not, stated in code (D113): the answer
+    model said "no interactions listed" over three returned rows."""
+    recorded = {frozenset((row.get('anchor_uid'), row.get('uid'))) for row in rows}
+    pairs = [(a, b) for i, a in enumerate(uids) for b in uids[i + 1:]]
+    found = [f'{names[a]} and {names[b]}' for a, b in pairs if frozenset((a, b)) in recorded]
+    missing = [f'{names[a]} and {names[b]}' for a, b in pairs if frozenset((a, b)) not in recorded]
+    parts = []
+    if found:
+        parts.append('The knowledge graph records interactions between ' + '; '.join(found) + '.')
+    if missing:
+        parts.append(('It records' if found else 'The knowledge graph records') + ' no interaction between '
+                     + '; '.join(missing) + '.')
+    return ' '.join(parts)
+
+
 def describe(intent: str, names: list[str], count: bool = False, shared: bool = False,
              target: str | None = None) -> str:
     """One sentence stating what a template query's rows are."""
@@ -82,6 +98,8 @@ def describe(intent: str, names: list[str], count: bool = False, shared: bool = 
         anchors = names[0] if len(names) == 1 else ', '.join(names[:-1]) + ' and ' + names[-1]
     if intent == 'interactions' and len(names) == 2 and not shared:
         phrase = f'the recorded interaction between {names[0]} and {names[1]}, if any'
+    elif intent == 'interactions' and 2 < len(names) <= 3 and not shared:
+        phrase = 'the recorded interactions among ' + ', '.join(names[:-1]) + ' and ' + names[-1] + ', one row per pair'
     else:
         if shared:
             anchors = 'every one of ' + anchors + ' (each row is linked to all of them)'
@@ -111,7 +129,13 @@ def query(intent: str, uids: list[str], count: bool = False, shared: bool = Fals
     if shared:
         return _shared(source, label, arrow, uids, count)
     if intent=='interactions' and len(uids)>2:
-        raise ValueError('Interactions require one anchor or exactly two drugs')
+        # Every pair among a few drugs: "interactions between A and B or C" (D113).
+        if len(uids)>6 or count:
+            raise ValueError('Interactions among at most six drugs, as a list')
+        return ('MATCH (a:Drug)-[r:INTERACTS_WITH]-(b:Drug) WHERE a.uid IN $uids AND b.uid IN $uids '
+                'AND a.uid < b.uid RETURN DISTINCT b.uid AS uid, b.name AS name, b.synonyms AS synonyms, '
+                'r.source AS source, r.kind AS kind, r.conflict AS conflict, r.evidence AS evidence, '
+                'a.uid AS anchor_uid, a.name AS anchor_name ORDER BY anchor_name, name LIMIT 25'), {'uids': uids}
     if target is not None and (intent not in PAIR_PHRASES or len(uids)!=1 or not isinstance(target,str) or not target):
         raise ValueError('A pair check needs one anchor and one target uid')
     where = 'a.uid = $uid'

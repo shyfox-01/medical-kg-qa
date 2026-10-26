@@ -350,8 +350,12 @@ class Linker:
         # Relation and category words found by the v3 diagnosis (D092), in raw and
         # normalized form ("categories" normalizes to "categorie").
         relation_words = ('subtype subtypes subclass subclasses parent parents category categories '
-                          'belong belongs broader unsafe safe combined combine trigger triggers molecular')
+                          'belong belongs broader unsafe safe combined combine trigger triggers molecular '
+                          # Relation nouns ("contraindications for X") are not names (D113).
+                          'contraindication contraindications indication interaction interactions')
         stops = stops | {w for word in relation_words.split() for w in (word, normalize(word))}
+        # Words are compared in normalized form: "indications" is "indication" (D113).
+        stops = stops | {normalize(word) for word in stops}
         generic = {'the','a','an','what','which','it','its','their','that','drug','drugs',
                    'disease','diseases','condition','conditions','gene','genes','protein',
                    'proteins','symptom','symptoms','phenotype','phenotypes','other','both',

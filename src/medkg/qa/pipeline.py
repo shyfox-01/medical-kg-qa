@@ -274,6 +274,12 @@ class Pipeline:
                     # About a person or a population: what the graph records is not advice for them.
                     if not caveat and re.search(safety.PERSONAL+'|'+safety.POPULATION,resolved,re.I):
                         notices.append(safety.NOTICES['medication_decision'])
+                elif (intent=='interactions' and len(pair)>2 and not steps[0].args.get('count')
+                      and not steps[0].args.get('shared')):
+                    # Interactions among several drugs: every pair, stated in code (D113).
+                    by_uid = {c.uid:c for c in candidates}
+                    result['answer'] = templates.interaction_verdict(
+                        {uid:self._written(by_uid,uid) for uid in pair},pair,answer_rows)
                 elif not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
                 elif recorded:

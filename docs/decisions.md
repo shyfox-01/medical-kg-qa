@@ -48,6 +48,7 @@ system and its evaluation today.
 | Evaluation | Intent is measured on MedicationQA's human labels, mapping fixed before one run: 16 → 43 of 197 answered with the labelled intent, 3 → 5 with another | D110 |
 | Safety | Strengths, amounts needed, counts per day, booster intervals and infusion rates are dose requests | D111 |
 | Routing | A yes/no question about one drug and one disease or phenotype checks that pair, answered in code: b4 32 → 40 of 40 | D112 |
+| Linking, routing | Relation nouns are not names; "prescribed for" asks indications; interactions among three to six drugs are stated pair by pair in code | D113 |
 
 ## D001 — Environment and scope
 
@@ -3495,3 +3496,31 @@ The verdict also names entities as the user wrote them ("low platelet count
 (Thrombocytopenia)"). After the fixes, b4 (a second run) is still 40/40, b4_dev 20/20
 and the 8 caveat questions pass; routes and count decisions are unchanged on every
 other non-sealed set.
+
+## D113 — Relation nouns, "prescribed for", and interactions among several drugs (2026-10-26)
+
+Three small faults showed up in the D110 analysis and the LiveQA runs.
+
+- Mention spans stop at relation words, but the stop list was compared with
+  normalised words, and "indications" normalises to "indication". So
+  "contraindications", "indications" and "interactions" became unresolved names. That
+  sent "What are contraindications for Kadian?" to the planner and made "Are there
+  any drug-drug interactions between gabapentin and hydrocodone?" ask the user to
+  clarify unresolved drug names. Stops are now matched in normalised form, with the
+  relation nouns added.
+- "What is X prescribed for?" asks indications; "How is X prescribed?" (usage) does
+  not.
+- An interaction question about three to six drugs was routed to the pairwise
+  template, which takes two drugs and failed ("diclofenac and lisinopril or aleve").
+  Given to the planner instead, the answer model said that no interactions were
+  listed over the three rows the query returned. That is the most dangerous wrong
+  answer here. Such questions now check every pair among the drugs, and the result
+  is stated in code, pair by pair, like the two-drug pair (D092): "The knowledge graph
+  records interactions between Diclofenac and Lisinopril; Diclofenac and aleve
+  (Naproxen); …".
+
+Routes are unchanged on every generated set, b4, caveat, text and the intent
+development questions. On LiveQA two summaries now route to interactions (live: the
+gabapentin pair is reported, and the four-drug question lists its six recorded
+pairs, where it had failed). On MedicationQA (no longer fresh) three questions now
+reach the labelled intent.

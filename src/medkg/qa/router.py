@@ -150,13 +150,15 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
     # Multiple explicit anchors may express an intersection or comparison. Only a
     # two-anchor intersection ("both", "in common") or the pairwise interaction
     # question has an unambiguous template meaning; the pipeline sets shared=True.
-    if len(candidates)>1 and not shared and not ('Drug' in labels and re.search(interact,q)):
+    # Interactions between two drugs, or among up to six (every pair is checked, D113).
+    if len(candidates)>1 and not shared and not ('Drug' in labels and len(candidates)<=6 and re.search(interact,q)):
         return None
     if 'Drug' in labels:
         for pattern, intent in [(interact,'interactions'), (SIDE,'side_effects'),
             (CONTRA,'contraindications'),
             ('off label','off_label'),
-            (TARGET,'targets'), ('indicat|used for|treat|condition|disease','indications')]:
+            # "What is X prescribed for?"; not "how is X prescribed" (D113).
+            (TARGET,'targets'), (r'indicat|used for|treat|condition|disease|prescri\w* for','indications')]:
             if re.search(pattern,q):
                 return intent
     if 'Disease' in labels:
