@@ -18,7 +18,7 @@ class Step(BaseModel):
     @model_validator(mode='after')
     def validate_arguments(self):
         allowed = {
-            'template': {'intent','uids','count','shared'}, 'text2cypher': {'question'},
+            'template': {'intent','uids','count','shared','target'}, 'text2cypher': {'question'},
             'vector_search': {'query','source','uids'}, 'fulltext': {'query','label'},
             'expand': {'uids','hops'}, 'out_of_scope': {'reason'},
         }
@@ -53,6 +53,9 @@ class Step(BaseModel):
                     raise ValueError(f'Invalid {flag} flag')
             if self.args['intent'] not in SPECS:
                 raise ValueError('Unknown template intent')
+            # A yes/no pair check names its one target entity (D112).
+            if 'target' in self.args and (not isinstance(self.args['target'],str) or not self.args['target']):
+                raise ValueError('Invalid pair target')
         if self.tool=='expand' and self.args.get('hops',2) not in (1,2):
             raise ValueError('Expansion is bounded to two hops')
         if 'source' in self.args:

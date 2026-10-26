@@ -145,13 +145,18 @@ class Pipeline:
                         steps = [planner.Step(tool='vector_search',args={'query':resolved})]
                         result['route'] = 'vector'
                     elif intent:
-                        label = templates.SPECS[intent][0]
+                        label,other = templates.SPECS[intent][:2]
                         # The route may have chosen one label of a same-name pair.
                         anchors = [c for c in candidates if c.label==label]
                         result['focus'] = [c.name for c in anchors][:2]
-                        steps = [planner.Step(tool='template',args={'intent':intent,
-                                  'uids':[c.uid for c in anchors],'count':is_count(resolved),
-                                  'shared':wants_shared(resolved,anchors)})]
+                        args = {'intent':intent,'uids':[c.uid for c in anchors],'count':is_count(resolved),
+                                'shared':wants_shared(resolved,anchors)}
+                        # A yes/no question about a drug and a disease checks that one pair (D112).
+                        targets = [c for c in candidates if c.label==other and other!=label]
+                        if len(targets)==1 and intent in templates.PAIR_PHRASES and len(anchors)==1:
+                            args['target'] = targets[0].uid
+                            result['focus'] = [anchors[0].name,targets[0].name]
+                        steps = [planner.Step(tool='template',args=args)]
                         result['route'] = 'template'
                     else:
                         planned = planner.plan(self.llm,resolved,result['candidates'],self.settings.phase)
@@ -184,7 +189,8 @@ class Pipeline:
                             query,params = templates.query(**args)
                             description = templates.describe(args['intent'],[
                                 self.linker.entities.get(uid,{}).get('name',uid) for uid in args['uids']],
-                                bool(args.get('count')),bool(args.get('shared')))
+                                bool(args.get('count')),bool(args.get('shared')),
+                                self.linker.entities.get(args['target'],{}).get('name') if args.get('target') else None)
                             retrieved = self.store.run_generated(query,params)
                         elif step.tool=='text2cypher':
                             asked = args.get('question',resolved)
@@ -208,6 +214,7 @@ class Pipeline:
                         rows.extend(retrieved.rows)
                         result['truncated'] |= retrieved.truncated
                         if (step.tool=='template' and not retrieved.rows and len(steps)==1
+                                and not step.args.get('target')
                                 and self.mode=='hybrid' and self.settings.phase>=3):
                             # Graph first, text second: most diseases have no phenotype
                             # edges (e.g. gout) but do have documents about them.
@@ -251,7 +258,14 @@ class Pipeline:
                 recorded = (intent=='interactions' and len(pair)==2 and not steps[0].args.get('count')
                             and not steps[0].args.get('shared') and bool(answer_rows))
                 empty_answer = False
-                if not rows:
+                # "Is X used to treat Y?" answered by the pair template: whether the graph
+                # records that one pair, stated in code like the interaction pair (D112).
+                target = steps[0].args.get('target') if result['route']=='template' and len(steps)==1 else None
+                if target:
+                    name = lambda uid: self.linker.entities.get(uid,{}).get('name',uid)  # noqa: E731
+                    result['answer'] = templates.pair_verdict(intent,name(steps[0].args['uids'][0]),name(target),
+                                                              bool(answer_rows))
+                elif not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
                 elif recorded:
                     first,second = (self.linker.entities.get(uid,{}).get('name',uid) for uid in pair)

@@ -35,6 +35,8 @@ the evidence rows; here a disease–drug–drug chain answered by the LLM planne
 - When no rule fits ("What is the purpose of Lynparza?"), the local model scores the
   questions the graph can answer about that name: a clear winner is answered with a
   note and the other questions offered, a close call is asked back as buttons.
+- Yes/no questions about a drug and a condition ("Is X contraindicated in Y?") check
+  that one pair in the graph and state the verdict in code.
 - Blocks crisis, emergency, diagnosis and dose-only requests before any model call.
   A question that only mentions a dose, or also asks for knowledge, gets the
   knowledge part answered behind a fixed notice; an answer containing a dose or a

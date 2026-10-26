@@ -26,6 +26,29 @@ TARGET_WORDS = (('Drug', r'drugs?|medications?|medicines?'),
                 ('Gene', r'genes?|proteins?'))
 
 
+# Yes/no questions about one drug and one disease or phenotype (D112): "Is X used to
+# treat Y?", "Is X contraindicated in Y?", "Can X cause Y?". The relation word decides.
+YES_NO = r'\s*(?:is|are|does|do|can|could|will|would|may|might|has|have|should)\b(?!\s+there\b)'
+PAIRS = {
+    frozenset({'Drug', 'Disease'}): [(CONTRA, 'contraindications'), (r'off label', 'off_label'),
+                                     (r'(?<!contra)indicat|used (?:to treat|for|in)|\btreat\w*|\bhelp\w*',
+                                      'indications')],
+    frozenset({'Drug', 'Phenotype'}): [(SIDE+r'|\bcaus\w*|\btrigger\w*|\binduc\w*', 'side_effects')],
+}
+
+
+def pair_intent(question: str, q: str, candidates: list[Candidate]) -> str | None:
+    """The relation asked about between a drug and a disease or phenotype, for a yes/no question."""
+    labels = frozenset(c.label for c in candidates)
+    if len(candidates) != 2 or len(labels) != 2 or labels not in PAIRS or not re.match(YES_NO, question, re.I):
+        return None
+    # A second clause ("Is X a steroid and is it contraindicated in Y?") is a compound question.
+    if re.search(r'\b(?:and|or|but)\s+(?:is|are|does|do|can|could|will|would|should|what|how|which)\b', q):
+        return None
+    found = [intent for pattern, intent in PAIRS[labels] if re.search(pattern, q)]
+    return found[0] if len(found) == 1 else None
+
+
 def requested_target(question: str) -> str | None:
     """Label of the entity type the question asks for ("Which diseases ...")."""
     match = re.search(r'\b(?:which|what)\b((?:\s+\w+){1,4})', question, re.I)
@@ -116,7 +139,7 @@ def _route(question: str, candidates: list[Candidate], previous: str | None = No
             r'\b(?:drugs?|medications?|medicines?|diseases?|conditions?)\b',q):
         return None
     if len(labels)>1:
-        return None
+        return pair_intent(question, q, candidates)
     if previous in SPECS and re.match(r'\s*what about\b', q):
         return previous if SPECS[previous][0] in labels else None
     # Multiple explicit anchors may express an intersection or comparison. Only a

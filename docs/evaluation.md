@@ -444,6 +444,14 @@ from separate development questions; measured again on MedicationQA (no longer
 fresh), 52 of the 64 Dose questions are caught, and 2 of 587 others are newly
 flagged.
 
+## Drug-disease yes/no questions (2026-10-26)
+
+A fresh batch b4 (60 yes/no questions about one drug and one disease or phenotype,
+half recorded in the graph; 20 for development, 40 measured once) tests D112. The
+earlier system, which sent these to the planner, answered 32 of the 40 correctly and
+none of the 7 recorded contraindications; the pair check answers 40 of 40, in 0.7 s
+instead of 5.9 s, because the verdict is stated in code.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time

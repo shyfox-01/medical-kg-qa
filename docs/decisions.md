@@ -47,6 +47,7 @@ system and its evaluation today.
 | Linking | The end of a contraction or possessive ("what's", "mother's") never starts a name, so "What's warfarin" is Warfarin, not (S)-Warfarin | D109 |
 | Evaluation | Intent is measured on MedicationQA's human labels, mapping fixed before one run: 16 → 43 of 197 answered with the labelled intent, 3 → 5 with another | D110 |
 | Safety | Strengths, amounts needed, counts per day, booster intervals and infusion rates are dose requests | D111 |
+| Routing | A yes/no question about one drug and one disease or phenotype checks that pair, answered in code: b4 32 → 40 of 40 | D112 |
 
 ## D001 — Environment and scope
 
@@ -3430,3 +3431,29 @@ MedicationQA, which is no longer a fresh set for this: Dose-labelled questions c
 36 → 52 of 64, other questions newly flagged 2 of 587 (one asks a storage
 temperature: "in how much temp … should store"). Most of the 12 still missed are
 misspelt ("strenths", "milagrams", "aday").
+
+## D112 — Yes/no questions about a drug and a disease (2026-10-26)
+
+"Does levaquin treat UTI?", "Is X contraindicated in Y?", "Can X cause Y?" name two
+entities, so the router sent them to the planner. On MedicationQA 34 of the
+questions with a template type were of this kind (D110). The router now sends a
+yes/no question about one drug and one disease or phenotype to a pair check when its
+relation word names one relation (treat, used for, indicated → indications;
+contraindicated → contraindications; off-label; side effect, cause → side effects).
+"Is there/Are there …" and questions with a second clause ("Is X a steroid and is it
+contraindicated in Y?") are not pair checks. The template restricts the drug's
+relation to the named target, and the verdict is stated in code, like the
+interaction pair (D092): "Yes. The knowledge graph records Histidine as
+contraindicated in disorder of phenylalanine metabolism." or "Pravastatin is not
+recorded as indicated for meningeal tuberculosis in the knowledge graph." An empty
+pair check does not fall back to text search. When the model worded the answer, it
+denied the returned row for recorded contraindications.
+
+Measured on a fresh batch b4 (seed 3051, `eval/generate_v3_b4.py`): 60 yes/no
+questions, half recorded and half not (the condition then has that relation with
+other drugs), with anchors no earlier set uses; 20 b4_dev for building, 40 b4
+measured once. b4 with local Gemma 4: 32/40 → 40/40, 8 fixed, none worse; the earlier
+system answered 0 of 7 recorded contraindications. Mean latency 5.9 s → 0.7 s (no
+model call). On the existing non-sealed sets, routes change only for 8 caveat
+questions ("Can a low dose of X be used to treat Y?"), which pass 6 → 8 live;
+generated and LiveQA routes are unchanged.

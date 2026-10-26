@@ -1,0 +1,29 @@
+{
+  "generator_version": "structured-3.0",
+  "seed": 3051,
+  "rows": 60,
+  "splits": {
+    "b4": 40,
+    "b4_dev": 20
+  },
+  "capabilities": {
+    "yesno.contraindications_no": 10,
+    "yesno.contraindications_yes": 10,
+    "yesno.indications_no": 10,
+    "yesno.indications_yes": 10,
+    "yesno.side_effects_no": 10,
+    "yesno.side_effects_yes": 10
+  },
+  "dataset": "structured_v3_b4.jsonl",
+  "dataset_sha256": "44f679bdb4d448015dc1b139fb9b704b179f5b740b7ee572749a963251120ef4",
+  "kg_sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+  "catalog_sha256": "66f7f9a50bedc758c8a4cafa35f3a20c671349877df92f76ff404926fc51036f",
+  "excluded_anchors": 1143,
+  "anchor_sources": [
+    "structured_v1.jsonl",
+    "structured_v2.jsonl",
+    "structured_v3.jsonl",
+    "structured_v3_sealed.jsonl",
+    "structured_v3_b3.jsonl"
+  ]
+}

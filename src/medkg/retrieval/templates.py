@@ -45,8 +45,36 @@ PHRASES = {
 }
 
 
-def describe(intent: str, names: list[str], count: bool = False, shared: bool = False) -> str:
+# A pair check (D112): one drug and the disease or phenotype the question names.
+PAIR_PHRASES = {
+    'indications': 'the recorded indication of {a} for {b}, if any',
+    'contraindications': 'the recorded contraindication of {a} in {b}, if any',
+    'off_label': 'the recorded off-label use of {a} for {b}, if any',
+    'side_effects': '{b}, if it is a recorded side effect of {a}',
+}
+
+
+# The verdict of a pair check, stated in code: the answer model denied returned rows.
+PAIR_VERDICTS = {
+    'indications': ('{a}', 'indicated for {b}'),
+    'contraindications': ('{a}', 'contraindicated in {b}'),
+    'off_label': ('{a}', 'used off-label for {b}'),
+    'side_effects': ('{b}', 'a side effect of {a}'),
+}
+
+
+def pair_verdict(intent: str, anchor: str, target: str, recorded: bool) -> str:
+    subject, predicate = (part.format(a=anchor, b=target) for part in PAIR_VERDICTS[intent])
+    if recorded:
+        return f'Yes. The knowledge graph records {subject} as {predicate}.'
+    return f'{subject[0].upper()}{subject[1:]} is not recorded as {predicate} in the knowledge graph.'
+
+
+def describe(intent: str, names: list[str], count: bool = False, shared: bool = False,
+             target: str | None = None) -> str:
     """One sentence stating what a template query's rows are."""
+    if target and intent in PAIR_PHRASES:
+        return 'The rows are ' + PAIR_PHRASES[intent].format(a=names[0], b=target) + '.'
     if len(names) > 3:
         anchors = f'{len(names)} entities retrieved by an earlier step'
     else:
@@ -62,29 +90,36 @@ def describe(intent: str, names: list[str], count: bool = False, shared: bool = 
     return ('The rows give the number of ' if count else 'The rows are ') + phrase + '.'
 
 
-def query(intent: str, uids: list[str], count: bool = False, shared: bool = False) -> tuple[str, dict]:
+def query(intent: str, uids: list[str], count: bool = False, shared: bool = False,
+          target: str | None = None) -> tuple[str, dict]:
     """Parameterized relation lookup from one or more anchors.
 
     With several anchors the default is a union. shared=True returns only targets
     connected to every anchor ("drugs indicated for both A and B"), never an anchor
     itself; generated Cypher for these intersections often failed to parse (D082).
+    target limits the result to one entity: a yes/no pair check (D112).
     """
     if (intent not in SPECS or not isinstance(uids,list) or not uids or len(uids)>25
             or any(not isinstance(uid,str) or not uid for uid in uids)):
         raise ValueError('Template requires an allowed intent and anchor uid')
     uids = list(dict.fromkeys(uids))
-    source, target, relation, reverse = SPECS[intent]
+    source, label, relation, reverse = SPECS[intent]
     arrow = '<-[r:'+relation+']-' if reverse is True else '-[r:'+relation+']->'
     if reverse is None:
         arrow = '-[r:'+relation+']-'
     if shared:
-        return _shared(source, target, arrow, uids, count)
+        return _shared(source, label, arrow, uids, count)
     if intent=='interactions' and len(uids)>2:
         raise ValueError('Interactions require one anchor or exactly two drugs')
+    if target is not None and (intent not in PAIR_PHRASES or len(uids)!=1 or not isinstance(target,str) or not target):
+        raise ValueError('A pair check needs one anchor and one target uid')
     where = 'a.uid = $uid'
     params = {'uid':uids[0], 'other':uids[1] if len(uids)>1 else ''}
     if intent == 'interactions' and len(uids)>1:
         where += ' AND b.uid = $other'
+    elif target is not None:
+        where += ' AND b.uid = $target'
+        params['target'] = target
     elif len(uids)>1:
         where = 'a.uid IN $uids'
         params['uids'] = uids
@@ -92,7 +127,7 @@ def query(intent: str, uids: list[str], count: bool = False, shared: bool = Fals
               'DISTINCT b.uid AS uid, b.name AS name, b.synonyms AS synonyms, '
               'r.source AS source, r.kind AS kind, r.conflict AS conflict, r.evidence AS evidence, '
               'a.uid AS anchor_uid, a.name AS anchor_name')
-    statement = f'MATCH (a:{source}){arrow}(b:{target}) WHERE {where} RETURN {result}'
+    statement = f'MATCH (a:{source}){arrow}(b:{label}) WHERE {where} RETURN {result}'
     statement += ' LIMIT 25' if count else ' ORDER BY name LIMIT 25'
     return statement, params
 
