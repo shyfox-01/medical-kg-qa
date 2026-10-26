@@ -27,6 +27,25 @@ DOSE_SCHEDULE = (r'\b(?:take|use|inject|swallow|administer|apply)\b[^\n.!?]{0,12
                  +QUANTITY+r'\s+times?\s+(?:(?:a|per|each)\s+)?(?:day|week|month)|'
                  r'(?:every|each)\s+(?:morning|afternoon|evening|night|day|week)|'
                  r'every (?:\d+|one|two|four|six|eight|twelve) hours?)\b')
+# Which strengths a product comes in, how much is needed, how many a day, how often a
+# booster is due, an infusion rate, or a bare "X mg?" (D111). Found missing on the
+# human-labelled MedicationQA dose questions; written from separate examples.
+STRENGTH = r'(?:mgs?|milligrams?|strengths?(?!\s+(?:training|exercises?))|dosages?|doses?)'
+DOSE_ASK = (r'\b(?:what|which|different|available)\s+'+STRENGTH+r'\b|'
+            r'\b'+STRENGTH+r'\b[^.?!\n]{0,40}\b(?:comes? in|available|are there)\b|'
+            r'\bsize doses?\b|'
+            r'\bhow much\b[^.?!\n]{0,60}\b(?:need|needs|needed|required|recommended|should|a day|per day|daily|'
+            r'a week|per week|at once|at a time|for an? (?:adult|child|teenager)|to treat|is (?:ok|okay|safe)|'
+            r'too much)\b|'
+            r'\bhow many\b[^.?!\n]{0,40}\b(?:a|per|each|in)\s+(?:day|24 hours|week|night|dose|serving)\b|'
+            r'\bhow many\s+(?:mgs?|milligrams?|grams?|tablets?|pills?|capsules?|puffs?|drops?|units?)\b|'
+            r'\b(?:daily|recommended|right|correct|safe|usual)\s+amount\b|\b(?:what|which)\s+amount\b|'
+            r'\bamount of\b[^.?!\n]{0,40}\b(?:to take|to use|to give|should|needed)\b|'
+            r'\bhow (?:often|frequently)\b[^.?!\n]{0,60}\b(?:needed|due|repeated|boosters?)\b|'
+            r'\b(?:infusion|injection|administration)\s+rate\b|\brate of (?:infusion|injection|administration)\b|'
+            r'\b(?:mg|mgs|milligrams?)\s*\?')
+# "How many people take X" counts people, not doses.
+NOT_A_DOSE_COUNT = r'(?!\s+(?:people|patients|persons|users|americans|adults|women|men)\b)'
 # Entity names alone ("chest pain", "heart attack", "suicidal ideation", "ectopic
 # pregnancy") are ordinary knowledge-graph questions. Emergency and crisis rules
 # need a personal or situational cue; population rules need a medication context.
@@ -74,7 +93,8 @@ RULES = {
     'emergency': lambda q: bool(re.search(EMERGENCY_TERM,q,re.I) and (
         re.search(PERSONAL,q,re.I) or re.search(SITUATION,q,re.I))),
     'dosage': lambda q: bool(re.search(
-        r'\b(dosage|dose|how (much|many).*(take|mg|tablets)|milligrams|dosing)\b|'
+        r'\b(dosages?|doses?|how (much|many)'+NOT_A_DOSE_COUNT+r'.*(take|mg|tablets)|milligrams|dosing)\b|'
+        +DOSE_ASK+'|'
         # Frequency and duration of use are dosing questions too (D092).
         r'\bhow (?:often|frequently|long)\b[^.?!]{0,60}\b(?:take|taken|use|used|give|given|inject\w*)\b|'
         +DOSE_AMOUNT+'|'+DOSE_ARTICLE+'|'+DOSE_SCHEDULE,q,re.I)),
@@ -144,8 +164,9 @@ CAUTION = ('The question also touches dosing or care for a particular person or 
 _ANY_AMOUNT = DOSE_AMOUNT+r'|\b(?:high|higher|large|larger|low|lower|this|that|such an?(?: high| low)?|my|his|her|the|a)\s+doses?\b'
 DOSE_REQUEST = re.compile(
     # How much or how many to take or give, and how often or how long.
-    r'\bhow (?:much|many)\b[^.?!]{0,60}\b(?:take|taken|taking|give|given|use|used|mg|tablets?|pills?|'
-    r'capsules?|units?|iu|doses?)\b|'
+    r'\bhow (?:much|many)\b'+NOT_A_DOSE_COUNT+r'[^.?!]{0,60}\b(?:take|taken|taking|give|given|use|used|mg|'
+    r'tablets?|pills?|capsules?|units?|iu|doses?)\b|'
+    +DOSE_ASK+'|'
     r'\bhow (?:often|frequently|long)\b[^.?!]{0,60}\b(?:take|taken|taking|use|used|give|given|inject\w*)\b|'
     r'\bwhen (?:should|do|can|must) (?:i|we|he|she|they|you)\b[^.?!]{0,20}\b(?:take|give|use)\b|'
     # Which dose: "the correct dosage", "maximum daily dose", "dosage of X", "what dose".

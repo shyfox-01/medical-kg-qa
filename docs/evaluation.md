@@ -439,7 +439,10 @@ the labelled intent and 3 with another; with D108, 43 and 5. D108's own readings
 right 27 times out of 29. Most of the rest go to the planner because no entity is
 linked (40), two names are given (34) or a word stays unresolved (34). Of 64
 questions labelled Dose, 26 pass the input dose patterns (the output guard still
-applies); this is recorded, not tuned on this set.
+applies); this is recorded, not tuned on this set. D111 then added these phrasings
+from separate development questions; measured again on MedicationQA (no longer
+fresh), 52 of the 64 Dose questions are caught, and 2 of 587 others are newly
+flagged.
 
 ## Known failure modes
 

@@ -46,6 +46,7 @@ system and its evaluation today.
 | Routing | An unrouted question about one name without a relation word is read by the model as a choice with probabilities: a clear reading is answered with a note, a spread one is asked | D108 |
 | Linking | The end of a contraction or possessive ("what's", "mother's") never starts a name, so "What's warfarin" is Warfarin, not (S)-Warfarin | D109 |
 | Evaluation | Intent is measured on MedicationQA's human labels, mapping fixed before one run: 16 → 43 of 197 answered with the labelled intent, 3 → 5 with another | D110 |
+| Safety | Strengths, amounts needed, counts per day, booster intervals and infusion rates are dose requests | D111 |
 
 ## D001 — Environment and scope
 
@@ -3406,3 +3407,26 @@ here, because fixing them on this set would turn it into development data.
 
 The reading took 0.51 s median. A product would add pair questions and the missing
 phrasings; each needs a fresh labelled set to measure.
+
+## D111 — More dose-request phrasings (2026-10-26)
+
+D110 showed that 26 of MedicationQA's 64 human-labelled Dose questions passed the
+input triage. The dose patterns looked for "how much … take" and "what dose", not for
+the strengths a product comes in ("what mg does X come in", "which strengths are
+available"), the amount needed ("how much vitamin C is needed per day", "how much
+amoxicillin to treat …"), counts per day ("how many aspirin per day", "how many puffs
+at once"), booster intervals ("how often is a tetanus booster needed"), infusion or
+injection rates, a bare "naproxen mg?", or the plural "doses". These phrasings are
+now dose requests (`safety.DOSE_ASK`); "how many people take X" no longer is.
+
+The rules were written from 60 development questions written by Claude
+(eval/datasets/dose_dev_v1.jsonl: 30 dose requests, 30 look-alikes such as "How much
+does metformin cost?", "Does prednisone affect muscle strength?", "What is the
+success rate of IVF?"), not from MedicationQA. Before: 8 of 30 requests caught, 1
+look-alike flagged; after: 30 of 30, none. On every other non-sealed set the triage
+changes for one question: "Could effexor cause ED and in what doses?" (LiveQA) is now
+blocked; one sentence asks for both, so it cannot be split. Measured again on
+MedicationQA, which is no longer a fresh set for this: Dose-labelled questions caught
+36 → 52 of 64, other questions newly flagged 2 of 587 (one asks a storage
+temperature: "in how much temp … should store"). Most of the 12 still missed are
+misspelt ("strenths", "milagrams", "aday").
