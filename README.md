@@ -12,6 +12,11 @@ held-out benchmark.
 *The web demo (`GET /`) shows each answer with its route, the executed Cypher and
 the evidence rows; here a disease–drug–drug chain answered by the LLM planner.*
 
+Unclear wording and misspelt names are confirmed rather than guessed: the guess is
+shown with the other readings one click away, and a corrected name is asked back.
+
+<p><img src="docs/images/intent.png" alt="An unclear question answered as the likeliest reading, with the other questions offered as buttons" width="49%"> <img src="docs/images/confirm.png" alt="A misspelt disease name asked back with a confirmation button" width="49%"></p>
+
 ## What it does
 
 - Answers English questions about drugs, diseases, symptoms and genes from
@@ -123,6 +128,26 @@ The two systems are statistically indistinguishable (they disagree on 15 questio
 consumer names missing from the catalog. Most other failed answers explicitly say
 that no answer was found, rather than giving a wrong answer
 ([failure severity](docs/evaluation.md#failure-severity)).
+
+The sealed test measured the 2026-10-18 system and is not rerun. **The current
+system on every other set** (2026-10-26, local Gemma 4, one run each, against the
+latest earlier run of each set):
+
+| Set | Questions | Passed now | Previous run |
+|---|---:|---:|---:|
+| v2 dev | 160 | 159 (99.4%) | 159 |
+| v2 test | 240 | 233 (97.1%) | – |
+| v3 b1 | 195 | 185 (94.9%) | 188 |
+| v3 b2 | 195 | 189 (96.9%) | 192 |
+| v3 b3 | 191 | 176 (92.1%) | 177 |
+| b4: drug–disease yes/no | 40 | 40 (100%) | 32 |
+| Partial answers behind a safety notice | 64 | 64 (100%) | 62 |
+
+Six of the seven questions that no longer pass in one turn now ask "Did you mean …?"
+with the intended name among the options, because misspelt names are no longer
+corrected silently (D105); the seventh is "pinworms", which no longer becomes
+enterobiasis through vector similarity. Median latency is 2.4–3.1 s per question
+([details](docs/evaluation.md#full-regression-run-2026-10-26)).
 
 **Real consumer questions** (104 questions people sent to the US National Library
 of Medicine, TREC 2017 LiveQA): only 5 are single graph lookups, so they measure

@@ -318,12 +318,14 @@
       while (split < lines.length && lines[split].startsWith("Note:")) split++;
       card.replaceChildren();
       if (split) card.append(element("div", "notes", lines.slice(0, split).join("\n")));
-      card.append(element("div", "answer", lines.slice(split).join("\n").replace(/^\n+/, "")));
+      // A question back to the user is shown once, in its box with the buttons.
+      const askingBack = Boolean(result.suggestions?.length) || result.route === "intent";
+      if (!askingBack) card.append(element("div", "answer", lines.slice(split).join("\n").replace(/^\n+/, "")));
       if (result.suggestions?.length) confirmBox(card, result, question);
       if (result.intent_options?.length && result.route !== "safety") intentBox(card, result);
       const badges = element("div", "badges");
       badges.append(element("span", "badge route", routeNames.get(result.route) ?? result.route ?? ""));
-      badges.append(element("span", "badge", result.response_status ?? ""));
+      badges.append(element("span", "badge", askingBack ? "needs your answer" : result.response_status ?? ""));
       badges.append(element("span", "badge", `${Number(result.latency_s ?? 0).toFixed(1)} s`));
       const calls = result.usage?.calls ?? 0;
       badges.append(element("span", "badge", `${calls} LLM call${calls === 1 ? "" : "s"}`));

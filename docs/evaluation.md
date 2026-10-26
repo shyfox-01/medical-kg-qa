@@ -453,6 +453,36 @@ earlier system, which sent these to the planner, answered 32 of the 40 correctly
 none of the 7 recorded contraindications; the pair check answers 40 of 40, in 0.7 s
 instead of 5.9 s, because the verdict is stated in code.
 
+## Full regression run (2026-10-26)
+
+After D097–D113 every non-sealed set was run once end to end with local Gemma 4, and
+each question was compared with the latest earlier run of its set (v2 dev: the last
+fix round of 2026-10-18; v3 b1: fix round 2; v3 b2 and b3: the RxNorm runs; b4: the
+system before D112; caveat: its first run). The sealed v3 test is not rerun.
+
+| Set | Questions | Passed now | Previous run |
+|---|---:|---:|---:|
+| v2 dev | 160 | 159 (99.4%) | 159 |
+| v2 test | 240 | 233 (97.1%) | – |
+| v3 b1 | 195 | 185 (94.9%) | 188 |
+| v3 b2 | 195 | 189 (96.9%) | 192 |
+| v3 b3 | 191 | 176 (92.1%) | 177 |
+| b4: drug–disease yes/no | 40 | 40 (100%) | 32 |
+| Partial answers behind a safety notice | 64 | 64 (100%) | 62 |
+
+No question that passed before fails for a new reason. Of the seven that no longer
+pass in one turn, six are misspellings now asked back with the intended name among
+the options (D105), which one-turn scoring counts as a failure, and one is
+"pinworms" (D105, documented). Fixed: two caveat questions (pair checks, D112) and one
+v2 dev question. On LiveQA the gold-scored split is unchanged (9/10), and errors fall
+from 10 to 6 (four timeouts of the local model, one generated query that the guard
+rejected and one generated query that failed).
+
+A first attempt at this run is discarded: another project's Neo4j container held the
+default ports, and an earlier copy of the run, thought stopped, wrote the same
+output files. The run reported here used the project's own database on a separate
+port and ran alone.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time
