@@ -129,8 +129,10 @@ consumer names missing from the catalog. Most other failed answers explicitly sa
 that no answer was found, rather than giving a wrong answer
 ([failure severity](docs/evaluation.md#failure-severity)).
 
-The sealed test measured the 2026-10-18 system and is not rerun. **The current
-system on every other set** (2026-10-26, local Gemma 4, one run each, against the
+The table is the system of 2026-10-18. The current system was run on the sealed test
+once more on 2026-10-27, the test's second use: **248 of 260 in scope (95.4%, CI
+92.1–97.3)**, 2 more than before and none worse (McNemar p = 0.5, so not a
+significant change), median 2.6 s. **The current system on every other set** (2026-10-26, local Gemma 4, one run each, against the
 latest earlier run of each set):
 
 | Set | Questions | Passed now | Previous run |

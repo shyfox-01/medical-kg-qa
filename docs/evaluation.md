@@ -230,6 +230,28 @@ Paired, the systems disagree on 15 of 272 questions (7 vs 8; exact McNemar p = 1
 Remaining in-scope failures are catalog gaps (five each), unseen wordings for the local
 model's router and denied rows for the cloud model (D094).
 
+### Second use of the sealed test (2026-10-27)
+
+After D097–D113 and the full regression run, the current system with local Gemma 4
+answered the sealed test once (`--final`). This is the test's second use; nothing
+was changed after it. The earlier local run rescored with scorer 3.13 is unchanged
+(250/272), so the two runs are scored alike.
+
+| | 2026-10-18 | 2026-10-27 |
+|---|---:|---:|
+| In scope (260) | 246 (94.6%, CI 91.2–96.8) | 248 (95.4%, CI 92.1–97.3) |
+| All questions (272) | 250 | 252 |
+| Median latency | 2.7 s | 2.6 s |
+| Failed requests | 1 | 0 |
+
+Two in-scope questions pass that failed before ("Which drugs used for cardiac arrest
+are contraindicated in chronic obstructive pulmonary disease?", "What is the purpose
+of Tropicamide?"), and none fails that passed before (exact McNemar p = 0.5, so the
+change is not significant). The 12 remaining in-scope failures all failed before:
+brand and consumer names missing from the catalog (6), misspellings (2), and
+single cases of a wrapped or lower-cased wording, a disease list and a subtype
+question. None of them is a "Did you mean" confirmation.
+
 ### Failure severity
 
 Pass rates do not distinguish an explicit decline from an answer containing wrong
@@ -458,7 +480,8 @@ instead of 5.9 s, because the verdict is stated in code.
 After D097–D113 every non-sealed set was run once end to end with local Gemma 4, and
 each question was compared with the latest earlier run of its set (v2 dev: the last
 fix round of 2026-10-18; v3 b1: fix round 2; v3 b2 and b3: the RxNorm runs; b4: the
-system before D112; caveat: its first run). The sealed v3 test is not rerun.
+system before D112; caveat: its first run). The sealed v3 test was then run once
+more, below.
 
 | Set | Questions | Passed now | Previous run |
 |---|---:|---:|---:|
