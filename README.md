@@ -15,7 +15,7 @@ the evidence rows; here a disease–drug–drug chain answered by the LLM planne
 Unclear wording and misspelt names are confirmed rather than guessed: the guess is
 shown with the other readings one click away, and a corrected name is asked back.
 
-<p><img src="docs/images/intent.png" alt="An unclear question answered as the likeliest reading, with the other questions offered as buttons" width="49%"> <img src="docs/images/confirm.png" alt="A misspelt disease name asked back with a confirmation button" width="49%"></p>
+<p><img src="docs/images/intent.png" alt="An unclear question answered as the likeliest reading, with the other questions offered as buttons" width="49%"> <img src="docs/images/confirm.png" alt="A misspelt drug name asked back, with the confirmation and None of these stacked" width="49%"></p>
 
 ## What it does
 

@@ -127,6 +127,10 @@
     .confirm .choices button { text-align: left; }
     .confirm .choices + .choices { margin-top: 8px; }
     .confirm .choose { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+    /* Filled buttons keep their colours on hover; the plain hover background hid their text. */
+    #ask:hover:not(:disabled), .confirm .choose:hover:not(:disabled) {
+      background: var(--accent); color: var(--accent-text); filter: brightness(1.15);
+    }
     .confirm.other { border-width: 1px; border-color: var(--border); background: transparent; }
     .confirm.other p { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
     .confirm p:last-child { margin-bottom: 0; }
