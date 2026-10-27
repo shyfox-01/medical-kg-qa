@@ -311,6 +311,22 @@
       card.append(box);
     }
 
+    function answerParts(text) {
+      // Answers use light Markdown: "*" bullets are shown as "•" and **bold** spans are marked.
+      const bulleted = text.split("\n").map(line => line.replace(/^(\s*)[*-]\s+/, "$1• ")).join("\n");
+      return bulleted.split(/\*\*([^*\n]+)\*\*/).map((part, i) => [i % 2 ? "strong" : "text", part])
+        .filter(([, part]) => part);
+    }
+
+    function answerBlock(text) {
+      // Text nodes and <strong> elements only: the answer is never parsed as HTML.
+      const block = element("div", "answer");
+      for (const [kind, part] of answerParts(text)) {
+        block.append(kind === "strong" ? element("strong", "", part) : document.createTextNode(part));
+      }
+      return block;
+    }
+
     function renderResult(card, result, question) {
       // Leading "Note:" lines (safety notice, name corrections) are shown highlighted.
       const lines = (result.answer ?? "").split("\n");
@@ -320,7 +336,7 @@
       if (split) card.append(element("div", "notes", lines.slice(0, split).join("\n")));
       // A question back to the user is shown once, in its box with the buttons.
       const askingBack = Boolean(result.suggestions?.length) || result.route === "intent";
-      if (!askingBack) card.append(element("div", "answer", lines.slice(split).join("\n").replace(/^\n+/, "")));
+      if (!askingBack) card.append(answerBlock(lines.slice(split).join("\n").replace(/^\n+/, "")));
       if (result.suggestions?.length) confirmBox(card, result, question);
       if (result.intent_options?.length && result.route !== "safety") intentBox(card, result);
       const badges = element("div", "badges");
