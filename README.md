@@ -232,6 +232,15 @@ curl -X POST localhost:8000/ask -H "content-type: application/json" \
 `POST /ask/stream` streams the same answer as server-sent events. `GET /ready`
 checks the database and LLM configuration.
 
+On Windows with the local Neo4j install and Ollama running, one command starts
+everything and opens the page: Neo4j in its own window (on port 7688 when another
+Neo4j holds 7687), the API with the local Gemma 4 model, loaded before the first
+question.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start_demo.ps1
+```
+
 ### Local LLM (optional)
 
 Any OpenAI-compatible endpoint works. To run without a cloud API, use
