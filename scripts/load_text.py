@@ -15,6 +15,8 @@ from medkg.qa.linker import Linker
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--openfda-limit',type=int,default=500)
+    parser.add_argument('--links-only',action='store_true',
+                        help='Only refresh document links; text, embeddings and mentions stay as loaded')
     args = parser.parse_args()
     if not 1<=args.openfda_limit<=500:
         parser.error('openFDA limit must be 1–500')
@@ -32,6 +34,21 @@ def main() -> None:
         fda_documents,fda_chunks,fda_report = openfda.parse(records,entities,timestamp)
         documents += fda_documents
         chunks += fda_chunks
+        if args.links_only:
+            urls = {d['uid']:d['url'] for d in documents}
+            store.write('UNWIND $rows AS row MATCH (d:Document {uid:row.uid}) SET d.url=row.url',
+                        {'rows':[{'uid':uid,'url':url} for uid,url in urls.items()]})
+            changed = 0
+            for name,key in (('documents.jsonl','uid'),('chunks.jsonl','document_uid')):
+                path = processed/name
+                rows = [json.loads(line) for line in path.read_text(encoding='utf8').splitlines()]
+                for row in rows:
+                    if row[key] in urls and row.get('url')!=urls[row[key]]:
+                        row['url'] = urls[row[key]]
+                        changed += name=='documents.jsonl'
+                path.write_text(''.join(json.dumps(r)+'\n' for r in rows),encoding='utf8')
+            print(f'Refreshed links of {changed} documents',flush=True)
+            return
         for label in ('Disease','Drug','Phenotype','Gene'):
             rows = [{'uid':e['uid'],**entity_alias_properties(e)} for e in entities if e['label']==label]
             store.write(f'UNWIND $rows AS row MATCH (n:{label} {{uid:row.uid}}) '

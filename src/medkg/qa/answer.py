@@ -152,3 +152,41 @@ def finalize(answer: str, rows: list[dict], truncated: bool) -> str:
     if sources:
         answer += '\n\nSources: '+'; '.join(sorted(sources))
     return answer+'\n\nResearch demo; not medical advice.'
+
+
+# Short words kept in lower case when a label title written in capitals is shown.
+TITLE_SMALL = frozenset('a an and as at by for in of on or the to with'.split())
+
+
+def document_title(title: str, names: int = 3) -> str:
+    """A label title for display: drug labels list each product name in capitals
+    ("DIAZEPAM; DIAZEPAM" -> "Diazepam"); repeated names are dropped and at most three kept."""
+    parts = []
+    for part in (title or '').split(';'):
+        part = part.strip()
+        if part.isupper():
+            words = part.casefold().split()
+            part = ' '.join(w if i and w in TITLE_SMALL else w[:1].upper()+w[1:] for i, w in enumerate(words))
+        if part and part.casefold() not in {p.casefold() for p in parts}:
+            parts.append(part)
+    return ' / '.join(parts[:names]) + (' …' if len(parts) > names else '')
+
+
+def sources(rows: list[dict]) -> list[dict]:
+    """The sources behind an answer for the web page (D123): one entry per document, with
+    its title, link and the sections used, then the graph sources. The text footer written
+    by finalize stays for the CLI and the API's text answer."""
+    documents, graph = {}, []
+    for row in rows:
+        if row.get('url'):
+            entry = documents.setdefault(row['url'], {'source': row.get('source', ''), 'url': row['url'],
+                                                      'title': document_title(row.get('title') or ''),
+                                                      'sections': []})
+            section = (row.get('section') or '').replace('_', ' ')
+            if section and section != 'summary' and section not in entry['sections']:
+                entry['sections'].append(section)
+        else:
+            for name in [row.get('source'), *(row.get('sources') or [])]:
+                if isinstance(name, str) and name and name not in graph:
+                    graph.append(name)
+    return list(documents.values()) + [{'source': name} for name in sorted(graph)]

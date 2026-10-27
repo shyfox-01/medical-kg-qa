@@ -44,13 +44,10 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.6;
     }
-    main { max-width: 960px; margin: 0 auto; padding: 40px 24px 64px; }
+    main { max-width: 960px; margin: 0 auto; padding: 40px 24px 0; }
     h1 { margin: 0; font-size: clamp(1.9rem, 5vw, 2.7rem); letter-spacing: -0.04em; }
     .subtitle { margin: 8px 0 24px; color: var(--muted); }
     .notice {
-      position: sticky;
-      top: 0;
-      z-index: 1;
       padding: 12px 16px;
       margin: 0 0 24px;
       border: 1px solid var(--border);
@@ -79,8 +76,19 @@
       outline-offset: 3px;
     }
     .examples button { text-align: left; font-size: 0.85rem; }
-    form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
-    .question-field { flex: 1 1 320px; min-width: 0; }
+    form { display: flex; align-items: stretch; gap: 10px; }
+    form input { flex: 1; }
+    .composer-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .link {
+      padding: 2px 4px;
+      border: 0;
+      background: none;
+      color: var(--accent);
+      font-size: 0.85rem;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .link:hover:not(:disabled) { background: none; }
     label { display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 650; }
     input {
       width: 100%;
@@ -93,8 +101,18 @@
     }
     #ask { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
     #ask:hover:not(:disabled) { filter: brightness(0.9); }
-    #conversation { margin-top: 32px; }
-    .turn { margin-top: 28px; scroll-margin-top: 110px; min-width: 0; }
+    #conversation { margin-top: 8px; }
+    .turn { margin-top: 28px; min-width: 0; }
+    /* The question box stays at the bottom of the window, as in a chat. */
+    .composer {
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+      margin: 28px -24px 0;
+      padding: 14px 24px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--background);
+    }
     .question { margin: 0 0 12px; font-size: 1.15rem; overflow-wrap: anywhere; }
     .result {
       padding: 24px;
@@ -135,6 +153,15 @@
     .confirm.other p { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
     .confirm p:last-child { margin-bottom: 0; }
     .thinking { color: var(--muted); }
+    .sources { margin-top: 16px; padding: 12px 16px; border-radius: 8px; background: var(--background); }
+    .sources h3 { margin: 0 0 6px; color: var(--muted); font-size: 0.85rem; font-weight: 650; }
+    .sources ol { margin: 0; padding-left: 20px; }
+    .sources li { overflow-wrap: anywhere; }
+    .sources li + li { margin-top: 4px; }
+    .sources a { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+    .sources .kind, .sources .sections { color: var(--muted); font-size: 0.9rem; }
+    .disclaimer { margin: 12px 0 0; color: var(--muted); font-size: 0.8rem; }
+    .how h4 { margin: 16px 0 0; color: var(--muted); font-size: 0.85rem; }
     .error { color: var(--error); }
     .badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
     .badge {
@@ -171,10 +198,9 @@
     th { color: var(--muted); font-weight: 650; }
     .more { color: var(--muted); font-size: 0.85rem; }
     @media (max-width: 480px) {
-      main { padding: 24px 16px 40px; }
+      main { padding: 24px 16px 0; }
       .result { padding: 16px; }
-      .turn { scroll-margin-top: 140px; }
-      form > button { flex: 1; }
+      .composer { margin: 24px -16px 0; padding: 12px 16px 14px; }
     }
   </style>
 </head>
@@ -185,6 +211,7 @@
       <p class="subtitle">Answers from a medical knowledge graph (PrimeKG in Neo4j), with the evidence behind them.</p>
     </header>
     <p class="notice" role="note">Research demo, not medical advice. Do not use it to diagnose, choose doses or make treatment decisions.</p>
+    <div id="welcome">
     <p class="section-label" id="examples-label">Try a question</p>
     <div class="examples" role="group" aria-labelledby="examples-label">
       <button type="button">What is Lipitor used for?</button>
@@ -194,16 +221,19 @@
       <button type="button">Does warfarin interact with aspirin?</button>
       <button type="button">How much ibuprofen should I give my 5-year-old?</button>
     </div>
-    <form id="question-form">
-      <div class="question-field">
-        <label for="question">Your question</label>
-        <input id="question" name="question" type="text" maxlength="4096" required autocomplete="off"
-               placeholder="Ask about the knowledge graph">
-      </div>
-      <button id="ask" type="submit">Ask</button>
-      <button id="new-conversation" type="button">New conversation</button>
-    </form>
+    </div>
     <section id="conversation" aria-label="Conversation"></section>
+    <div class="composer">
+      <div class="composer-head">
+        <label for="question">Your question</label>
+        <button id="new-conversation" class="link" type="button">New conversation</button>
+      </div>
+      <form id="question-form">
+        <input id="question" name="question" type="text" maxlength="4096" required autocomplete="off"
+               placeholder="Ask about a drug, disease, symptom or gene">
+        <button id="ask" type="submit">Ask</button>
+      </form>
+    </div>
   </main>
   <script>
     "use strict";
@@ -211,10 +241,12 @@
     const form = document.getElementById("question-form");
     const input = document.getElementById("question");
     const conversation = document.getElementById("conversation");
+    const welcome = document.getElementById("welcome");
+    const composer = document.querySelector(".composer");
     const buttons = document.querySelectorAll("button");
     const routeNames = new Map([
-      ["template", "Cypher template"], ["planner", "LLM planner"],
-      ["vector", "Vector search"], ["safety", "Safety gate"],
+      ["template", "Graph query"], ["planner", "LLM planner"],
+      ["vector", "Text search"], ["safety", "Safety gate"],
       ["language", "Language gate"], ["scope", "Scope gate"],
       ["linking", "Clarification"], ["intent", "Which question?"]
     ]);
@@ -329,7 +361,44 @@
       input.focus();
       const at = part ? question.toLowerCase().indexOf(part.toLowerCase()) : -1;
       if (at >= 0) input.setSelectionRange(at, at + part.length); else input.select();
-      input.scrollIntoView({block: "center", behavior: "smooth"});
+    }
+
+    function reveal(turn) {
+      // Like a chat: a reply that fits is shown whole just above the question box, a longer
+      // one from its question down. The page moves only as far as it needs to.
+      const visible = window.innerHeight - composer.getBoundingClientRect().height;
+      const box = turn.getBoundingClientRect();
+      const by = box.height + 24 <= visible ? box.bottom - visible + 12 : box.top - 16;
+      if (by > 0) window.scrollBy({top: by, behavior: "smooth"});
+    }
+
+    const sourceNames = new Map([
+      ["medlineplus", "MedlinePlus"], ["openfda", "FDA drug label"],
+      ["primekg", "PrimeKG knowledge graph"], ["openfda_extracted", "FDA drug label (extracted relation)"]
+    ]);
+
+    function sourcesBlock(sources) {
+      // One line per document: its title as a link, where it is from and the sections used.
+      const block = element("section", "sources");
+      block.append(element("h3", "", "Sources"));
+      const list = element("ol");
+      for (const source of sources) {
+        const item = element("li");
+        const kind = sourceNames.get(source.source) ?? source.source ?? "";
+        if (source.url && source.url.startsWith("https://")) {
+          const link = element("a", "", source.title || kind);
+          link.href = source.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          item.append(link, element("span", "kind", ` — ${kind}`));
+        } else {
+          item.append(element("span", "", kind));
+        }
+        if (source.sections?.length) item.append(element("span", "sections", `: ${source.sections.join(" · ")}`));
+        list.append(item);
+      }
+      block.append(list);
+      return block;
     }
 
     function answerParts(text) {
@@ -357,7 +426,17 @@
       if (split) card.append(element("div", "notes", lines.slice(0, split).join("\n")));
       // A question back to the user is shown once, in its box with the buttons.
       const askingBack = Boolean(result.suggestions?.length) || result.route === "intent";
-      if (!askingBack) card.append(answerBlock(lines.slice(split).join("\n").replace(/^\n+/, "")));
+      // The sources are listed below the answer, and the disclaimer closes the reply.
+      let body = lines.slice(split).join("\n").replace(/^\n+/, "");
+      const disclaimer = /\n*Research demo; not medical advice\.\s*$/;
+      const closing = disclaimer.test(body);
+      body = body.replace(disclaimer, "");
+      if (result.sources?.length) body = body.replace(/\n*Sources: [^\n]*\s*$/, "");
+      if (!askingBack) {
+        card.append(answerBlock(body));
+        if (result.sources?.length) card.append(sourcesBlock(result.sources));
+        if (closing) card.append(element("p", "disclaimer", "Research demo; not medical advice."));
+      }
       if (result.suggestions?.length) confirmBox(card, result, question);
       if (result.intent_options?.length && result.route !== "safety") intentBox(card, result, question);
       const badges = element("div", "badges");
@@ -371,28 +450,33 @@
       // Safety refusals have no expandable sections, including trace metadata (D096).
       if (result.route === "safety") return;
 
+      // How the answer was found, folded: linked names, the graph queries (Cypher, the
+      // database's query language), the evidence rows and the trace id.
+      const how = details(card, "How this was answered");
+      how.classList.add("how");
       if (result.candidates?.length) {
-        table(details(card, "Linked entities"), ["Mention", "Entity", "Type", "ID", "Match"],
+        how.append(element("h4", "", "Linked entities"));
+        table(how, ["Mention", "Entity", "Type", "ID", "Match"],
           result.candidates.map(row => [row.mention, row.name, row.label, row.uid, row.method]));
       }
       if (result.queries?.length) {
-        const section = details(card, "Graph queries", true);
+        how.append(element("h4", "", "Graph queries (Cypher)"));
         for (const query of result.queries) {
           const block = element("div", "query");
           if (query.description) block.append(element("p", "description", query.description));
           block.append(element("pre", "cypher", query.cypher ?? ""));
           block.append(element("pre", "", JSON.stringify(query.params ?? {}, null, 2)));
-          section.append(block);
+          how.append(block);
         }
       }
       const rows = (result.contexts ?? []).filter(row => !Object.hasOwn(row, "role"));
       if (rows.length) {
-        const section = details(card, "Evidence rows");
-        table(section, ["Name", "ID", "Source", "Conflict"],
+        how.append(element("h4", "", "Evidence rows"));
+        table(how, ["Name", "ID", "Source", "Conflict"],
           rows.slice(0, 50).map(row => [row.name, row.uid, row.source, row.conflict ? "yes" : ""]));
-        if (rows.length > 50) section.append(element("p", "more", `+${rows.length - 50} more rows`));
+        if (rows.length > 50) how.append(element("p", "more", `+${rows.length - 50} more rows`));
       }
-      if (result.trace_id) details(card, "Trace").append(element("pre", "", result.trace_id));
+      if (result.trace_id) how.append(element("h4", "", "Trace"), element("pre", "", result.trace_id));
     }
 
     async function ask() {
@@ -411,7 +495,9 @@
       card.append(thinking);
       turn.append(card);
       conversation.append(turn);
-      turn.scrollIntoView({block: "nearest", behavior: "smooth"});
+      welcome.hidden = true;
+      input.value = "";
+      reveal(turn);
       const started = performance.now();
       const timer = setInterval(() => {
         thinking.textContent = `Thinking… ${Math.floor((performance.now() - started) / 1000)} s`;
@@ -441,7 +527,7 @@
         pending = false;
         for (const button of buttons) button.disabled = false;
         input.readOnly = false;
-        turn.scrollIntoView({block: "start", behavior: "smooth"});
+        reveal(turn);
       }
     }
 
@@ -458,7 +544,9 @@
     document.getElementById("new-conversation").addEventListener("click", () => {
       history = [];
       conversation.replaceChildren();
+      welcome.hidden = false;
       input.value = "";
+      window.scrollTo({top: 0});
       input.focus();
     });
     if (location.hash.startsWith("#q=")) {

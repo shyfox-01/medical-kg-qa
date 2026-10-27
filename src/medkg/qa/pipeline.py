@@ -269,7 +269,7 @@ class Pipeline:
                 if evidence_uids:
                     documents = self.store.read('MATCH (d:Document)-[:HAS_CHUNK]->(c:Chunk) '
                         'WHERE c.uid IN $uids RETURN c.uid AS uid,c.text AS text,c.section AS section, '
-                        'd.url AS url,d.source AS source LIMIT 25',{'uids':evidence_uids[:25]})
+                        'd.url AS url,d.source AS source,d.title AS title LIMIT 25',{'uids':evidence_uids[:25]})
                     rows = [r for r in rows if r.get('relation') and r.get('conflict')] + documents + [
                         r for r in rows if not (r.get('relation') and r.get('conflict'))]
                     result['contexts'].extend(documents)
@@ -352,6 +352,8 @@ class Pipeline:
                 # An emptied answer is finalized like the no-evidence decline: disclaimer, no sources.
                 result['answer'] = (answer.finalize(result['answer'],[],False) if empty_answer
                                     else answer.finalize(result['answer'],rows,result['truncated']))
+                # The same sources, one entry per document, for the web page (D123).
+                result['sources'] = [] if empty_answer else answer.sources(rows)
             except Exception as exc:
                 result.update(answer='The request could not be completed. Please retry or simplify the question.',
                               failure_stage=stage,error_type=type(exc).__name__)

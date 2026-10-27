@@ -18,6 +18,14 @@ SECTIONS = ('indications_and_usage','contraindications','drug_interactions','box
             'warnings_and_cautions','adverse_reactions','description')
 
 
+def label_url(label: dict,identifier: str) -> str:
+    """The label's page on DailyMed (NLM) when it has a set id, a page for people to read;
+    else its openFDA API record (D123)."""
+    if label.get('set_id'):
+        return 'https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?'+urllib.parse.urlencode({'setid':label['set_id']})
+    return 'https://api.fda.gov/drug/label.json?'+urllib.parse.urlencode({'search':'id:"'+identifier+'"'})
+
+
 def fetch(drugs: list[dict],raw: Path) -> list[dict]:
     directory = raw/'openfda'
     directory.mkdir(parents=True,exist_ok=True)
@@ -128,8 +136,7 @@ def parse(records: list[dict],entities: list[dict],retrieved_at: str) -> tuple[l
             if identifier in documents:
                 documents[identifier]['about'] = sorted(set(documents[identifier]['about']) | about)
                 continue
-            document = {'uid':'openfda:'+identifier,'source':'openfda',
-                'url':'https://api.fda.gov/drug/label.json?'+urllib.parse.urlencode({'search':'id:"'+identifier+'"'}),
+            document = {'uid':'openfda:'+identifier,'source':'openfda','url':label_url(label,identifier),
                 'title':'; '.join(names) or 'Drug label','name':'; '.join(names) or 'Drug label',
                 'synonyms':[],'retrieved_at':retrieved_at,'about':sorted(about)}
             sections = {s:' '.join(label.get(s,[])) for s in SECTIONS if label.get(s)}
