@@ -1,0 +1,398 @@
+{
+ "dataset": "text_v1.jsonl",
+ "split": "test",
+ "top": 8,
+ "candidates": 30,
+ "rrf_k": 60,
+ "rerank_model": "Xenova/ms-marco-MiniLM-L-12-v2",
+ "arms": {
+  "hybrid": {
+   "questions": 48,
+   "recall@1": 0.417,
+   "recall@3": 0.792,
+   "recall@8": 0.938,
+   "mrr": 0.613,
+   "ms_per_query": 52.1
+  },
+  "rerank": {
+   "questions": 48,
+   "recall@1": 0.521,
+   "recall@3": 0.812,
+   "recall@8": 0.958,
+   "mrr": 0.689,
+   "ms_per_query": 5411.5
+  }
+ },
+ "by_category": {
+  "graph_text": {
+   "hybrid": {
+    "questions": 24,
+    "recall@1": 0.375,
+    "recall@3": 0.75,
+    "recall@8": 0.917,
+    "mrr": 0.577
+   },
+   "rerank": {
+    "questions": 24,
+    "recall@1": 0.375,
+    "recall@3": 0.708,
+    "recall@8": 0.917,
+    "mrr": 0.575
+   }
+  },
+  "text_only": {
+   "hybrid": {
+    "questions": 24,
+    "recall@1": 0.458,
+    "recall@3": 0.833,
+    "recall@8": 0.958,
+    "mrr": 0.65
+   },
+   "rerank": {
+    "questions": 24,
+    "recall@1": 0.667,
+    "recall@3": 0.917,
+    "recall@8": 1.0,
+    "mrr": 0.802
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "text-001",
+   "category": "text_only",
+   "gold": "medlineplus:1382:summary:0",
+   "hybrid": 2,
+   "rerank": 1
+  },
+  {
+   "id": "text-002",
+   "category": "text_only",
+   "gold": "medlineplus:4026:summary:750",
+   "hybrid": 4,
+   "rerank": 4
+  },
+  {
+   "id": "text-003",
+   "category": "text_only",
+   "gold": "medlineplus:3791:summary:0",
+   "hybrid": 2,
+   "rerank": 1
+  },
+  {
+   "id": "text-006",
+   "category": "text_only",
+   "gold": "medlineplus:1340:summary:250",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-007",
+   "category": "text_only",
+   "gold": "medlineplus:6051:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-008",
+   "category": "text_only",
+   "gold": "medlineplus:180:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-009",
+   "category": "text_only",
+   "gold": "medlineplus:1474:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-014",
+   "category": "text_only",
+   "gold": "medlineplus:6076:summary:0",
+   "hybrid": 2,
+   "rerank": 2
+  },
+  {
+   "id": "text-015",
+   "category": "text_only",
+   "gold": "medlineplus:615:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-016",
+   "category": "text_only",
+   "gold": "medlineplus:1470:summary:0",
+   "hybrid": 5,
+   "rerank": 1
+  },
+  {
+   "id": "text-017",
+   "category": "text_only",
+   "gold": "medlineplus:1612:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-018",
+   "category": "text_only",
+   "gold": "medlineplus:3167:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-020",
+   "category": "text_only",
+   "gold": "medlineplus:1591:summary:500",
+   "hybrid": 3,
+   "rerank": 2
+  },
+  {
+   "id": "text-021",
+   "category": "text_only",
+   "gold": "medlineplus:209:summary:250",
+   "hybrid": 2,
+   "rerank": 2
+  },
+  {
+   "id": "text-023",
+   "category": "text_only",
+   "gold": "medlineplus:3447:summary:0",
+   "hybrid": 2,
+   "rerank": 1
+  },
+  {
+   "id": "text-027",
+   "category": "text_only",
+   "gold": "medlineplus:396:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-028",
+   "category": "text_only",
+   "gold": "medlineplus:5984:summary:250",
+   "hybrid": 7,
+   "rerank": 2
+  },
+  {
+   "id": "text-030",
+   "category": "text_only",
+   "gold": "medlineplus:5632:summary:250",
+   "hybrid": 2,
+   "rerank": 2
+  },
+  {
+   "id": "text-032",
+   "category": "text_only",
+   "gold": "medlineplus:6177:summary:0",
+   "hybrid": 3,
+   "rerank": 1
+  },
+  {
+   "id": "text-034",
+   "category": "text_only",
+   "gold": "medlineplus:6202:summary:250",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-036",
+   "category": "text_only",
+   "gold": "medlineplus:5622:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-038",
+   "category": "text_only",
+   "gold": "medlineplus:271:summary:750",
+   "hybrid": null,
+   "rerank": 6
+  },
+  {
+   "id": "text-039",
+   "category": "text_only",
+   "gold": "medlineplus:1438:summary:500",
+   "hybrid": 3,
+   "rerank": 3
+  },
+  {
+   "id": "text-040",
+   "category": "text_only",
+   "gold": "medlineplus:4272:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-042",
+   "category": "graph_text",
+   "gold": "medlineplus:7109:summary:250",
+   "hybrid": 2,
+   "rerank": 4
+  },
+  {
+   "id": "text-043",
+   "category": "graph_text",
+   "gold": "medlineplus:481:summary:500",
+   "hybrid": 3,
+   "rerank": 6
+  },
+  {
+   "id": "text-046",
+   "category": "graph_text",
+   "gold": "medlineplus:61:summary:250",
+   "hybrid": 1,
+   "rerank": 2
+  },
+  {
+   "id": "text-047",
+   "category": "graph_text",
+   "gold": "medlineplus:1608:summary:250",
+   "hybrid": 2,
+   "rerank": 2
+  },
+  {
+   "id": "text-048",
+   "category": "graph_text",
+   "gold": "medlineplus:6164:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-050",
+   "category": "graph_text",
+   "gold": "medlineplus:1222:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-052",
+   "category": "graph_text",
+   "gold": "medlineplus:6427:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-057",
+   "category": "graph_text",
+   "gold": "medlineplus:5912:summary:750",
+   "hybrid": null,
+   "rerank": null
+  },
+  {
+   "id": "text-058",
+   "category": "graph_text",
+   "gold": "medlineplus:179:summary:0",
+   "hybrid": 2,
+   "rerank": 1
+  },
+  {
+   "id": "text-059",
+   "category": "graph_text",
+   "gold": "medlineplus:309:summary:0",
+   "hybrid": 4,
+   "rerank": 2
+  },
+  {
+   "id": "text-060",
+   "category": "graph_text",
+   "gold": "medlineplus:1608:summary:500",
+   "hybrid": 5,
+   "rerank": 7
+  },
+  {
+   "id": "text-061",
+   "category": "graph_text",
+   "gold": "medlineplus:3157:summary:250",
+   "hybrid": 1,
+   "rerank": 2
+  },
+  {
+   "id": "text-062",
+   "category": "graph_text",
+   "gold": "medlineplus:25:summary:250",
+   "hybrid": 1,
+   "rerank": 2
+  },
+  {
+   "id": "text-063",
+   "category": "graph_text",
+   "gold": "medlineplus:154:summary:250",
+   "hybrid": 2,
+   "rerank": 2
+  },
+  {
+   "id": "text-065",
+   "category": "graph_text",
+   "gold": "medlineplus:5620:summary:500",
+   "hybrid": null,
+   "rerank": null
+  },
+  {
+   "id": "text-067",
+   "category": "graph_text",
+   "gold": "medlineplus:1687:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-069",
+   "category": "graph_text",
+   "gold": "medlineplus:6465:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-070",
+   "category": "graph_text",
+   "gold": "medlineplus:4117:summary:0",
+   "hybrid": 2,
+   "rerank": 1
+  },
+  {
+   "id": "text-074",
+   "category": "graph_text",
+   "gold": "medlineplus:434:summary:250",
+   "hybrid": 4,
+   "rerank": 3
+  },
+  {
+   "id": "text-075",
+   "category": "graph_text",
+   "gold": "medlineplus:513:summary:250",
+   "hybrid": 2,
+   "rerank": 2
+  },
+  {
+   "id": "text-076",
+   "category": "graph_text",
+   "gold": "medlineplus:464:summary:250",
+   "hybrid": 3,
+   "rerank": 6
+  },
+  {
+   "id": "text-077",
+   "category": "graph_text",
+   "gold": "medlineplus:4316:summary:250",
+   "hybrid": 3,
+   "rerank": 1
+  },
+  {
+   "id": "text-079",
+   "category": "graph_text",
+   "gold": "medlineplus:6202:summary:0",
+   "hybrid": 1,
+   "rerank": 1
+  },
+  {
+   "id": "text-080",
+   "category": "graph_text",
+   "gold": "medlineplus:4266:summary:750",
+   "hybrid": 7,
+   "rerank": 4
+  }
+ ]
+}

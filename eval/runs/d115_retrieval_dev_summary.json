@@ -1,0 +1,339 @@
+{
+ "dataset": "text_v1.jsonl",
+ "split": "dev",
+ "top": 8,
+ "candidates": 30,
+ "rrf_k": 60,
+ "arms": {
+  "dense": {
+   "questions": 32,
+   "recall@1": 0.312,
+   "recall@3": 0.5,
+   "recall@8": 0.562,
+   "mrr": 0.411,
+   "ms_per_query": 34.8
+  },
+  "sparse": {
+   "questions": 32,
+   "recall@1": 0.344,
+   "recall@3": 0.562,
+   "recall@8": 0.75,
+   "mrr": 0.474,
+   "ms_per_query": 15.7
+  },
+  "hybrid": {
+   "questions": 32,
+   "recall@1": 0.469,
+   "recall@3": 0.688,
+   "recall@8": 0.844,
+   "mrr": 0.603,
+   "ms_per_query": 28.4
+  }
+ },
+ "by_category": {
+  "graph_text": {
+   "dense": {
+    "questions": 16,
+    "recall@1": 0.125,
+    "recall@3": 0.438,
+    "recall@8": 0.5,
+    "mrr": 0.276
+   },
+   "sparse": {
+    "questions": 16,
+    "recall@1": 0.125,
+    "recall@3": 0.375,
+    "recall@8": 0.625,
+    "mrr": 0.268
+   },
+   "hybrid": {
+    "questions": 16,
+    "recall@1": 0.312,
+    "recall@3": 0.562,
+    "recall@8": 0.875,
+    "mrr": 0.487
+   }
+  },
+  "text_only": {
+   "dense": {
+    "questions": 16,
+    "recall@1": 0.5,
+    "recall@3": 0.562,
+    "recall@8": 0.625,
+    "mrr": 0.547
+   },
+   "sparse": {
+    "questions": 16,
+    "recall@1": 0.562,
+    "recall@3": 0.75,
+    "recall@8": 0.875,
+    "mrr": 0.681
+   },
+   "hybrid": {
+    "questions": 16,
+    "recall@1": 0.625,
+    "recall@3": 0.812,
+    "recall@8": 0.812,
+    "mrr": 0.719
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "text-004",
+   "category": "text_only",
+   "gold": "medlineplus:5959:summary:0",
+   "dense": 1,
+   "sparse": 1,
+   "hybrid": 1
+  },
+  {
+   "id": "text-005",
+   "category": "text_only",
+   "gold": "medlineplus:4594:summary:0",
+   "dense": 1,
+   "sparse": 1,
+   "hybrid": 1
+  },
+  {
+   "id": "text-010",
+   "category": "text_only",
+   "gold": "medlineplus:4926:summary:0",
+   "dense": 1,
+   "sparse": 1,
+   "hybrid": 1
+  },
+  {
+   "id": "text-011",
+   "category": "text_only",
+   "gold": "medlineplus:523:summary:0",
+   "dense": 1,
+   "sparse": 1,
+   "hybrid": 1
+  },
+  {
+   "id": "text-012",
+   "category": "text_only",
+   "gold": "medlineplus:4748:summary:0",
+   "dense": 1,
+   "sparse": 2,
+   "hybrid": 1
+  },
+  {
+   "id": "text-013",
+   "category": "text_only",
+   "gold": "medlineplus:1605:summary:500",
+   "dense": 1,
+   "sparse": 2,
+   "hybrid": 1
+  },
+  {
+   "id": "text-019",
+   "category": "text_only",
+   "gold": "medlineplus:6071:summary:0",
+   "dense": null,
+   "sparse": 2,
+   "hybrid": 1
+  },
+  {
+   "id": "text-022",
+   "category": "text_only",
+   "gold": "medlineplus:311:summary:0",
+   "dense": 1,
+   "sparse": 1,
+   "hybrid": 1
+  },
+  {
+   "id": "text-024",
+   "category": "text_only",
+   "gold": "medlineplus:137:summary:0",
+   "dense": null,
+   "sparse": 1,
+   "hybrid": 1
+  },
+  {
+   "id": "text-025",
+   "category": "text_only",
+   "gold": "medlineplus:89:summary:500",
+   "dense": null,
+   "sparse": 4,
+   "hybrid": 2
+  },
+  {
+   "id": "text-026",
+   "category": "text_only",
+   "gold": "medlineplus:4867:summary:250",
+   "dense": 4,
+   "sparse": 1,
+   "hybrid": 2
+  },
+  {
+   "id": "text-029",
+   "category": "text_only",
+   "gold": "medlineplus:3898:summary:0",
+   "dense": null,
+   "sparse": 7,
+   "hybrid": null
+  },
+  {
+   "id": "text-031",
+   "category": "text_only",
+   "gold": "medlineplus:203:summary:0",
+   "dense": null,
+   "sparse": null,
+   "hybrid": null
+  },
+  {
+   "id": "text-033",
+   "category": "text_only",
+   "gold": "medlineplus:6427:summary:0",
+   "dense": 2,
+   "sparse": 1,
+   "hybrid": 2
+  },
+  {
+   "id": "text-035",
+   "category": "text_only",
+   "gold": "medlineplus:2729:summary:0",
+   "dense": 1,
+   "sparse": 1,
+   "hybrid": 1
+  },
+  {
+   "id": "text-037",
+   "category": "text_only",
+   "gold": "medlineplus:422:summary:250",
+   "dense": null,
+   "sparse": null,
+   "hybrid": null
+  },
+  {
+   "id": "text-041",
+   "category": "graph_text",
+   "gold": "medlineplus:4553:summary:0",
+   "dense": 1,
+   "sparse": 1,
+   "hybrid": 1
+  },
+  {
+   "id": "text-044",
+   "category": "graph_text",
+   "gold": "medlineplus:30:summary:0",
+   "dense": 2,
+   "sparse": 3,
+   "hybrid": 2
+  },
+  {
+   "id": "text-045",
+   "category": "graph_text",
+   "gold": "medlineplus:5:summary:250",
+   "dense": 2,
+   "sparse": null,
+   "hybrid": 4
+  },
+  {
+   "id": "text-049",
+   "category": "graph_text",
+   "gold": "medlineplus:42:summary:0",
+   "dense": null,
+   "sparse": 6,
+   "hybrid": 2
+  },
+  {
+   "id": "text-051",
+   "category": "graph_text",
+   "gold": "medlineplus:1677:summary:0",
+   "dense": null,
+   "sparse": 1,
+   "hybrid": 1
+  },
+  {
+   "id": "text-053",
+   "category": "graph_text",
+   "gold": "medlineplus:6175:summary:500",
+   "dense": null,
+   "sparse": 5,
+   "hybrid": 6
+  },
+  {
+   "id": "text-054",
+   "category": "graph_text",
+   "gold": "medlineplus:152:summary:250",
+   "dense": null,
+   "sparse": 2,
+   "hybrid": 2
+  },
+  {
+   "id": "text-055",
+   "category": "graph_text",
+   "gold": "medlineplus:8:summary:250",
+   "dense": 3,
+   "sparse": null,
+   "hybrid": 1
+  },
+  {
+   "id": "text-056",
+   "category": "graph_text",
+   "gold": "medlineplus:119:summary:250",
+   "dense": 2,
+   "sparse": null,
+   "hybrid": 5
+  },
+  {
+   "id": "text-064",
+   "category": "graph_text",
+   "gold": "medlineplus:6263:summary:0",
+   "dense": 1,
+   "sparse": 2,
+   "hybrid": 1
+  },
+  {
+   "id": "text-066",
+   "category": "graph_text",
+   "gold": "medlineplus:179:summary:500",
+   "dense": 3,
+   "sparse": 3,
+   "hybrid": 3
+  },
+  {
+   "id": "text-068",
+   "category": "graph_text",
+   "gold": "medlineplus:26:summary:750",
+   "dense": null,
+   "sparse": null,
+   "hybrid": null
+  },
+  {
+   "id": "text-071",
+   "category": "graph_text",
+   "gold": "medlineplus:237:summary:750",
+   "dense": null,
+   "sparse": null,
+   "hybrid": 7
+  },
+  {
+   "id": "text-072",
+   "category": "graph_text",
+   "gold": "medlineplus:6125:summary:500",
+   "dense": null,
+   "sparse": 8,
+   "hybrid": null
+  },
+  {
+   "id": "text-073",
+   "category": "graph_text",
+   "gold": "medlineplus:5876:summary:0",
+   "dense": null,
+   "sparse": 8,
+   "hybrid": 1
+  },
+  {
+   "id": "text-078",
+   "category": "graph_text",
+   "gold": "medlineplus:1:summary:250",
+   "dense": 4,
+   "sparse": null,
+   "hybrid": 5
+  }
+ ]
+}

@@ -4,6 +4,7 @@ import subprocess
 import sys
 import uuid
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
@@ -14,7 +15,7 @@ from medkg.graph.guard import CypherRejected
 from medkg.graph.store import GraphStore
 from medkg.llm import FakeLLM
 from medkg.qa.pipeline import Pipeline
-from medkg.retrieval import expand, fulltext, templates
+from medkg.retrieval import expand, fulltext, templates, vector
 from scripts.load_synthetic import load
 
 pytestmark = pytest.mark.integration
@@ -58,6 +59,14 @@ def test_trusted_text_indexes(fictional):
     result = fictional.read('CALL db.index.vector.queryNodes("chunk_embedding",8,$v) '
         'YIELD node,score RETURN node.uid AS uid,score',{'v':[1.0]+[0.0]*383})
     assert result[0]['uid']=='synthetic:chunk'
+
+
+def test_hybrid_chunk_retrieval_runs_on_both_indexes(fictional,monkeypatch):
+    monkeypatch.setattr(vector.EMBEDDER,'encode',lambda texts: np.array([[1.0]+[0.0]*383],dtype=np.float32))
+    assert vector.sparse(fictional,'Glimmer sign')[0]['uid']=='synthetic:chunk'
+    assert vector.dense(fictional,'anything')[0]['uid']=='synthetic:chunk'
+    rows = vector.search(fictional,'Glimmer sign',uids=['synthetic:disease-a']).rows
+    assert rows[0]['uid']=='synthetic:chunk' and rows[0]['url']=='https://example.invalid/fixture'
 
 
 def test_conflicting_claims_preserve_both_sources_and_evidence(fictional):
