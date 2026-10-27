@@ -74,6 +74,7 @@ def main() -> None:
         records = [json.loads(path.read_text(encoding='utf8')) for path in sorted((RAW/'openfda').glob('*.json'))]
         proposals += synonyms.cached_fda_proposals(records, entities)
         proposals += synonyms.medlineplus_proposals(RAW/'medlineplus.xml', entities)
+        proposals += synonyms.medlineplus_title_proposals(RAW/'medlineplus.xml', entities, equivalents)
     rxnorm_stats = {}
     if args.rxnorm:
         rxnorm_proposals, rxnorm_stats = synonyms.rxnorm_proposal_report(

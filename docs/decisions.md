@@ -49,6 +49,7 @@ system and its evaluation today.
 | Safety | Strengths, amounts needed, counts per day, booster intervals and infusion rates are dose requests | D111 |
 | Routing | A yes/no question about one drug and one disease or phenotype checks that pair, answered in code: b4 32 → 40 of 40 | D112 |
 | Linking, routing | Relation nouns are not names; "prescribed for" asks indications; interactions among three to six drugs are stated pair by pair in code | D113 |
+| Linking | MedlinePlus topic titles become lay disease names when their MeSH heading means the same disease ("Collapsed Lung", "Pinworms"); reviewed | D114 |
 
 ## D001 — Environment and scope
 
@@ -3524,3 +3525,36 @@ development questions. On LiveQA two summaries now route to interactions (live: 
 gabapentin pair is reported, and the four-drug question lists its six recorded
 pairs, where it had failed). On MedicationQA (no longer fresh) three questions now
 reach the labelled intent.
+
+## D114 — Lay disease names from MedlinePlus topic titles (2026-10-27)
+
+The full regression run (2026-10-26) left consumer names missing from the catalog as
+the largest group of failures ("collapsed lung", "pinworms", "esophagus disorders").
+MedlinePlus names its health topics in lay terms and gives each a MeSH heading, but
+the existing rule (D060) used a topic only when its title was already a disease name,
+and then took its also-called list. A topic whose title is the lay name ("Collapsed
+Lung", also called "Pneumothorax") added nothing.
+
+`synonyms.medlineplus_title_proposals` proposes the title as a lay name of a Disease
+when two signals agree: exactly one of the topic's MeSH headings is MONDO-equivalent
+to exactly one Disease, and the title shares a word stem with one of that Disease's
+names, or another name of the topic is one of them. Only the title is proposed. A
+broader probe that also took the also-called lists added subtypes and related
+conditions as synonyms ("Bulimia" for anorexia nervosa, "Diarrhea" for dysentery,
+"Hemiplegia" for palsy), and acronyms that mean something else ("LBP", "SCA").
+Titles about a population, prevention or care ("Asthma in Children", "How to Prevent
+Heart Disease", "Childhood Brain Tumors"), and titles joining several conditions, are
+left out. Claude reviewed the remaining proposals and excluded nine as a substance or
+a different condition ("Asbestos", "Opioid Overdose" for opiate dependence). The
+usual merge rules (no new ambiguity) apply. Applied: 23 aliases, such as "Tooth
+Decay", "Yeast Infections", "Enlarged Prostate", "Pinworms", "Collapsed Lung" and
+"Diabetic Eye Problems". HPO's 8,075 layperson synonyms were checked and are already
+in the catalog (one missing).
+
+Linking changes on five non-sealed questions, all ones that had failed: "esophagus
+disorders" (v2 test), "pinworms" (v3 b2, the D105 regression), "collapsed lung" (two
+in b3) and a text question. The four structured ones now pass live (v2 test 233 → 234
+of 240, b2 189 → 190 of 195, b3 176 → 178 of 191). Nothing changes on LiveQA, caveat,
+b4 or MedicationQA. Vaccines were not added: the graph has no influenza, HPV,
+pneumococcal or COVID-19 vaccine, and its two zoster vaccines make "shingles vaccine"
+ambiguous.

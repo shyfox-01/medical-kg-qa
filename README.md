@@ -148,7 +148,8 @@ latest earlier run of each set):
 Six of the seven questions that no longer pass in one turn now ask "Did you mean …?"
 with the intended name among the options, because misspelt names are no longer
 corrected silently (D105); the seventh is "pinworms", which no longer becomes
-enterobiasis through vector similarity. Median latency is 2.4–3.1 s per question
+enterobiasis through vector similarity (fixed later by lay names from MedlinePlus,
+D114, with three more: v2 test 234, b2 190, b3 178). Median latency is 2.4–3.1 s per question
 ([details](docs/evaluation.md#full-regression-run-2026-10-26)).
 
 **Real consumer questions** (104 questions people sent to the US National Library

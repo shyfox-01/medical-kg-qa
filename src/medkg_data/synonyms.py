@@ -384,6 +384,62 @@ def medlineplus_proposals(path: Path, entities: list[dict]) -> list[tuple]:
     return sorted(set(proposals))
 
 
+# D114: MedlinePlus topic titles as lay names of a Disease. A topic about a population,
+# prevention or care, or one that joins several conditions, names no single disease.
+TOPIC_NOT_A_NAME = re.compile(r'\b(?:in|for)\s+(?:children|infants|babies|teens|women|men|pregnancy|older adults)\b'
+                              r'|\bchildhood\b|^how to\b|\bcaregivers?\b|\brehabilitation\b|\bexposure\b|\bnutrition\b'
+                              r'|\bhealth\b|\band\b|[,/]', re.I)
+# Claude's review of the titles the rule proposed (D114): a substance or exposure, not
+# the disease ("Asbestos" is not asbestosis), or a narrower or different condition.
+REVIEWED_NOT_SYNONYMS = frozenset(normalize(t) for t in (
+    'Asbestos', 'Mercury', 'Triglycerides', 'Cannabis', 'Opioid Overdose', 'Alcohol Use Disorder',
+    'Genetic Disorders', 'Tailbone Disorders', 'Brachial Plexus Injuries'))
+
+
+def _lay_key(text: str) -> str:
+    text = re.sub(r"['’]s\b", '', text)
+    return normalize(re.sub(r'\s*\((?:disease|disorder)\)$', '', text.strip(), flags=re.I))
+
+
+def medlineplus_title_proposals(path: Path, entities: list[dict], equivalents: dict[str, set[str]]) -> list[tuple]:
+    """A MedlinePlus topic title as a lay name ("Tooth Decay", "Pinworms") of the one
+    Disease its MeSH heading is MONDO-equivalent to (D114).
+
+    Two signals must agree: exactly one of the topic's MeSH headings names a Disease,
+    and the title shares a word stem with one of that Disease's names, or another name
+    of the topic is one of them. Only the title is proposed: also-called lists hold
+    subtypes and related conditions ("Bulimia" under Eating Disorders).
+    """
+    by_mesh: dict[str, set[str]] = defaultdict(set)
+    for entity in entities:
+        if entity['label'] == 'Disease':
+            for term in mondo_ids(entity['uid'].split(':', 1)[1]):
+                for ui in equivalents.get(term, ()):
+                    by_mesh[ui].add(entity['uid'])
+    by_uid = {e['uid']: e for e in entities}
+
+    def stems(text: str) -> set[str]:
+        return {w[:5] for w in _lay_key(text).split() if len(w) >= 5}
+    proposals = []
+    for topic in ET.parse(path).getroot().findall('health-topic'):
+        if topic.get('language', '').casefold() != 'english' or not topic.get('id'):
+            continue
+        diseases = [by_mesh[d.get('id')] for d in topic.findall('mesh-heading/descriptor') if by_mesh.get(d.get('id'))]
+        if len(diseases) != 1 or len(diseases[0]) != 1:
+            continue
+        uid = next(iter(diseases[0]))
+        title = re.sub(r'\s*\([A-Z0-9-]{2,8}\)$', '', topic.get('title', '')).strip()   # "Enlarged Prostate (BPH)"
+        if (TOPIC_NOT_A_NAME.search(title) or re.fullmatch(r'[A-Z0-9-]{2,6}', title) or not usable(title)
+                or normalize(title) in REVIEWED_NOT_SYNONYMS):
+            continue
+        own = [by_uid[uid]['name'], *(by_uid[uid].get('synonyms') or [])]
+        others = [(a.text or '').strip() for a in topic.findall('also-called') + topic.findall('see-reference')]
+        if (stems(title) & set().union(*(stems(n) for n in own))
+                or {_lay_key(o) for o in others} & {_lay_key(n) for n in own}):
+            proposals.append((uid, title, 'medlineplus-title:' + topic.get('id')))
+    return sorted(set(proposals))
+
+
 def merge_synonyms(entities: list[dict], proposals: Iterable[tuple]) -> tuple[list[dict], dict]:
     """Choose additions that never create a new same-label ambiguity.
 
