@@ -46,6 +46,14 @@ class Pipeline:
                 named = self.linker.question_mentions(question,exact_only=True)[0]
                 triage = safety.triage(question,self.settings.safety_region,
                                        drug_named=any(c.label=='Drug' for c in named))
+                # A personal message the rules did not read as an emergency is read once more
+                # by the model; the reading can only escalate to the emergency reply (D117).
+                if triage.category not in ('crisis','emergency'):
+                    urgent = safety.emergency_reading(self.llm,question)
+                    if urgent is not None:
+                        result['emergency_reading'] = round(urgent,3)
+                        if urgent>=safety.ESCALATE_AT:
+                            triage = safety.escalated(triage,self.settings.safety_region)
                 result['safety'] = triage.category
                 if triage.mode=='block':
                     result.update(answer=triage.message,route='safety',refused=True)
@@ -90,9 +98,17 @@ class Pipeline:
                 # Corrected names are confirmed by the user, or used with a visible note (D105).
                 checked = confirm.review(self.linker,candidates,unresolved)
                 # A partly matched phrase ("iron overdose" -> Iron) is checked by the model (D106).
+                judge = confirm.model_judge(self.llm)
+                # Several spellings of an asked-back name are ordered by the question (D118).
+                if checked.suggestions:
+                    checked = confirm.rank_suggestions(resolved,checked,judge)
                 if not checked.suggestions:
-                    checked = confirm.check_phrases(self.linker,resolved,checked,confirm.model_judge(self.llm),
-                                                    typed=question)
+                    checked = confirm.check_phrases(self.linker,resolved,checked,judge,typed=question)
+                # A lower-case word that matched only an acronym ("hard" -> HARDS) is checked too (D116).
+                if not checked.suggestions:
+                    checked = confirm.check_words(self.linker,resolved,checked,judge,typed=question)
+                if checked.ignored:
+                    result['ignored_words'] = checked.ignored
                 if checked.suggestions:
                     result.update(answer=confirm.clarification(checked.suggestions),route='linking',
                                   refused=True,suggestions=confirm.describe(checked.suggestions))

@@ -296,6 +296,40 @@ class Linker:
         order = sorted(ranked, key=lambda uid: (ranked[uid], self.entities[uid]['name']))[:limit]
         return [self._candidate(uid, 100 - 10 * ranked[uid], 'suggestion', len(order) > 1) for uid in order]
 
+    def capitals_only(self, candidate: Candidate) -> bool:
+        """The mention, an ordinary-looking word not typed in capitals, matches only names
+        written in capitals: acronyms and gene symbols ("hard" -> HARDS, "itch" -> ITCH), D116.
+        Drugs are left out, since brand names are listed in capitals ("Jakafi" -> JAKAFI), and
+        so are words with digits ("ifna2"), which are symbols rather than ordinary words."""
+        mention = candidate.mention or ''
+        if (len(mention.split()) != 1 or mention.isupper() or not mention.isalpha()
+                or self.entities[candidate.uid]['label'] == 'Drug'):
+            return False
+        key = normalize(mention)
+        names = [a for a in exact_names(self.entities[candidate.uid]) if normalize(a) == key]
+        return bool(names) and all(len(a) > 1 and a.isupper() for a in names)
+
+    def neighbors(self, mention: str, exclude: set[str], limit: int = 4,
+                  threshold: float = 0.83) -> list[Candidate]:
+        """Vector-similar catalog names of a mention other than `exclude` ("itch" -> Pruritus,
+        through its name "Itching"): alternatives to an exact acronym match (D116)."""
+        if self.vectors is None or self.embedder is None:
+            return []
+        similarities = self.vectors @ self.embedder.encode([mention])[0]
+        found = {}
+        for i in np.argsort(-similarities)[:200]:
+            if similarities[i] < threshold:
+                break
+            row = self.vector_aliases[int(i)]
+            uid = row['uid']
+            if (uid in exclude or uid in found or uid not in self.entities
+                    or row['text'] not in self.vector_names[uid] or is_excluded(uid, row['text'])):
+                continue
+            found[uid] = self._candidate(uid, float(similarities[i]), 'vector', False)
+            if len(found) == limit:
+                break
+        return list(found.values())
+
     def _candidate(self, uid: str, score: float, method: str, ambiguous: bool) -> Candidate:
         entity = self.entities[uid]
         return Candidate(uid, entity['name'], entity['label'], score, method, ambiguous)
@@ -340,7 +374,7 @@ class Linker:
         cues = {'of','for','about','with','does','and','between','versus','vs','is','are',
                 'can','could','may'}
         stops = cues | {'interact','interacts','target','targets','treat','treats','is',
-                        'are','has','have','associated','recorded','indicated','cause','causes',
+                        'are','has','have','associated','recorded','indicated','cause','causes','caused','causing',
                         'side','effects','phenotypes','symptoms','contraindicated','indications',
                         'be','been','being','used','using','prescribed',
                         # Relation phrasing, not names: "genes linked to X", "effects

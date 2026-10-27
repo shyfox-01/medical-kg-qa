@@ -143,6 +143,9 @@ def messages(region: str = 'US') -> dict[str, str]:
     return {
         'crisis': f'If you may harm yourself, contact {hotline} now. If there is immediate danger, call {emergency}. Reach out to someone you trust and avoid being alone.',
         'emergency': f'These symptoms may need urgent care. Call {emergency} or seek emergency medical care now.',
+        'possible_emergency': f'This may be a medical emergency. Call {emergency} or seek emergency medical '
+                              'care now. If a medicine was swallowed by mistake or in too large an amount, a '
+                              'poison control service can also help.',
         'dosage': 'I cannot recommend a medication dose. Ask a clinician or pharmacist about your prescription.',
         'special_population': 'Medication safety for this population needs individual professional assessment. Consult a clinician or pharmacist.',
         'diagnosis_request': 'I cannot diagnose you. A clinician must assess your symptoms and medical history.',
@@ -326,3 +329,41 @@ def output_violation(text: str) -> Assessment | None:
     if re.search(OUTPUT_DIAGNOSIS,text,re.I):
         return Assessment('diagnosis_request','I cannot diagnose you. A clinician must assess your symptoms and medical history.',True)
     return None
+
+
+# D117: a second reading of personal messages that the rules did not treat as an
+# emergency. Rules miss an emergency told without its keywords ("I took 20 Tylenol pills
+# an hour ago and feel sick"), so the model reads the message as one of two choices and
+# the probability of the first is read from its one-token reply (D108). It can only make
+# a reply stricter: a message it reads as a possible emergency gets the emergency reply,
+# whether the rules passed it, answered it with a notice or blocked it for another reason.
+EMERGENCY_PROMPT = (
+    'You triage a message sent to a medical information service. Answer 1 if someone may be in '
+    'danger now: an overdose or a poisoning, a child or an adult who swallowed a medicine not meant '
+    'for them or too much of one, a severe allergic reaction, or serious symptoms happening now after '
+    'taking a medicine. Answer 2 for anything else: a question about a medicine or a disease, including '
+    'ongoing treatment, a missed or late dose, or mild side effects. Reply with the number only.')
+ESCALATE_AT = 0.5          # chosen on eval/datasets/emergency_dev_v1.jsonl (Claude-written)
+NEEDS_READING = re.compile(PERSONAL+'|'+SITUATION, re.I)
+
+
+def emergency_reading(llm, question: str) -> float | None:
+    """Probability that a personal message describes a possible emergency now, or None
+    (no personal wording, no token probabilities, a failed call or no digit replied)."""
+    choose = getattr(llm, 'choose', None)
+    if not callable(choose) or not NEEDS_READING.search(question.replace('’', "'")):
+        return None
+    try:
+        scores = choose([{'role': 'system', 'content': EMERGENCY_PROMPT},
+                         {'role': 'user', 'content': f'Message: {question}'}], 2)
+    except Exception:
+        return None
+    if not scores:
+        return None
+    urgent, other = scores.get(1, 0.0), scores.get(2, 0.0)
+    return urgent/(urgent+other) if urgent+other >= 0.5 else None
+
+
+def escalated(triage: Triage, region: str = 'US') -> Triage:
+    """The emergency reply in place of whatever the rules decided."""
+    return Triage('block', 'possible_emergency', messages(region)['possible_emergency'], question=triage.question)

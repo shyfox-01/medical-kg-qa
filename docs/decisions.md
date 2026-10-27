@@ -50,6 +50,10 @@ system and its evaluation today.
 | Routing | A yes/no question about one drug and one disease or phenotype checks that pair, answered in code: b4 32 → 40 of 40 | D112 |
 | Linking, routing | Relation nouns are not names; "prescribed for" asks indications; interactions among three to six drugs are stated pair by pair in code | D113 |
 | Linking | MedlinePlus topic titles become lay disease names when their MeSH heading means the same disease ("Collapsed Lung", "Pinworms"); reviewed | D114 |
+| Retrieval | Text chunks come from the vector and full-text indexes merged by rank fusion (gold chunk in the top 8: 67% → 94% on the text test split); a cross-encoder was measured and left off | D115 |
+| Linking | A lower-case word matching only an acronym or gene symbol ("hard" → HARDS) is checked by the model: dropped as an ordinary word, asked back as another entry, or kept | D116 |
+| Safety | Personal messages the rules pass are read once more by the model for a possible emergency; the reading can only escalate (20/20 Claude-written emergencies, 4 real LiveQA ones, no false alarm found) | D117 |
+| Linking | Several spellings of an asked-back name are ordered by the question; unlikely ones are left out, and the user still confirms | D118 |
 
 ## D001 — Environment and scope
 
@@ -3558,3 +3562,118 @@ of 240, b2 189 → 190 of 195, b3 176 → 178 of 191). Nothing changes on LiveQA
 b4 or MedicationQA. Vaccines were not added: the graph has no influenza, HPV,
 pneumococcal or COVID-19 vaccine, and its two zoster vaccines make "shingles vaccine"
 ambiguous.
+
+## D115 — Hybrid text retrieval: vector and full-text, merged by rank fusion (2026-10-27)
+
+`vector_search` read only the vector index (bge-small, eight nearest chunks). The
+English full-text index on chunk text existed, but only as a separate planner tool.
+Text retrieval now asks both indexes under the same filters (source, entities the
+document is about), 30 chunks each, and merges them by reciprocal rank fusion
+(k = 60): a chunk adds 1/(60 + rank) for each list that returned it, ties keep the
+vector order, and the first eight are returned. The pure-vector control system
+(`--mode vector`) is unchanged.
+
+`eval/retrieval.py` measures this on the frozen text set: each question was written
+from one chunk, which is the gold chunk; the question is the query, without filters.
+
+| Split | Retrieval | Gold first | In top 3 | In top 8 | MRR |
+|---|---|---|---|---|---|
+| dev (32) | vector | 31% | 50% | 56% | 0.41 |
+| dev (32) | full-text | 34% | 56% | 75% | 0.47 |
+| dev (32) | fused | 47% | 69% | 84% | 0.60 |
+| test (48) | vector | 31% | 56% | 67% | 0.45 |
+| test (48) | full-text | 38% | 67% | 88% | 0.54 |
+| test (48) | fused | 42% | 79% | 94% | 0.61 |
+
+Through the whole pipeline the gain is small, because the planner already filters
+by the linked entities and calls several tools: the gold chunk reached the answer
+model in 30 → 31 of 32 dev and 38 → 38 of 48 test questions (paired runs, the control
+a frozen copy of the previous source), and no question lost it. The deterministic text
+score, which requires the gold phrases verbatim, went from 4 to 5 (dev) and from 5 to
+6 (test).
+
+A cross-encoder after the fusion was measured and left off (`RERANK_MODEL` turns it
+on). Xenova's ms-marco MiniLM L-6 and L-12 (88 and 129 MB, downloaded with the
+user's approval) reordered the 30 fused chunks, each read with its document title.
+They put the gold chunk first more often (dev 47% → 56% and 59%, test 42% → 50% and
+52%; MRR test 0.61 → 0.69), but into the top eight only once more (test 94% → 96%,
+dev 84% for all three), at 2.2 s per search for L-6 on an idle CPU and about 5.5 s
+for L-12. The answer model reads all eight chunks, and the planner may search several
+times per question.
+
+## D116 — Ordinary words that match only an acronym or a gene symbol (2026-10-27)
+
+"Is atorvastatin hard on the body?" linked "hard" to hantavirus pulmonary syndrome
+(its acronym HARDS, through the plural strip), and "my skin itch" linked "itch" to
+the gene ITCH. The common-word list (D047, now 540 words) keeps "cold" from becoming
+COPD, but no list covers English. When a single word of letters, not typed in
+capitals, links to a disease, phenotype or gene only through names written in
+capitals, the answer model chooses (D106's judge, probabilities as in D108) among
+that entry, up to four nearest catalog names by alias vector (similarity ≥ 0.83;
+"itch" → Pruritus through "Itching") and "none of these". The match is kept at 0.5
+or more; another entry that is likelier than "none" is asked back; otherwise the word
+is an ordinary word and is dropped (`ignored_words` in the result). Drugs are left
+out because brand names are listed in capitals: a first version would have checked
+18 benchmark questions naming a brand ("Jakafi", "Erbitux"). Words with digits
+("ifna2") are symbols, not ordinary words.
+
+D106 asked "Did you mean ITCH?" about "jock itch" when the model chose none of the
+entries. When "none of these" is likelier than every other entry and the match keeps
+less than 0.1, the phrase is now left unresolved for the planner; with 0.1 or more it
+is asked back as before. "caused" and "causing" became relation stop words, like
+"cause": "hyptotension caused by lexapro" was one mention.
+
+Live, with the local model: "hard" is dropped and the question is answered as the side
+effects of atorvastatin; "skin itch" asks "Did you mean Pruritus?"; "jock itch" goes to
+the planner (no evidence is found: the text corpus has no topic on it); lower-case
+"copd" and "brca1" keep their entries. The check acts on two benchmark questions.
+
+## D117 — A second reading of personal messages for a possible emergency (2026-10-27)
+
+The emergency rules need a keyword ("chest pain", "overdosed"). Of 20 Claude-written
+messages that describe an emergency without one ("I took 20 Tylenol pills an hour
+ago and feel sick", "My toddler ate some of my iron tablets"), the rules passed 19 and
+blocked one as a dose question. A LiveQA question ("i took 25 iron pills...what do i
+do") was answered.
+
+A message with personal or present-tense wording that the rules did not treat as a
+crisis or an emergency is read by the answer model as one of two choices: someone may
+be in danger now (an overdose, a poisoning, a medicine swallowed by someone it was
+not meant for, a severe allergic reaction, serious symptoms after taking a medicine),
+or anything else. The probability of the first, read from the one-token reply (D108)
+and normalised over the two answers, escalates the reply at 0.5 or more to a new
+emergency message (the emergency number, and poison control for a swallowed
+medicine). The reading only makes a reply stricter: it also replaces a dose or
+population block whose text would be wrong for an emergency. No reading (no token
+probabilities, a failed call, no digit replied) leaves the rules' decision. The user
+approved this stricter policy on 2026-10-27.
+
+The threshold was set on `eval/datasets/emergency_dev_v1.jsonl` (20 emergencies and 20
+personal questions that are not, all written by Claude): 20 of 20 caught, no false
+alarm, 0.48 s median per reading. On real questions, LiveQA has 74 messages with
+personal wording and four are escalated: the iron overdose, vomiting "something like
+coffee grounds" with severe swelling, fever and abdominal pain a week after stopping
+prednisone taken for a year (a dose block before), and thigh pain, redness and swelling
+on a combined pill. Claude judges all four urgent; they are not human labels.
+MedicationQA (68 read), the caveat set (36 read) and the dose development set escalate
+none. It adds one short model call to a personal message.
+
+## D118 — Asked-back spellings ordered by the question (2026-10-27)
+
+D105 asks about a misspelt name with its nearest spellings in spelling order. Seven
+groups in 764 real questions (LiveQA, MedicationQA) offer several, and the question
+decides between them: "hyptotension" is hypotension or hypertension, "amxacillin" is
+amoxicillin, ampicillin or oxacillin. The judge of D106 now orders such a group; a
+spelling under 0.1 is left out while the likeliest stays, so a clear reading is one
+"Did you mean …?" and a spread one a choice. When "none of these" is the likeliest
+answer, or the reply fails, the spelling order is kept. The user still confirms;
+nothing is answered from the ordering. Live: "how does amxacillin clavulanic acid
+work" offers Amoxicillin; "brinzolamide is brimodine?" offers Brimonidine (of
+Brimonidine, Brivudine and Clopamide); "hyptotension caused by lexapro?" offers
+hypotensive disorder (of it and hypertension). It adds one short model call when a
+name is asked back with several spellings.
+
+The three changes were checked on the 98 non-sealed questions where one of them can
+act (found offline; see the evaluation notes): every question has the same outcome
+as with the D115 system, no benchmark question was escalated (highest reading
+0.018), and no word was dropped.

@@ -51,8 +51,14 @@ def run(question, choice, lookup=None):
     return confirm.check_phrases(linker, question, checked, judge), seen
 
 
-def test_none_of_them_asks_back_with_the_partial_match():
+def test_none_of_them_leaves_the_phrase_unresolved_instead_of_offering_the_match():
+    # D116: the model rules the match out, so "Did you mean Iron?" would be a wrong offer.
     checked, _ = run('What causes iron deficiency?', 0)
+    assert not checked.kept and not checked.suggestions and checked.unresolved == ['iron deficiency']
+
+
+def test_none_of_them_still_asks_back_when_the_match_keeps_some_weight():
+    checked, _ = run('What causes iron deficiency?', {0: 0.7, 1: 0.3})
     assert not checked.kept and [(p, [c.name for c in g]) for p, g in checked.suggestions] == [('iron deficiency', ['Iron'])]
 
 
@@ -63,10 +69,13 @@ def test_choosing_the_matched_entity_keeps_it():
 
 def test_a_different_choice_is_offered_first_and_the_match_second():
     pruritus = Candidate('p:pruritus', 'Pruritus', 'Phenotype', 0.9, 'fuzzy', False, 'facial itch', None)
-    checked, seen = run('Are rashes and facial itch side effects of Iron?', 2, lambda phrase: [pruritus])
+    checked, seen = run('Are rashes and facial itch side effects of Iron?', {2: 0.8, 1: 0.2}, lambda phrase: [pruritus])
     assert seen == [['ITCH', 'Pruritus']]
     assert [(p, [c.name for c in g]) for p, g in checked.suggestions] == [('facial itch', ['Pruritus', 'ITCH'])]
     assert [c.name for c in checked.kept] == ['Iron']
+    # A match the model all but rules out is not offered back (D116).
+    checked, _ = run('Are rashes and facial itch side effects of Iron?', 2, lambda phrase: [pruritus])
+    assert [(p, [c.name for c in g]) for p, g in checked.suggestions] == [('facial itch', ['Pruritus'])]
 
 
 def test_a_corrected_name_is_not_part_of_a_phrase():
@@ -106,14 +115,13 @@ def test_common_words_and_punctuation_end_the_phrase():
         assert linker.partial_phrases(question, linker.question_mentions(question)[0]) == []
 
 
-def test_the_pipeline_asks_back_when_the_model_rejects_the_match(monkeypatch):
+def test_the_pipeline_leaves_a_rejected_phrase_to_the_planner(monkeypatch):
     from tests.unit.test_confirm_names import pipeline
     from tests.unit.test_review_regressions import Model
-    model = Model(plan={'choice': 0})
-    asked = pipeline(monkeypatch, model).ask('What are the symptoms of an Asterol allergy?')
-    assert asked['route'] == 'linking' and asked['refused'] and model.usage['calls'] == 1
-    assert asked['suggestions'][0]['mention'] == 'Asterol allergy'
-    assert [o['name'] for o in asked['suggestions'][0]['options']] == ['Asterol']
+    # The fixture model returns this JSON to every call, so only the linking outcome counts.
+    asked = pipeline(monkeypatch, Model(plan={'choice': 0})).ask('What are the symptoms of an Asterol allergy?')
+    assert asked['route'] != 'linking' and not asked.get('suggestions')
+    assert asked['unresolved_mentions'] == ['asterol allergy']
     kept = pipeline(monkeypatch, Model()).ask('What are the symptoms of an Asterol allergy?')
     assert kept['route'] != 'linking'
 

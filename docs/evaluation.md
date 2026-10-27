@@ -506,6 +506,58 @@ default ports, and an earlier copy of the run, thought stopped, wrote the same
 output files. The run reported here used the project's own database on a separate
 port and ran alone.
 
+## Hybrid retrieval, word checks and emergency reading (2026-10-27)
+
+**Text retrieval (D115).** On the frozen text set, each question is the query and the
+chunk it was written from is the gold (`eval/retrieval.py`, no filters):
+
+| Split | Vector | Full-text | Fused (RRF) |
+|---|---:|---:|---:|
+| dev (32): gold in top 8 / MRR | 56% / 0.41 | 75% / 0.47 | 84% / 0.60 |
+| test (48): gold in top 8 / MRR | 67% / 0.45 | 88% / 0.54 | 94% / 0.61 |
+
+Through the whole pipeline, paired runs against a frozen copy of the previous source
+change little: the gold chunk reaches the answer model in 30 → 31 of 32 dev questions
+and 38 → 38 of 48 test questions, no question loses it, and the deterministic text
+score (gold phrases verbatim) goes from 4 to 5 (dev) and 5 to 6 (test). Median
+latency is unchanged (test 15.1 s vs 14.5 s). Of the ten test questions whose gold
+chunk never reaches the answer model, five stop at name confirmation ("Kaposi
+Sarcoma" has two entries; "Pregnancy and Nutrition" links to a cornual pregnancy) and
+five go to graph queries the planner chose instead of text search: the remaining
+loss is in linking and planning, not in the retriever. A cross-encoder reranker was
+measured on dev and left off (decisions D115).
+
+**Emergency second reading (D117).** Threshold 0.5, set on 40 Claude-written
+development messages (20 emergencies without rule keywords, 20 personal questions
+that are not): all 20 emergencies caught, no false alarm, 0.48 s median per reading.
+On real questions the reading runs on messages with personal wording:
+
+| Set | Questions | Read | Escalated |
+|---|---:|---:|---:|
+| LiveQA | 208 | 74 | 4 |
+| MedicationQA | 651 | 68 | 0 |
+| Partial answers behind a safety notice | 64 | 36 | 0 |
+| Dose requests (development) | 75 | 1 | 0 |
+
+The four LiveQA escalations describe an iron overdose, vomiting like coffee grounds,
+fever and abdominal pain after stopping long-term prednisone, and leg signs of a
+deep-vein thrombosis on a combined pill; Claude judges all four urgent (not human
+labels). The rules had answered three and blocked one as a dose question.
+
+**Ordinary words and spellings (D116, D118).** The word check acts on two benchmark
+questions and the spelling order on none; both are checked live in the decisions
+entries.
+
+**Regression (D116–D118).** Only questions where a new path can act were run, found
+offline: personal wording (the emergency reading), a word matching only capitals, a
+partly matched phrase, several asked-back spellings, or a linking change (none).
+That is 98 of 1,193 non-sealed questions (v2 dev and test, v3 b1–b3, caveat, text),
+run once with the D115 system and once with the new one (`--case-ids`, both from
+frozen copies). Every question has the same outcome in both runs. The emergency
+reading ran on 86 of them, at most 0.018, so none was escalated; no word was dropped.
+The reading adds about 0.7 s to these questions (median 0.03 s → 0.76 s), most of
+which the rules block at once.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time

@@ -39,6 +39,7 @@ class Review:
     unresolved: list = field(default_factory=list)
     corrections: list = field(default_factory=list)   # (mention, [Candidate])
     suggestions: list = field(default_factory=list)   # (mention, [Candidate])
+    ignored: list = field(default_factory=list)       # ordinary words that matched an acronym (D116)
 
 
 def _groups(candidates):
@@ -114,6 +115,8 @@ REPLY_JSON = ' Reply with JSON {"choice": <number>} only.'
 
 # The matched entity is kept only when the model gives it at least this probability.
 KEEP_AT = 0.5
+# Other entries are offered back from this probability on (the likeliest one always).
+OFFER_AT = 0.1
 
 
 def model_judge(llm):
@@ -166,15 +169,79 @@ def check_phrases(linker, question: str, checked: Review, judge, typed: str | No
         scores = judge(question, phrase, options)
         if not scores:
             continue
-        matched = {i for i, c in enumerate(options, 1) if c in group}
-        if sum(scores.get(i, 0.0) for i in matched) >= KEEP_AT:
+        decision, offered = decide(scores, options, group)
+        if decision == 'keep':
             continue
-        # Offered first: the likeliest other entry, unless "none of these" is likelier.
-        others = [i for i in scores if i and i not in matched]
-        best = max(others, key=scores.get, default=None)
-        offered = ([options[best-1]] if best and scores[best] >= scores.get(0, 0.0) else []) + group
         checked.kept = [c for c in checked.kept if c not in group]
-        checked.suggestions.append((phrase, offered))
+        if decision == 'ask':
+            checked.suggestions.append((phrase, offered))
+        else:
+            # No entry names the phrase and the match is all but ruled out ("jock itch" is
+            # not the gene ITCH): a name the catalog lacks, not a "Did you mean" (D116).
+            checked.unresolved.append(normalize(phrase))
+    return checked
+
+
+def decide(scores: dict[int, float], options: list, group: list) -> tuple[str, list]:
+    """'keep' the matched entry; 'ask' about the likelier other entries (the likeliest first,
+    then any others and the match itself from OFFER_AT); when "none of these" is likelier
+    than any other entry, 'ask' about the match if it keeps OFFER_AT, else 'none'."""
+    matched = {i for i, c in enumerate(options, 1) if c in group}
+    kept = sum(scores.get(i, 0.0) for i in matched)
+    if kept >= KEEP_AT:
+        return 'keep', []
+    others = sorted((i for i in scores if i and i not in matched), key=lambda i: -scores[i])
+    if not others or scores[others[0]] < scores.get(0, 0.0):
+        return ('ask', list(group)) if kept >= OFFER_AT else ('none', [])
+    offered = [options[others[0]-1]] + [options[i-1] for i in others[1:] if scores[i] >= OFFER_AT]
+    return 'ask', offered + (group if kept >= OFFER_AT else [])
+
+
+def rank_suggestions(question: str, checked: Review, judge) -> Review:
+    """Order the candidates of an asked-back name by the model's reading of the question
+    (D118): "hyptotension" offers hypotension and hypertension, and the question decides
+    which comes first. Candidates under OFFER_AT are left out, the likeliest always stays,
+    so a clear reading is one confirmation and a spread one a choice. The user still
+    confirms; a failed reply, or "none of these" as the likeliest answer, keeps the spelling
+    order."""
+    if judge is None:
+        return checked
+    ranked = []
+    for mention, group in checked.suggestions:
+        scores = judge(question, mention, group[:6]) if len(group) > 1 else None
+        if scores and max(scores.get(i+1, 0.0) for i in range(len(group[:6]))) >= scores.get(0, 0.0):
+            order = sorted(range(len(group[:6])), key=lambda i: -scores.get(i+1, 0.0))
+            group = [group[i] for i in order if i == order[0] or scores.get(i+1, 0.0) >= OFFER_AT]
+        ranked.append((mention, group))
+    checked.suggestions = ranked
+    return checked
+
+
+def check_words(linker, question: str, checked: Review, judge, typed: str | None = None) -> Review:
+    """Ask the model about a lower-case word that matched only an acronym or a gene symbol
+    (D116): "hard" (HARDS, hantavirus pulmonary syndrome) is an ordinary word and is dropped;
+    "itch" (the gene ITCH) means Pruritus, which is asked back. The options are the match and
+    its nearest catalog names; a failed or invalid reply keeps the match."""
+    if judge is None:
+        return checked
+    for group in _groups(list(checked.kept)):
+        if not all(linker.capitals_only(c) for c in group):
+            continue
+        word = group[0].mention
+        if typed is not None and not written(word, typed):
+            continue
+        options = (group + linker.neighbors(word, {c.uid for c in group}))[:6]
+        scores = judge(question, word, options)
+        if not scores:
+            continue
+        decision, offered = decide(scores, options, group)
+        if decision == 'keep':
+            continue
+        checked.kept = [c for c in checked.kept if c not in group]
+        if decision == 'ask':
+            checked.suggestions.append((word, offered))
+        else:
+            checked.ignored.append(word)
     return checked
 
 

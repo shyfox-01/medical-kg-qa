@@ -24,8 +24,9 @@ shown with the other readings one click away, and a corrected name is asked back
   1.72M relations) plus **MedlinePlus** summaries and **openFDA** drug labels
   (1,264 documents, 4,693 chunks).
 - Routes common questions to parameterised Cypher templates; anything else goes to
-  an LLM planner that chains up to four guarded tools: generated Cypher, vector
-  search, full-text search and graph expansion.
+  an LLM planner that chains up to four guarded tools: generated Cypher, text
+  search (the vector and full-text indexes merged by rank fusion), full-text search
+  of names and graph expansion.
 - Every generated query passes a static guard, `EXPLAIN` and a read-only
   transaction. Answers are generated from retrieved evidence only, checked against
   it, and returned with sources and conflict notes.
@@ -36,13 +37,19 @@ shown with the other readings one click away, and a corrected name is asked back
   Gabapentin?") with one button per option. A missing or extra space
   ("heartfailure", "para cetamol") is fixed the same way. When a match covers only
   part of a phrase ("jock itch" → the gene ITCH), the model picks among catalog
-  entries and a different pick is asked back, never used silently.
+  entries and a different pick is asked back, never used silently. A lower-case word
+  that matches only an acronym or a gene symbol ("hard" → HARDS) is checked the same
+  way and dropped as an ordinary word, and several possible spellings are ordered by
+  the question ("hyptotension caused by Lexapro" offers hypotension, not hypertension).
 - When no rule fits ("What is the purpose of Lynparza?"), the local model scores the
   questions the graph can answer about that name: a clear winner is answered with a
   note and the other questions offered, a close call is asked back as buttons.
 - Yes/no questions about a drug and a condition ("Is X contraindicated in Y?") check
   that one pair in the graph and state the verdict in code.
 - Blocks crisis, emergency, diagnosis and dose-only requests before any model call.
+  A personal message the rules let through is read once more by the model for a
+  possible emergency told without keywords ("i took 25 iron pills…what do i do"); that
+  reading can only make the reply stricter.
   A question that only mentions a dose, or also asks for knowledge, gets the
   knowledge part answered behind a fixed notice; an answer containing a dose or a
   diagnosis is still replaced by a refusal.
@@ -166,6 +173,13 @@ of the 197 whose labelled type has a template, the rules alone answer 16 with th
 labelled intent; with the model reading unclear questions (D108), 43, while answers
 with another intent go from 3 to 5. The mapping was fixed before a single run
 ([details](docs/evaluation.md#human-labelled-intent-medicationqa-2026-10-26)).
+
+**Text retrieval** (frozen text set; each question was written from one chunk):
+merging the vector and full-text indexes by rank fusion puts that chunk in the top 8
+for 94% of the 48 test questions, against 67% for the vector index alone (MRR 0.45 →
+0.61). Through the whole pipeline the gain is small, because the planner already
+filters by the linked entities; a cross-encoder reranker was measured and left off
+([details](docs/evaluation.md#hybrid-retrieval-word-checks-and-emergency-reading-2026-10-27)).
 
 **Graph vs pure vector** (frozen v2 test split, 240 questions, cloud model; a
 pure-vector control retrieves from the same text plus one paragraph per entity;

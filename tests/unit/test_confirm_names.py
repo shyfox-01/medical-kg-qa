@@ -69,7 +69,8 @@ def test_vector_matches_are_dropped_next_to_anchors_and_need_a_shared_stem_alone
 def test_the_pipeline_asks_before_answering_and_notes_confident_corrections(monkeypatch):
     model = Model()
     asked = pipeline(monkeypatch, model).ask('What are the side effects of Corvalintix?')
-    assert asked['route'] == 'linking' and asked['refused'] and model.usage['calls'] == 0
+    # One call orders the two spellings (D118); this fixture's reply is invalid, so the order stays.
+    assert asked['route'] == 'linking' and asked['refused'] and model.usage['calls'] == 1
     assert asked['suggestions'][0]['mention'] == 'Corvalintix'
     assert {o['name'] for o in asked['suggestions'][0]['options']} <= {'Corvalintex', 'Corvalintax'}
     assert CLARIFY.search(asked['answer'])
