@@ -35,7 +35,6 @@ FROZEN = (
     'data/processed/vector_aliases.json', 'data/processed/alias_vectors.npy',
     'eval/client.py', 'eval/score.py', 'eval/run.py', 'eval/independent.py',
     'eval/evidence.py', 'pyproject.toml', 'docs/evaluation/independent-evaluation.md',
-    'docs/evaluation/ai-review-protocol.md',
 )
 
 

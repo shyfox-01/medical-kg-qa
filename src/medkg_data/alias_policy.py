@@ -4,7 +4,7 @@ These 39 mappings have positive source evidence against exact identity (28 from
 2026-10-09 and 11 from the 2026-10-24 RxNorm review). This is
 an engineering exclusion, not clinical validation. The 66 uncertain mappings are
 unchanged. Original catalog/source bytes remain available for a later review.
-See docs/history/reports/ai-review-2026-10-09.md and decision D072.
+See decision D072 in docs/decisions.md.
 """
 
 from medkg_data.lexicon import normalize

@@ -30,7 +30,7 @@ directories after an I/O failure; inspect and preserve them, then choose new nam
 Give the reviewer **only** the public directory. Keep the private directory,
 original output files, preparation receipt and eventual unblinded summary out of
 the reviewer's context. Filesystem placement alone is not an access control:
-agents sharing the checkout must receive explicit read restrictions or an isolated
+reviewers sharing the checkout must receive explicit read restrictions or an isolated
 copy. In particular, do not send the whole parent directory to the reviewer.
 
 Save the `manifest_sha256` printed by `prepare` in a trusted preregistration or

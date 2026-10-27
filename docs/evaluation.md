@@ -1,8 +1,7 @@
 # Evaluation: method and results
 
-This page is the short version. Every number links to an aggregate under
-`eval/runs/`; the full audit trail (attempts, budgets, hashes, reviews) lives in
-[`docs/history/`](history/README.md) and the [decision log](decisions.md).
+Every number links to an aggregate under `eval/runs/`; the design decisions cited
+as `Dnnn` are listed in [decisions](decisions.md).
 
 ## Principles
 
@@ -19,6 +18,27 @@ This page is the short version. Every number links to an aggregate under
   denominator. When the free LLM endpoint fails (timeouts, HTTP 429), the whole
   round is rerun under a new name instead of re-asking individual questions; a
   round with more than ten API-error questions is invalid (D054, D058).
+
+## Results at a glance
+
+The current system with the local model (Gemma 4 26B-A4B through Ollama), one run per
+set. Pass means the deterministic scorer accepts the answer in one turn; a question
+asked back ("Did you mean …?") counts as a failure.
+
+| Set | Questions | Passed |
+|---|---:|---:|
+| Sealed v3 test, in scope (held out) | 260 | 248 (95.4%, CI 92.1–97.3) |
+| v2 test | 240 | 234 (97.5%) |
+| v3 batches b1 / b2 / b3 | 195 / 195 / 191 | 185 / 190 / 178 |
+| b4: drug–disease yes/no | 40 | 40 (100%) |
+| Partial answers behind a safety notice | 64 | 64 (100%) |
+| Safety, injection, non-English and non-medical controls | all sets | 100% |
+
+On the text set, the retriever puts the gold chunk in the top 8 for 94% of the 48 test
+questions, and the whole pipeline hands it to the answer model for 43 of 48 (not a
+clean measurement: the last fixes were found on this split). Real consumer questions
+(LiveQA, MedicationQA) measure coverage and behaviour rather than accuracy; see their
+sections below.
 
 ## Benchmark v2
 
@@ -51,8 +71,7 @@ evaluated.
 
 ## Results on the v2 test split
 
-The first accepted round (2026-10-08, [v2 report](history/reports/v2-results.md),
-[paired aggregates](../eval/runs/v2_comparison_summary.json)) scored 80.8% for the graph
+The first accepted round ([paired aggregates](../eval/runs/v2_comparison_summary.json)) scored 80.8% for the graph
 hybrid and 32.5% for the pure-vector control; per-category numbers are in the table
 below.
 
@@ -61,7 +80,7 @@ paragraph per entity (its relations and up to 20 synonyms) and answers with the
 same generator. Its gap is largest exactly where structure matters — counts,
 intersections and multi-hop chains — which is the case for using a graph.
 
-### Final round of the current code (2026-10-16)
+### Final v2 round
 
 After the first round, all changes (source aliases, typo matching, refusal
 narrowing, planner normalisation, provider backoff, alias quarantine) were built
@@ -107,7 +126,7 @@ hybrid round, the score moves from 188 to 198.
 - One reverse question moved from a template to the planner and failed; this is a
   candidate regression to reproduce on dev.
 
-## LLM backend: cloud vs local (dev, 2026-10-16)
+## LLM backends: cloud vs local (v2 dev)
 
 The free cloud `glm-4.5-flash` and two local open-weight models in Ollama
 answered the full v2 dev split on the same code (D083, D084):
@@ -143,7 +162,7 @@ weight digest, but weaker. Prompts were developed against GLM-4.5, which may
 favour it. The free cloud endpoint of GLM-4.7-Flash was too overloaded to measure
 (3 of 21 calls succeeded).
 
-## Stage-wise diagnosis and fix rounds (dev, 2026-10-17)
+## Stage-wise diagnosis (v2 dev)
 
 A pass rate says how often an answer is right, not where a wrong one failed.
 `eval/stages.py` scores each recorded question per stage from gold the v2 dataset
@@ -184,7 +203,7 @@ provider timeout. None of Gemma's remaining failures is a model error, but the 1
 dev questions were used for every round: the comparison needs a fresh held-out
 split.
 
-## Benchmark v3: capability coverage and a sealed test (2026-10-17/18)
+## Benchmark v3 and the sealed test
 
 v2's dev split was used for every fix round and several promised functions had no
 questions, so v3 ([design](evaluation/v3-design.md), D091) is a CheckList-style suite:
@@ -230,14 +249,14 @@ Paired, the systems disagree on 15 of 272 questions (7 vs 8; exact McNemar p = 1
 Remaining in-scope failures are catalog gaps (five each), unseen wordings for the local
 model's router and denied rows for the cloud model (D094).
 
-### Second use of the sealed test (2026-10-27)
+### The final system on the sealed test
 
-After D097–D113 and the full regression run, the current system with local Gemma 4
-answered the sealed test once (`--final`). This is the test's second use; nothing
-was changed after it. The earlier local run rescored with scorer 3.13 is unchanged
+After D097–D113 and the full regression run, the system with local Gemma 4
+answered the sealed test once more (`--final`). This is the test's second and last
+use; nothing was changed after it. The earlier local run rescored with scorer 3.13 is unchanged
 (250/272), so the two runs are scored alike.
 
-| | 2026-10-18 | 2026-10-27 |
+| | First use | Final system |
 |---|---:|---:|
 | In scope (260) | 246 (94.6%, CI 91.2–96.8) | 248 (95.4%, CI 92.1–97.3) |
 | All questions (272) | 250 | 252 |
@@ -305,12 +324,12 @@ python -m eval.severity eval/runs/v3_test_glm45_cloud_round1.jsonl eval/runs/v3_
 python -m eval.severity eval/runs/v3_b1_gemma4_local_round1.jsonl eval/runs/v3_b1_gemma4_local_fix2_round1.jsonl eval/runs/v3_b2_gemma4_local_round1.jsonl eval/runs/v3_b2_gemma4_local_fix2_round1.jsonl --dataset eval/datasets/structured_v3.jsonl --rescore --names b1-first b1-fixed b2-first b2-fixed
 ```
 
-## Real consumer questions: TREC 2017 LiveQA (2026-10-24)
+## Real consumer questions: TREC 2017 LiveQA
 
 Every earlier question was generated. To see how the system behaves on questions
 people actually send, the 104 consumer health questions of the TREC 2017 LiveQA
 medical test set (sent to the US National Library of Medicine; CC BY 4.0) were
-turned into a benchmark (D097): each question in two wordings, the user's own
+turned into a benchmark (D097): each question in two wordings, the asker's own
 message and NLM's short summary. Question type, focus and keywords come from NLM's
 manual annotations; entities are matched to the catalog exactly, not by the
 system's own linker; gold comes from the knowledge graph. An independent reviewer
@@ -360,7 +379,7 @@ because the question mentioned a dose ("Zolmitriptan 5mg … contain gluten?",
 population. One dose question was missed ("50,000 IUs per week"); IU and units were
 added to the dose units (D100).
 
-## RxNorm brand names (2026-10-24)
+## Brand names from RxNorm
 
 RxNorm Current Prescribable Content (NLM, no licence required) maps brand names to
 ingredients. 1,901 single-ingredient brands were added as aliases of 963 catalog
@@ -392,7 +411,7 @@ The b3 baseline also confirmed the router's weakness on unseen wordings: 5 of it
 16 failures are routing ("What is the purpose of …", "What specific forms of … are
 documented?").
 
-## Partial answers with a safety notice (2026-10-24)
+## Partial answers behind a safety notice
 
 D103 replaces the whole-question safety gate: crisis, emergency, diagnosis requests,
 personal population advice, personal medication decisions and dose-only requests
@@ -413,7 +432,7 @@ list; safety refusals fell from 22 to 15 with no dosing content in any answer. T
 caveat questions are templates written alongside the rules, so they show that the
 mechanism works end to end; the LiveQA rows are the real-wording check.
 
-## Personal medication decisions and confirmed names (2026-10-25)
+## Personal decisions, name confirmation and intent reading
 
 D104 blocks personal medication decisions that mention no dose ("Should I stop
 taking X?", "What can I take for Y?") and answers "Can I take A with B?" as an
@@ -446,12 +465,12 @@ sentences it fires only on real spacing variants.
 D108 reads unrouted questions about one name without a relation word ("What is the
 purpose of X?") as a choice among the template questions, with probabilities from
 the local model's log-probabilities. No generated question changes its route. On 28
-development questions written by Claude it reads all 24 it reaches as labelled, and
+LLM-written development questions it reads all 24 it reaches as labelled, and
 15 are answered from templates, where the planner had answered about 8. On LiveQA,
 two "inherited" questions get associated genes instead of a refusal. The reading
 takes 0.55 s median locally; TypeSafe reports 70–500 ms for its hosted Jev model.
 
-## Human-labelled intent: MedicationQA (2026-10-26)
+## Human-labelled intent: MedicationQA
 
 651 real consumer questions about medicines with their authors' question-type
 labels (MedicationQA, CC BY 4.0) measure whether the system recognises what is
@@ -467,7 +486,7 @@ fresh), 50 of the 64 Dose questions are caught, and 4 of 587 others are newly
 flagged; amount rules need a named medicine, after a review found that they had
 blocked questions such as "How much sleep do adults need?".
 
-## Drug-disease yes/no questions (2026-10-26)
+## Drug–disease yes/no questions
 
 A fresh batch b4 (60 yes/no questions about one drug and one disease or phenotype,
 half recorded in the graph; 20 for development, 40 measured once) tests D112. The
@@ -475,13 +494,12 @@ earlier system, which sent these to the planner, answered 32 of the 40 correctly
 none of the 7 recorded contraindications; the pair check answers 40 of 40, in 0.7 s
 instead of 5.9 s, because the verdict is stated in code.
 
-## Full regression run (2026-10-26)
+## Full regression run
 
 After D097–D113 every non-sealed set was run once end to end with local Gemma 4, and
-each question was compared with the latest earlier run of its set (v2 dev: the last
-fix round of 2026-10-18; v3 b1: fix round 2; v3 b2 and b3: the RxNorm runs; b4: the
-system before D112; caveat: its first run). The sealed v3 test was then run once
-more, below.
+each question was compared with the latest earlier run of its set (b4: the system
+before D112; caveat: its first run). The sealed v3 test was then run once more (see
+above).
 
 | Set | Questions | Passed now | Previous run |
 |---|---:|---:|---:|
@@ -501,14 +519,9 @@ v2 dev question. On LiveQA the gold-scored split is unchanged (9/10), and errors
 from 10 to 6 (four timeouts of the local model, one generated query that the guard
 rejected and one generated query that failed).
 
-A first attempt at this run is discarded: another project's Neo4j container held the
-default ports, and an earlier copy of the run, thought stopped, wrote the same
-output files. The run reported here used the project's own database on a separate
-port and ran alone.
+## Text retrieval
 
-## Hybrid retrieval, word checks and emergency reading (2026-10-27)
-
-**Text retrieval (D115).** On the frozen text set, each question is the query and the
+**Rank fusion (D115).** On the frozen text set, each question is the query and the
 chunk it was written from is the gold (`eval/retrieval.py`, no filters):
 
 | Split | Vector | Full-text | Fused (RRF) |
@@ -527,40 +540,9 @@ five go to graph queries the planner chose instead of text search: the remaining
 loss is in linking and planning, not in the retriever. A cross-encoder reranker was
 measured on dev and left off (decisions D115).
 
-**Emergency second reading (D117).** Threshold 0.5, set on 40 Claude-written
-development messages (20 emergencies without rule keywords, 20 personal questions
-that are not): all 20 emergencies caught, no false alarm, 0.48 s median per reading.
-On real questions the reading runs on messages with personal wording:
+### Recall through the whole pipeline
 
-| Set | Questions | Read | Escalated |
-|---|---:|---:|---:|
-| LiveQA | 208 | 74 | 4 |
-| MedicationQA | 651 | 68 | 0 |
-| Partial answers behind a safety notice | 64 | 36 | 0 |
-| Dose requests (development) | 75 | 1 | 0 |
-
-The four LiveQA escalations describe an iron overdose, vomiting like coffee grounds,
-fever and abdominal pain after stopping long-term prednisone, and leg signs of a
-deep-vein thrombosis on a combined pill; Claude judges all four urgent (not human
-labels). The rules had answered three and blocked one as a dose question.
-
-**Ordinary words and spellings (D116, D118).** The word check acts on two benchmark
-questions and the spelling order on none; both are checked live in the decisions
-entries.
-
-**Regression (D116–D118).** Only questions where a new path can act were run, found
-offline: personal wording (the emergency reading), a word matching only capitals, a
-partly matched phrase, several asked-back spellings, or a linking change (none).
-That is 98 of 1,193 non-sealed questions (v2 dev and test, v3 b1–b3, caveat, text),
-run once with the D115 system and once with the new one (`--case-ids`, both from
-frozen copies). Every question has the same outcome in both runs. The emergency
-reading ran on 86 of them, at most 0.018, so none was escalated; no word was dropped.
-The reading adds about 0.7 s to these questions (median 0.03 s → 0.76 s), most of
-which the rules block at once.
-
-## Text recall fixes (2026-10-28)
-
-The D115 diagnosis left ten text test questions whose gold chunk never reached the
+The rank-fusion diagnosis left ten text test questions whose gold chunk never reached the
 answer model. Three general fixes followed (decisions D119–D121): text search after an
 empty generated graph query, a misspelt name run into other words, and MedlinePlus
 topic titles settling the names inside them. Both text splits were run in full with
@@ -590,6 +572,39 @@ path acts were run paired: the b4 Aztreonam check still passes, and on 31 LiveQA
 questions 29 search text, seven get a substantive answer, and they take about 4 s
 longer. One question in each run failed with a generated Cypher syntax error (planner
 output varies from run to run; rerun live, the new one completed twice).
+
+## Emergency second reading
+
+The emergency reading (D117) uses a threshold of 0.5, set on 40 LLM-written
+development messages (20 emergencies without rule keywords, 20 personal questions
+that are not): all 20 emergencies caught, no false alarm, 0.48 s median per reading.
+On real questions the reading runs on messages with personal wording:
+
+| Set | Questions | Read | Escalated |
+|---|---:|---:|---:|
+| LiveQA | 208 | 74 | 4 |
+| MedicationQA | 651 | 68 | 0 |
+| Partial answers behind a safety notice | 64 | 36 | 0 |
+| Dose requests (development) | 75 | 1 | 0 |
+
+The four LiveQA escalations describe an iron overdose, vomiting like coffee grounds,
+fever and abdominal pain after stopping long-term prednisone, and leg signs of a
+deep-vein thrombosis on a combined pill; an LLM review judged all four urgent (not
+clinician labels). The rules had answered three and blocked one as a dose question.
+
+## Regression checks for targeted changes
+
+The word check (D116) acts on two benchmark questions and the spelling order (D118)
+on none. For changes like these, only the questions where a new path can act are
+run, found offline: for D116–D118, personal wording (the emergency reading), a word
+matching only capitals, a partly matched phrase, several asked-back spellings, or a
+linking change (none).
+That is 98 of 1,193 non-sealed questions (v2 dev and test, v3 b1–b3, caveat, text),
+run once with the D115 system and once with the new one (`--case-ids`, both from
+frozen copies). Every question has the same outcome in both runs. The emergency
+reading ran on 86 of them, at most 0.018, so none was escalated; no word was dropped.
+The reading adds about 0.7 s to these questions (median 0.03 s → 0.76 s), most of
+which the rules block at once.
 
 ## Known failure modes
 

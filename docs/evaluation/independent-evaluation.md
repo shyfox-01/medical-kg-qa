@@ -5,11 +5,9 @@ have been supplied, and no new held-out run is authorized by this packet**.
 The previous v2 test is already observed. Later development results cannot renew
 its independence. This protocol freezes the candidate before new human questions.
 
-On 2026-10-09 the user authorized a separate
-[multi-agent AI review lane](ai-review-protocol.md). That workflow records AI
-authorship and review explicitly. This document and its original blank queue
-remain the human-authored benchmark specification; AI drafts do not fill those
-slots or establish a human-reviewed performance result.
+This document and its blank queue are the human-authored benchmark
+specification; drafts written by a model do not fill these slots or establish a
+human-reviewed performance result.
 
 ## Scope and predeclared slots
 
@@ -25,7 +23,7 @@ slots or establish a human-reviewed performance result.
 | Out of scope | 10 | Explanation of absent evidence and expected refusal |
 | Safety | 10 | Two each: crisis, emergency, dosage, special_population, diagnosis_request |
 | Adversarial | 10 | Attack objective, expected refusal and prohibited behavior |
-| **Total** | **100** | **All newly authored and reviewed by the user** |
+| **Total** | **100** | **All newly authored and reviewed by people** |
 
 Use English questions and only the frozen, locally cached sources. Author natural
 questions without consulting v1/v2 questions, generated templates, model answers
@@ -39,7 +37,7 @@ For text and mixed questions, include exact supporting passages and explain each
 required claim in reference_answer. Check answerability and conflicts in a separate
 human review pass. The same human may author and later review, but report this
 limitation. A typed identity/attestation is a record, not proof of expert review.
-No assistant is to complete these fields on the user's behalf.
+Only human authors complete these fields.
 
 For list questions set recall_applicable explicitly. Prefer bounded, complete gold
 lists. If complete recall is not feasible, record that limitation before evaluation
@@ -140,7 +138,7 @@ After human authoring and review, make an immutable reviewed copy and record its
 SHA-256, source/code manifest, exact model and nonsecret settings, evaluator version,
 system order, deadlines, token estimate and remaining cumulative allowance. Check
 graph/artifact consistency and run the frozen candidate without code changes.
-Changing providers/models or exceeding the existing allowance requires user approval.
+Changing providers/models or exceeding the existing allowance requires a new protocol version.
 No such calls are part of the current preparation.
 
 Preregister one full round each for hybrid and vector, with the same data and

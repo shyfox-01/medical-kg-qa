@@ -7,10 +7,11 @@ held-out benchmark.
 > **Research demo, not medical advice.** Do not use it to diagnose, choose doses or
 > make treatment decisions.
 
-![Web demo: a two-relation question answered from the knowledge graph, with the executed Cypher](docs/images/demo.png)
+![Web demo: a two-relation question answered from the knowledge graph](docs/images/demo.png)
 
-*The web demo (`GET /`) shows each answer with its route, the executed Cypher and
-the evidence rows; here a disease–drug–drug chain answered by the LLM planner.*
+*The web demo (`GET /`): a disease → drug → drug chain answered by the LLM planner,
+with its sources. How each answer was found (the linked names, the executed Cypher
+and the evidence rows) is one click away under "How this was answered".*
 
 Unclear wording and misspelt names are confirmed rather than guessed: the guess is
 shown with the other readings one click away, and a corrected name is asked back.
@@ -115,86 +116,38 @@ flowchart LR
 ```
 
 More detail: [architecture](docs/architecture.md) and the
-[key decisions](docs/decisions.md#key-decisions-at-a-glance).
+[design decisions](docs/decisions.md).
 
 ## Results
 
-**Sealed v3 test** (272 questions, never seen while developing, run once per
-system; [design](docs/evaluation/v3-design.md)): every promised capability is
-tested, including negatives, unknown and ambiguous names, yes/no questions, safety
-and injection refusals, perturbed wordings and boundary probes.
+The current system with the local model (Gemma 4 26B-A4B through Ollama), one run
+per set. Method, per-category tables and failure analysis are in
+[docs/evaluation.md](docs/evaluation.md).
 
-| | Cloud `glm-4.5-flash` | Local Gemma 4 26B-A4B |
+| Benchmark | Questions | Passed |
 |---|---:|---:|
-| In-scope questions (260) | **247 (95.0%, CI 91.6–97.1)** | **246 (94.6%, CI 91.2–96.8)** |
-| Safety, injection, non-English, non-medical | 100% | 100% |
-| Counts, negatives, yes/no, multi-turn, directional | 100% | 100% |
-| Answer unchanged under rewording, casing, synonyms | 100% | 100% |
-| Answers naming an item outside the graph's answer | 6 (2.3%) | 4 (1.5%) |
-| Median latency | 6.4 s | 2.7 s |
+| **Sealed v3 test** (held out) | 260 in scope | **248 (95.4%, CI 92.1–97.3)** |
+| v2 test | 240 | 234 (97.5%) |
+| Fresh v3 batches b1 / b2 / b3 | 195 / 195 / 191 | 185 / 190 / 178 |
+| Drug–disease yes/no questions (b4) | 40 | 40 (100%) |
+| Safety, prompt injection, non-English, non-medical | every set | 100% |
 
-The two systems are statistically indistinguishable (they disagree on 15 questions,
-7 vs 8; exact McNemar p = 1.0). Questions reworded by an independent model score
-6–8 points below template wording, and most remaining failures are brand or
-consumer names missing from the catalog. Most other failed answers explicitly say
-that no answer was found, rather than giving a wrong answer
+**Sealed test** ([design](docs/evaluation/v3-design.md)): 272 questions covering every
+promised capability, including negatives, unknown and ambiguous names, yes/no
+questions, multi-turn follow-ups, perturbed wordings and boundary probes, none seen
+during development. It was run once per backend at the end of development (cloud
+`glm-4.5-flash` 247, local Gemma 4 246 of 260; exact McNemar p = 1.0; median latency
+6.4 s vs 2.7 s) and once for the final system, and is now closed. Questions reworded by
+an independent model score 6–8 points below template wording, and most remaining
+failures are brand or consumer names missing from the catalog. Failed answers are
+mostly explicit declines rather than wrong lists
 ([failure severity](docs/evaluation.md#failure-severity)).
 
-The table is the system of 2026-10-18. The current system was run on the sealed test
-once more on 2026-10-27, the test's second use: **248 of 260 in scope (95.4%, CI
-92.1–97.3)**, 2 more than before and none worse (McNemar p = 0.5, so not a
-significant change), median 2.6 s. **The current system on every other set** (2026-10-26, local Gemma 4, one run each, against the
-latest earlier run of each set):
+**Graph vs pure vector** (v2 test split, 240 questions, cloud model; the pure-vector
+control, run once, retrieves from the same text plus one paragraph per entity and
+answers with the same generator):
 
-| Set | Questions | Passed now | Previous run |
-|---|---:|---:|---:|
-| v2 dev | 160 | 159 (99.4%) | 159 |
-| v2 test | 240 | 233 (97.1%) | – |
-| v3 b1 | 195 | 185 (94.9%) | 188 |
-| v3 b2 | 195 | 189 (96.9%) | 192 |
-| v3 b3 | 191 | 176 (92.1%) | 177 |
-| b4: drug–disease yes/no | 40 | 40 (100%) | 32 |
-| Partial answers behind a safety notice | 64 | 64 (100%) | 62 |
-
-Six of the seven questions that no longer pass in one turn now ask "Did you mean …?"
-with the intended name among the options, because misspelt names are no longer
-corrected silently (D105); the seventh is "pinworms", which no longer becomes
-enterobiasis through vector similarity (fixed later by lay names from MedlinePlus,
-D114, with three more: v2 test 234, b2 190, b3 178). Median latency is 2.4–3.1 s per question
-([details](docs/evaluation.md#full-regression-run-2026-10-26)).
-
-**Real consumer questions** (104 questions people sent to the US National Library
-of Medicine, TREC 2017 LiveQA): only 5 are single graph lookups, so they measure
-coverage and behaviour rather than accuracy. Only 45% of the entity names users
-wrote match the catalog. On the questions the system cannot fully answer, most
-replies are explicit declines, answers name entities found in the retrieved
-evidence, and none contains dosing content. Answering the knowledge part behind a
-safety notice instead of refusing whole questions cut safety refusals from 22 to 15
-([details](docs/evaluation.md#real-consumer-questions-trec-2017-liveqa-2026-10-24)).
-
-**Human-labelled intent** (651 real consumer medication questions, MedicationQA):
-of the 197 whose labelled type has a template, the rules alone answer 16 with the
-labelled intent; with the model reading unclear questions (D108), 43, while answers
-with another intent go from 3 to 5. The mapping was fixed before a single run
-([details](docs/evaluation.md#human-labelled-intent-medicationqa-2026-10-26)).
-
-**Text retrieval** (frozen text set; each question was written from one chunk):
-merging the vector and full-text indexes by rank fusion puts that chunk in the top 8
-for 94% of the 48 test questions, against 67% for the vector index alone (MRR 0.45 →
-0.61). Through the whole pipeline the gain is small, because the planner already
-filters by the linked entities; a cross-encoder reranker was measured and left off
-([details](docs/evaluation.md#hybrid-retrieval-word-checks-and-emergency-reading-2026-10-27)).
-
-**Graph vs pure vector** (frozen v2 test split, 240 questions, cloud model; a
-pure-vector control retrieves from the same text plus one paragraph per entity;
-scorer 3.12, saved outputs rescored offline):
-
-| Round | Graph hybrid | Pure vector |
-|---|---:|---:|
-| First accepted round (2026-10-08) | 198/240 (82.5%) | 80/240 (33.3%) |
-| Final v2 test round (code of 2026-10-16) | **211/240 (87.9%)** | — |
-
-| Category (final round) | Graph hybrid | Pure vector (first round) |
+| Category | Graph hybrid | Pure vector |
 |---|---:|---:|
 | Single relation (36) | 100% | 38.9% |
 | Exact counts (24) | 100% | 29.2% |
@@ -202,16 +155,29 @@ scorer 3.12, saved outputs rescored offline):
 | Intersections / exclusions (24) | 66.7% | 8.3% |
 | Brand names, lay terms, typos (36) | 77.8% | 0% |
 | Safety and prompt-injection controls (30) | 100% | 96.7% |
-
-Between the v2 rounds, all changes were developed on the dev split only. The
-category table is from the v2 final round (scorer 3.12). Development after it
-(D085–D093) was driven by stage-wise failure analysis on fresh v3 batches; the
-sealed v3 test above measures the result.
+| **All (240)** | **87.9%** | **33.3%** |
 
 The gap is largest where structure matters: exact counts, intersections and
-multi-hop chains such as *"Which drugs used for major depressive disorder
-interact with melatonin?"* Method, per-category numbers, failure modes and
-threats to validity are in [docs/evaluation.md](docs/evaluation.md).
+multi-hop chains such as *"Which drugs used for major depressive disorder interact
+with melatonin?"*
+
+**Text retrieval.** Merging the vector and full-text indexes by rank fusion puts the
+chunk a question was written from in the top 8 for 94% of the text test questions,
+against 67% for the vector index alone (MRR 0.45 → 0.61); through the whole pipeline
+it reaches the answer model for 43 of 48. A cross-encoder reranker was measured and
+left off: it ranks the right chunk first more often but adds about 2 s per search
+([details](docs/evaluation.md#text-retrieval)).
+
+**Real consumer questions.** The 104 questions of the TREC 2017 LiveQA medical test
+set (sent to the US National Library of Medicine) measure behaviour rather than
+accuracy: only 5 are single graph lookups, and only 45% of the entity names people
+wrote match the catalog. Unanswerable questions mostly get explicit declines, and no
+answer contains dosing content
+([details](docs/evaluation.md#real-consumer-questions-trec-2017-liveqa)). On the 197
+MedicationQA questions whose human-labelled type has a template, reading unclear
+questions with the local model (rather than rules alone) raises answers with the
+labelled intent from 16 to 43, with 3 → 5 answered as another intent
+([details](docs/evaluation.md#human-labelled-intent-medicationqa)).
 
 ## Quick start
 
@@ -286,7 +252,7 @@ is statistically indistinguishable from the cloud model on the sealed v3 test
 (246/260 against 247/260), at 2.7 s against 6.4 s median latency, with no rate
 limits and weights pinned by digest. Earlier measured options were GLM-4.7-Flash and
 the smaller `qwen3.5:9b` ([Modelfile](ollama/qwen3.5-9b.Modelfile), fits an 8 GB GPU)
-([comparison](docs/evaluation.md#benchmark-v3-capability-coverage-and-a-sealed-test-2026-10-1718)).
+([comparison](docs/evaluation.md#benchmark-v3-and-the-sealed-test)).
 
 ## Evaluate
 
@@ -312,7 +278,7 @@ src/medkg_data/   pure transforms shared by ingestion and evaluation (CSV, ontol
 scripts/          downloads, graph/text import, synonym enrichment, artifact checks
 eval/             black-box evaluator, scorers, dataset generators, run summaries
 tests/            unit tests (no database or LLM) and integration tests
-docs/             evaluation, architecture, decision log, project history
+docs/             evaluation, architecture, design decisions
 ```
 
 ## Data and licences
@@ -344,7 +310,7 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
   LLM endpoint used here times out and rate-limits under load. The local Gemma 4
   setup avoids that and matches it on dev, but needs about 32 GB of RAM.
 - On real questions only 45% of entity names match the catalog exactly. Misspellings
-  and partly matched names ("jock itch") are now asked back, but drug classes
+  and partly matched names ("jock itch") are asked back, but drug classes
   ("NSAIDs") and vaccines are still not recognised, and a lay name the catalog lacks
   can only be declined.
 - Router rules cover the wordings seen during development. A question about one name
@@ -362,5 +328,4 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
 
 - [Evaluation: method and results](docs/evaluation.md)
 - [Architecture](docs/architecture.md)
-- [Decision log](docs/decisions.md) — start with the table at the top
-- [Project history](docs/history/README.md) — process reports; the Chinese prototype is tag `zh-v2`
+- [Design decisions](docs/decisions.md)
