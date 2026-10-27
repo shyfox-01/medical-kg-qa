@@ -122,10 +122,14 @@
       background: var(--soft);
     }
     .confirm p { margin: 0 0 10px; font-size: 1.05rem; font-weight: 650; }
-    .confirm .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    /* Options are stacked in the order they are ranked, the likeliest first (D108, D118). */
+    .confirm .choices { display: flex; flex-direction: column; align-items: stretch; gap: 8px; max-width: 560px; }
+    .confirm .choices button { text-align: left; }
+    .confirm .choices + .choices { margin-top: 8px; }
     .confirm .choose { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
     .confirm.other { border-width: 1px; border-color: var(--border); background: transparent; }
     .confirm.other p { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
+    .confirm p:last-child { margin-bottom: 0; }
     .thinking { color: var(--muted); }
     .error { color: var(--error); }
     .badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
@@ -281,13 +285,14 @@
       }
       const none = element("button", "", "None of these");
       none.type = "button";
-      none.addEventListener("click", () => { box.remove(); input.focus(); });
+      none.addEventListener("click", () => retype(box, "Please type the name again, or rephrase the question.",
+                                                  question, result.suggestions[0]?.mention));
       box.append(element("div", "choices"));
       box.lastChild.append(none);
       card.append(box);
     }
 
-    function intentBox(card, result) {
+    function intentBox(card, result, question) {
       // D108: when no rule fits, the model's reading of the question is confirmed. A spread
       // reading is a choice; a clear one was answered, and the other questions are offered.
       const asking = result.route === "intent";
@@ -304,11 +309,23 @@
       if (asking) {
         const other = element("button", "", "Something else");
         other.type = "button";
-        other.addEventListener("click", () => { box.remove(); input.focus(); });
+        other.addEventListener("click", () => retype(box, "Please rephrase the question.", question));
         choices.append(other);
       }
       box.append(choices);
       card.append(box);
+    }
+
+    function retype(box, message, question, part) {
+      // "None of these" / "Something else": nothing further is guessed. The question is put
+      // back in the box to rephrase, with the unmatched name selected when there is one.
+      box.className = "confirm other";
+      box.replaceChildren(element("p", "", message));
+      input.value = question;
+      input.focus();
+      const at = part ? question.toLowerCase().indexOf(part.toLowerCase()) : -1;
+      if (at >= 0) input.setSelectionRange(at, at + part.length); else input.select();
+      input.scrollIntoView({block: "center", behavior: "smooth"});
     }
 
     function answerParts(text) {
@@ -338,7 +355,7 @@
       const askingBack = Boolean(result.suggestions?.length) || result.route === "intent";
       if (!askingBack) card.append(answerBlock(lines.slice(split).join("\n").replace(/^\n+/, "")));
       if (result.suggestions?.length) confirmBox(card, result, question);
-      if (result.intent_options?.length && result.route !== "safety") intentBox(card, result);
+      if (result.intent_options?.length && result.route !== "safety") intentBox(card, result, question);
       const badges = element("div", "badges");
       badges.append(element("span", "badge route", routeNames.get(result.route) ?? result.route ?? ""));
       badges.append(element("span", "badge", askingBack ? "needs your answer" : result.response_status ?? ""));

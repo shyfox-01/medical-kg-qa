@@ -41,6 +41,10 @@ shown with the other readings one click away, and a corrected name is asked back
   that matches only an acronym or a gene symbol ("hard" → HARDS) is checked the same
   way and dropped as an ordinary word, and several possible spellings are ordered by
   the question ("hyptotension caused by Lexapro" offers hypotension, not hypertension).
+  A name that is a MedlinePlus topic title ("Kaposi Sarcoma", "Pregnancy and
+  Nutrition") is settled by that page instead of being asked back.
+- When a generated graph query finds nothing for a named drug or disease ("Can
+  diazepam lower blood pressure?"), the documents about it are searched next.
 - When no rule fits ("What is the purpose of Lynparza?"), the local model scores the
   questions the graph can answer about that name: a clear winner is answered with a
   note and the other questions offered, a close call is asked back as buttons.

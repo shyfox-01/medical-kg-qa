@@ -558,6 +558,39 @@ reading ran on 86 of them, at most 0.018, so none was escalated; no word was dro
 The reading adds about 0.7 s to these questions (median 0.03 s → 0.76 s), most of
 which the rules block at once.
 
+## Text recall fixes (2026-10-28)
+
+The D115 diagnosis left ten text test questions whose gold chunk never reached the
+answer model. Three general fixes followed (decisions D119–D121): text search after an
+empty generated graph query, a misspelt name run into other words, and MedlinePlus
+topic titles settling the names inside them. Both text splits were run in full with
+the previous and the new source (paired, the control a frozen copy):
+
+| Split | Gold chunk reaches the answer model | Text score (gold phrases verbatim) | Median latency |
+|---|---:|---:|---:|
+| dev (32) | 30 → 31 | 5 → 5 | 14.3 s → 14.6 s |
+| test (48) | 38 → 43 | 6 → 7 | 13.9 s → 13.6 s |
+
+The test split is no longer a clean measurement for these fixes: they were found on
+its failures. Gained on test: "Kaposi Sarcoma" (narrowed to the page's entry), "Anal
+Cancer" and "Steatotic Liver Disease" (phrase checks settled by the title), Ebola (text
+after the empty graph query) and "Pregnancy and Nutrition", whose answer the output
+guard then replaces because it states a folic acid amount (D103 policy, unchanged). The
+four questions where a phrase check falls inside a title were rerun after a fix that
+moved the second title step out of a branch it had been skipped in. The dev gain is a
+question whose control run failed with a generated-query error. Still missing on test:
+the opioid overdose question (asked back, D121), three questions answered from other
+chunks of the right page (polycystic ovary syndrome, cancer, leukemia), and one with no
+linked entity that the planner declares out of scope (organ donation).
+
+Regression: the linking review was computed offline for the old and new source on
+2,127 non-sealed questions (structured, caveat, development sets, text, LiveQA,
+MedicationQA): 8 change, as listed in D121. The questions where the text-after-graph
+path acts were run paired: the b4 Aztreonam check still passes, and on 31 LiveQA
+questions 29 search text, seven get a substantive answer, and they take about 4 s
+longer. One question in each run failed with a generated Cypher syntax error (planner
+output varies from run to run; rerun live, the new one completed twice).
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time

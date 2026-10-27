@@ -25,6 +25,7 @@ class Pipeline:
         self.store = store or GraphStore(self.settings)
         self.llm = llm or LLMClient(self.settings)
         self.linker = Linker(entities if entities is not None else self.store.entities())
+        self.titles = None   # MedlinePlus topic titles, read on the first question (D121)
         self.mode = mode
         self.cache = OrderedDict()
 
@@ -97,6 +98,10 @@ class Pipeline:
                     return self._finish(result,start,before)
                 # Corrected names are confirmed by the user, or used with a visible note (D105).
                 checked = confirm.review(self.linker,candidates,unresolved)
+                # A MedlinePlus topic named as written settles the names inside it (D121).
+                if self.titles is None:
+                    self.titles = topic_titles(self.store)
+                checked = confirm.by_title(resolved,checked,self.titles)
                 # A partly matched phrase ("iron overdose" -> Iron) is checked by the model (D106).
                 judge = confirm.model_judge(self.llm)
                 # Several spellings of an asked-back name are ordered by the question (D118).
@@ -107,6 +112,8 @@ class Pipeline:
                 # A lower-case word that matched only an acronym ("hard" -> HARDS) is checked too (D116).
                 if not checked.suggestions:
                     checked = confirm.check_words(self.linker,resolved,checked,judge,typed=question)
+                # A name the model checks asked back may be settled by a title too (D121).
+                checked = confirm.by_title(resolved,checked,self.titles)
                 if checked.ignored:
                     result['ignored_words'] = checked.ignored
                 if checked.suggestions:
@@ -234,12 +241,17 @@ class Pipeline:
                             answer_rows = []
                         rows.extend(retrieved.rows)
                         result['truncated'] |= retrieved.truncated
-                        if (step.tool=='template' and not retrieved.rows and len(steps)==1
+                        # Graph first, text second: most diseases have no phenotype
+                        # edges (e.g. gout) but do have documents about them. A generated
+                        # query that finds nothing ("Can diazepam lower blood pressure?") is
+                        # followed the same way, by the documents about the named entities (D119).
+                        about = (args['uids'] if step.tool=='template' else
+                                 list(dict.fromkeys(c.uid for c in candidates))[:25]
+                                 if step.tool=='text2cypher' else [])
+                        if (about and not retrieved.rows and len(steps)==1
                                 and not step.args.get('target')
                                 and self.mode=='hybrid' and self.settings.phase>=3):
-                            # Graph first, text second: most diseases have no phenotype
-                            # edges (e.g. gout) but do have documents about them.
-                            text = self._hybrid_tool('vector_search',{'query':resolved,'uids':args['uids']})
+                            text = self._hybrid_tool('vector_search',{'query':resolved,'uids':about})
                             rows.extend(text.rows)
                             result['retrieval_fallback'] = 'vector_search'
                             attrs['fallback_rows'] = len(text.rows)
@@ -435,6 +447,17 @@ class Pipeline:
                   **result['usage']):
             pass
         return result
+
+
+def topic_titles(store) -> dict[str,set[str]]:
+    """Normalized MedlinePlus topic titles and the entities each page is about (D121)."""
+    titles = {}
+    for row in store.read('MATCH (d:Document {source:"medlineplus"}) OPTIONAL MATCH (d)-[:ABOUT]->(e) '
+                          'RETURN d.title AS title,collect(e.uid) AS about',{}):
+        key = normalize(row.get('title') or '')
+        if key:
+            titles.setdefault(key,set()).update(row.get('about') or [])
+    return titles
 
 
 def local_pipeline(phase: int | None = None,mode: str = 'hybrid') -> Pipeline:

@@ -419,17 +419,48 @@ class Linker:
                 continue
             mention = ' '.join(words[first:end])
             linked = self.link(mention,hint)
-            if linked:
-                # Non-winning fuzzy/vector neighbors are alternatives, not extra
-                # explicit anchors in a question. Preserve all ambiguous choices.
-                for candidate in linked if linked[0].ambiguous else linked[:1]:
-                    candidate.mention = ' '.join(original[first:end])
-                    candidate.span = (first,end)
-                    candidates.setdefault(candidate.uid,candidate)
-                occupied.update(range(first,end))
-            else:
-                unresolved.append(mention)
+            pieces = [(first,end,linked)]
+            if not linked:
+                # A span that names nothing may run a misspelt name into other words
+                # ("hyptotension make me dizzy"). Its parts between phrase-break and common
+                # words are used instead when one part is an unknown word of eight or more
+                # letters that a spelling match links: as for a space fix (D107), the unknown
+                # word is the evidence of a typo. Only spelling matches of the parts count,
+                # not vector similarity of ordinary words (D120).
+                parts = self._parts(words,first,end,generic)
+                if parts!=[(first,end)]:
+                    split = []
+                    for a,b in parts:
+                        found = self.link(' '.join(words[a:b]),hint)
+                        split.append((a,b,found if found and found[0].method=='fuzzy' else []))
+                    if any(b-a==1 and len(words[a])>=8 and words[a] not in self.known_words and found
+                           for a,b,found in split):
+                        pieces = split
+            for a,b,found in pieces:
+                if found:
+                    # Non-winning fuzzy/vector neighbors are alternatives, not extra
+                    # explicit anchors in a question. Preserve all ambiguous choices.
+                    for candidate in found if found[0].ambiguous else found[:1]:
+                        candidate.mention = ' '.join(original[a:b])
+                        candidate.span = (a,b)
+                        candidates.setdefault(candidate.uid,candidate)
+                    occupied.update(range(a,b))
+                else:
+                    unresolved.append(' '.join(words[a:b]))
         return list(candidates.values()),unresolved
+
+    @staticmethod
+    def _parts(words: list[str], first: int, end: int, generic: set[str]) -> list[tuple[int,int]]:
+        """Runs of words in words[first:end] that are not phrase-break, common or generic words."""
+        parts, start = [], None
+        for i in range(first, end + 1):
+            content = i < end and not ({words[i]} & (PHRASE_STOP | COMMON_WORDS | generic))
+            if content and start is None:
+                start = i
+            elif not content and start is not None:
+                parts.append((start, i))
+                start = None
+        return parts
 
     @staticmethod
     def clitics(question: str, words: list[str]) -> set[int]:

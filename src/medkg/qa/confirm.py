@@ -11,7 +11,7 @@ medication errors, so a wrong silent correction is worse than a question.
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from medkg_data.lexicon import COMMON_WORDS, normalize
 
@@ -242,6 +242,73 @@ def check_words(linker, question: str, checked: Review, judge, typed: str | None
             checked.suggestions.append((word, offered))
         else:
             checked.ignored.append(word)
+    return checked
+
+
+def title_spans(question: str, titles: dict) -> list[tuple[int, int, str]]:
+    """Word spans of the question that are MedlinePlus topic titles, longest first."""
+    words, found, taken = normalize(question).split(), [], set()
+    for size in sorted({len(key.split()) for key in titles}, reverse=True):
+        for start in range(len(words) - size + 1):
+            key = ' '.join(words[start:start + size])
+            if key in titles and not taken & set(range(start, start + size)):
+                found.append((start, start + size, key))
+                taken.update(range(start, start + size))
+    return found
+
+
+def by_title(question: str, checked: Review, titles: dict) -> Review:
+    """A MedlinePlus topic named as written settles the names inside it (D121).
+
+    `titles` maps a normalized topic title to the entities its page is about (MeSH headings
+    of the topic, else its title). An asked-back name inside a title is resolved to the one
+    offered entry the page is about ("Anal Cancer" -> anus neoplasm), with a visible note,
+    and narrowed to those entries when there are several. Under a page about no entity
+    ("Pregnancy and Nutrition") it is left unresolved and the text answers. Several exact
+    entries of one label ("Kaposi Sarcoma") are narrowed to the page's entry the same way.
+    A page about none of the offered entries leaves the question as it was.
+    """
+    spans = title_spans(question, titles) if titles else []
+    if not spans:
+        return checked
+    words = normalize(question).split()
+
+    def title_of(mention: str):
+        # The title the name is ("Pregnancy" in "HIV and Pregnancy"), else the one it is in.
+        key = normalize(mention).split()
+        for start, end, title in spans:
+            for p in range(start, end - len(key) + 1):
+                if key and words[p:p + len(key)] == key:
+                    return (' '.join(key) if ' '.join(key) in titles else title), (p, p + len(key))
+        return None, None
+    for group in _groups(list(checked.kept)):
+        title, _ = title_of(group[0].mention or '')
+        if title is None:
+            continue
+        for label in {c.label for c in group}:
+            same = [c for c in group if c.label == label]
+            about = [c for c in same if c.uid in titles[title]]
+            if len(same) > 1 and about and len(about) < len(same):
+                checked.kept = [c for c in checked.kept if c in about or c not in same]
+                if len(about) == 1 and len(group) - len(same) == 0:
+                    about[0].ambiguous = False
+                checked.corrections.append((group[0].mention, about))
+    remaining = []
+    for mention, group in checked.suggestions:
+        title, span = title_of(mention)
+        about = [c for c in group if title is not None and c.uid in titles[title]]
+        if len(about) == 1:
+            found = replace(about[0], score=100, method='title', ambiguous=False,
+                            mention=mention, span=about[0].span or span)
+            checked.kept.append(found)
+            checked.corrections.append((mention, [found]))
+        elif about:
+            remaining.append((mention, about))
+        elif title is not None and not titles[title]:
+            checked.unresolved.append(normalize(mention))
+        else:
+            remaining.append((mention, group))
+    checked.suggestions = remaining
     return checked
 
 

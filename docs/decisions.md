@@ -54,6 +54,10 @@ system and its evaluation today.
 | Linking | A lower-case word matching only an acronym or gene symbol ("hard" → HARDS) is checked by the model: dropped as an ordinary word, asked back as another entry, or kept | D116 |
 | Safety | Personal messages the rules pass are read once more by the model for a possible emergency; the reading can only escalate (20/20 Claude-written emergencies, 4 real LiveQA ones, no false alarm found) | D117 |
 | Linking | Several spellings of an asked-back name are ordered by the question; unlikely ones are left out, and the user still confirms | D118 |
+| Retrieval | A generated graph query that returns nothing for a named entity is followed by a text search of the documents about it ("Can diazepam lower blood pressure?") | D119 |
+| Linking | A misspelt name run into other words ("hyptotension make me dizzy") is linked on its own when it is an unknown word that a spelling match links | D120 |
+| Linking | A MedlinePlus topic title named as written settles the names inside it: an asked-back name resolves to the page's entry, a page about no entity leaves the text to answer | D121 |
+| Web page | Offered options are stacked likeliest first; "None of these" and "Something else" put the question back to rephrase, with the name selected | D122 |
 
 ## D001 — Environment and scope
 
@@ -3677,3 +3681,80 @@ The three changes were checked on the 98 non-sealed questions where one of them 
 act (found offline; see the evaluation notes): every question has the same outcome
 as with the D115 system, no benchmark question was escalated (highest reading
 0.018), and no word was dropped.
+
+
+## D119 — Text search after an empty generated graph query (2026-10-28)
+
+"Can diazepam lower blood pressure?" linked Diazepam, and the planner chose one
+text2cypher step: side effects whose name contains "blood pressure". None matched (the
+graph says "Hypotension"), and the reply was "No supporting evidence was retrieved",
+although the diazepam label lists hypotension. A single template step that returns no
+rows was already followed by a vector search of the documents about its anchors
+("most diseases have no phenotype edges but do have documents"). A single text2cypher
+step that returns nothing is now followed the same way, by text search (D115) of the
+documents about the linked entities. Without a linked entity nothing changes: the
+invented names of the clarification questions ("Sylxankel syndrome") still get no text.
+A pair check (D112) still states its verdict in code.
+
+In the last full runs this path would have acted on one structured question (b4, an
+Aztreonam contraindication check, still passing), one text question and 31 LiveQA
+questions. On the 31, run with the previous and the new source: 29 search text, and
+seven now get a substantive answer from MedlinePlus (how hepatitis spreads, surgery
+for sleep apnea, appendicitis without all symptoms, calcium for osteoporosis); most of
+the rest say the documents do not cover the question. They take about 4 s longer
+(median 6.0 s → 10.5 s). Live, the diazepam question now answers that hypotension is a
+listed adverse reaction.
+
+## D120 — A misspelt name run into other words (2026-10-28)
+
+"Can hyptotension make me dizzy?" was one unresolved mention, "hyptotension make me
+dizzy": a name that is not found extends to the next relation word, and no spelling
+match covers four words. When such a span links to nothing, its parts between
+phrase-break, common and generic words are linked one by one instead, but only when
+one part is a single unknown word (in no catalog name, not a common word) of eight or
+more letters that a spelling match links. As for a space fix (D107), the unknown word
+is the evidence of a typo. Only spelling matches of the parts count: a first version
+that also took vector and short matches turned ordinary words into entries ("command"
+→ the COMMAD syndrome, "sort" → a gene, "urine", "flush"). The name then goes through
+the usual review (D105): "hyptotension" is asked back as hypotensive disorder, and
+"motoprolol pill how long before it takes affect" reads "motoprolol" as Metoprolol with
+a note.
+
+## D121 — MedlinePlus topic titles settle the names inside them (2026-10-28)
+
+Five of the ten text test questions whose gold chunk never reached the answer model
+(D115) stopped at name confirmation, although each named a MedlinePlus topic exactly:
+"Kaposi Sarcoma" has two catalog entries; "Anal Cancer" and "Steatotic Liver Disease"
+were asked back by the phrase check (D106); "Pregnancy and Nutrition" offered a
+cornual pregnancy. The pipeline now reads the normalized MedlinePlus topic titles and
+the entities each page is about (its MeSH headings mapped through MONDO, else its
+title, as loaded since D060). A name inside a title that the question contains is
+settled by the page:
+
+- an asked-back name resolves to the one offered entry the page is about ("Anal
+  Cancer" → anus neoplasm), used with the usual note, or is narrowed to those entries
+  when there are several;
+- under a page about no entity ("Pregnancy and Nutrition", "Anesthesia") it is left
+  unresolved, and the planner answers from the text; a name that is itself a title
+  uses that title ("Pregnancy" inside "HIV and Pregnancy");
+- several exact entries of one label ("Kaposi Sarcoma", "lupus") are narrowed to the
+  page's entry, with a note ("read "lupus" as systemic lupus erythematosus");
+- a page about none of the offered entries leaves the question as it was: "Opioid
+  Overdose" is mapped to opiate dependence, which D114 rejected as a different
+  condition, and is still asked back.
+
+The rule runs after the spelling review and again after the model checks of phrases
+and words. Offline, the linking review changes on 8 of 2,127 non-sealed questions:
+the two text questions above, three "lupus" development questions, the "anesthesia"
+LiveQA question (no longer "Did you mean Benzocaine?") and the D120 "motoprolol"
+question. The phrase-check cases are found only with the model: four text questions.
+
+## D122 — Ranked options stacked, and "None of these" returns the question (2026-10-28)
+
+The web page showed the offered names and questions as a wrapping row of buttons, so
+the likeliest option was not visibly first. They are now stacked, in the order they are
+offered: by the model's probability (D108, D118) or by spelling distance. "None of
+these" and "Something else" used to remove the box silently; they now say "Please type
+the name again, or rephrase the question.", put the question back in the input and
+select the name that was asked about (the whole question for "Something else"). Nothing
+further is guessed. Both changes follow the user's review of the demo.
