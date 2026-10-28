@@ -3,7 +3,13 @@ import re
 
 from medkg.qa.answer import messages
 from medkg.qa.linker import normalize
-from medkg_data.lexicon import GENERIC_ANCHORS, ITEM_BREAK, ambiguous_word, crosses_break, list_breaks
+from medkg_data.lexicon import (
+    GENERIC_ANCHORS,
+    ITEM_BREAK,
+    ambiguous_word,
+    crosses_break,
+    list_breaks,
+)
 
 
 def entities_in_text(text: str,linker) -> set[str]:
