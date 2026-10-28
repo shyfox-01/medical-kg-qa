@@ -606,6 +606,17 @@ reading ran on 86 of them, at most 0.018, so none was escalated; no word was dro
 The reading adds about 0.7 s to these questions (median 0.03 s → 0.76 s), most of
 which the rules block at once.
 
+Lists written in code (D124) act on 477 non-sealed questions: those whose final turn
+was a list from one template query about one entity in the latest run of its set
+(v2 dev and test, v3 b1–b3, caveat, LiveQA observe). Run once with the new system and
+compared with those runs, 467 pass, against 469 before. The two that now fail list
+exactly the recorded entities: the scorer reads two neighbouring lines of the
+alphabetical list as one name that has a comma in its own spelling ("Apnea" above
+"Central sleep apnea" as the disease "apnea, central sleep"; "Medulloblastoma" above
+"Somatic mutation" as "medulloblastoma, somatic"). The model's lists escaped this
+because it ended each line with an identifier. Model calls on these questions fall from 545 to 24 (what remains is
+the emergency reading of personal messages), and the median time from 3.6 s to 0.01 s.
+
 ## Known failure modes
 
 - **Surface forms.** Names missing from the catalog still fail most of the time

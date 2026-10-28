@@ -66,14 +66,15 @@ class IndicationStore:
                              'anchor_uid':'fiction:asterol','anchor_name':'Asterol'}],statement)
 
 
-def test_brand_name_question_carries_mapping_and_query_description(monkeypatch):
+def test_brand_name_list_names_the_brand_and_the_entity_it_was_read_as(monkeypatch):
+    # A list about one entity is stated in code (D124); the brand is shown with its entity.
     monkeypatch.setattr('medkg.qa.pipeline.request_trace',trace)
     monkeypatch.setattr('medkg.qa.pipeline.span',span)
     model = RecordingModel()
     pipeline = Pipeline(Settings(phase=3,cache=False),store=IndicationStore(),llm=model,entities=ENTITIES)
     result = pipeline.ask('What is Brandex prescribed to treat?')
     assert result['route']=='template' and result['intent']=='indications'
-    sent = evidence(model.prompts[0])
-    assert sent['question_entities']==[{'mention':'Brandex','entity':'Asterol','uid':'fiction:asterol','type':'Drug'}]
-    assert sent['executed_graph_queries'][0]['description']=='The rows are diseases for which Asterol is indicated.'
-    assert result['queries'][0]['description']==sent['executed_graph_queries'][0]['description']
+    assert not model.prompts
+    assert result['answer'].startswith('The knowledge graph records 1 disease for which Brandex (Asterol) is '
+                                       'indicated:\n- Orion fever')
+    assert result['queries'][0]['description']=='The rows are diseases for which Asterol is indicated.'

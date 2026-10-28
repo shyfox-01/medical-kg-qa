@@ -132,23 +132,44 @@ def ensure_reported(answer: str, names: list[str], uids: list[str | None] | None
     return answer.rstrip() + '\n\nAlso recorded in the knowledge graph: ' + ', '.join(missing) + '.', 'appended'
 
 
+def conflicts(rows: list[dict]) -> list[str]:
+    """Records that disagree with another source, one line each."""
+    found = []
+    for row in rows:
+        if row.get('conflict'):
+            if row.get('relation') and row.get('subject') and row.get('object'):
+                found.append(f"{row['subject']} {row['relation']} {row['object']} [{row.get('source','unspecified')}]")
+            elif not any(r.get('relation') and r.get('conflict') for r in rows):
+                found.append(f"{row.get('name',row.get('uid','Association'))}: {row.get('source')} conflicts with another recorded source.")
+    return sorted(set(found))
+
+
+# A conflicting record in words, for the web page (D125).
+CLAIMS = {'INDICATED_FOR': 'is indicated for', 'CONTRAINDICATED_FOR': 'is contraindicated in',
+          'OFF_LABEL_FOR': 'is used off-label for'}
+
+
+def claims(rows: list[dict]) -> list[dict]:
+    """The records that disagree with another source, as a sentence and its source."""
+    found = {(f"{row['subject']} {CLAIMS.get(row['relation'], row['relation'].lower().replace('_', ' '))} "
+              f"{row['object']}", row.get('source') or 'unspecified')
+             for row in rows if row.get('conflict') and row.get('relation') and row.get('subject') and row.get('object')}
+    return [{'claim': claim, 'source': source} for claim, source in sorted(found)]
+
+
 def finalize(answer: str, rows: list[dict], truncated: bool) -> str:
-    sources, conflicts = set(), []
+    sources = set()
     for row in rows:
         if row.get('source'):
             sources.add(row['source'])
         sources.update(s for s in row.get('sources') or [] if isinstance(s,str) and s)
         if row.get('url'):
             sources.add(f"{row.get('source','')}: {row['url']} — {row.get('section','summary')}")
-        if row.get('conflict'):
-            if row.get('relation') and row.get('subject') and row.get('object'):
-                conflicts.append(f"{row['subject']} {row['relation']} {row['object']} [{row.get('source','unspecified')}]")
-            elif not any(r.get('relation') and r.get('conflict') for r in rows):
-                conflicts.append(f"{row.get('name',row.get('uid','Association'))}: {row.get('source')} conflicts with another recorded source.")
+    disagreeing = conflicts(rows)
     if truncated:
         answer += '\n\nOnly part of the available results is listed (retrieval limit reached).'
-    if conflicts:
-        answer += '\n\nConflicting records:\n'+'\n'.join('- '+x for x in sorted(set(conflicts)))
+    if disagreeing:
+        answer += '\n\nConflicting records:\n'+'\n'.join('- '+x for x in disagreeing)
     if sources:
         answer += '\n\nSources: '+'; '.join(sorted(sources))
     return answer+'\n\nResearch demo; not medical advice.'

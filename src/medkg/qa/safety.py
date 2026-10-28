@@ -343,7 +343,7 @@ EMERGENCY_PROMPT = (
     'for them or too much of one, a severe allergic reaction, or serious symptoms happening now after '
     'taking a medicine. Answer 2 for anything else: a question about a medicine or a disease, including '
     'ongoing treatment, a missed or late dose, or mild side effects. Reply with the number only.')
-ESCALATE_AT = 0.5          # chosen on eval/datasets/emergency_dev_v1.jsonl (Claude-written)
+ESCALATE_AT = 0.5          # chosen on eval/datasets/emergency_dev_v1.jsonl (LLM-written)
 NEEDS_READING = re.compile(PERSONAL+'|'+SITUATION, re.I)
 
 

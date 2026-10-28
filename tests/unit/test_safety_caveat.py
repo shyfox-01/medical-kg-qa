@@ -4,7 +4,7 @@ import pytest
 
 from eval.score import DENIAL
 from medkg.qa import answer, safety
-from tests.unit.test_review_regressions import Model, app
+from tests.unit.test_review_regressions import Model, app, both
 
 
 @pytest.mark.parametrize('question,category', [
@@ -66,8 +66,8 @@ def test_notices_read_neither_as_denial_nor_as_decline():
 
 
 class Recorder(Model):
-    def __init__(self, text=None):
-        super().__init__(text)
+    def __init__(self, text=None, plan=None):
+        super().__init__(text, plan)
         self.systems = []
 
     def chat(self, messages, *args):
@@ -76,8 +76,8 @@ class Recorder(Model):
 
 
 def test_caveat_answer_leads_with_the_notice_and_tells_the_model(monkeypatch):
-    model = Recorder()
-    result = app(monkeypatch, model).ask('I take Asterol 20 mg. What are the side effects of Asterol?')
+    model = Recorder(plan=both('side_effects'))
+    result = app(monkeypatch, model).ask('I take Asterol 20 mg. What are the side effects of Asterol and Brinex?')
     assert result['answer'].startswith(safety.NOTICES['dosage']+'\n\n')
     assert 'Amber spots' in result['answer']
     assert result['response_status'] == 'answered' and result['refused'] is False
@@ -95,23 +95,25 @@ def test_dose_request_sentence_is_removed_before_answering(monkeypatch):
 
 def test_a_decline_keeps_the_notice_and_is_reported_as_unsupported(monkeypatch):
     # An empty generation becomes the no-evidence decline (D102); the notice still leads.
-    result = app(monkeypatch, Model(text='')).ask('I take Asterol 20 mg. What are the side effects of Asterol?')
+    result = app(monkeypatch, Model(text='', plan=both('side_effects'))).ask(
+        'I take Asterol 20 mg. What are the side effects of Asterol and Brinex?')
     assert result['answer'].startswith(safety.NOTICES['dosage']+'\n\nNo supporting evidence was retrieved.')
     assert result['refused'] is True and result['response_status'] == 'unsupported'
     assert result['route'] != 'safety'
 
 
 def test_a_worded_decline_behind_the_notice_is_still_a_decline(monkeypatch):
-    pipeline = app(monkeypatch, Model(text='Based on the provided evidence, there is no information about gluten.'))
+    pipeline = app(monkeypatch, Model(text='Based on the provided evidence, there is no information about gluten.',
+                                      plan=both('side_effects')))
     monkeypatch.setattr('medkg.qa.answer.ensure_reported', lambda text, *args, **kwargs: (text, None))
-    result = pipeline.ask('I take Asterol 20 mg. What are the side effects of Asterol?')
+    result = pipeline.ask('I take Asterol 20 mg. What are the side effects of Asterol and Brinex?')
     assert result['answer'].startswith(safety.NOTICES['dosage'])
     assert result['refused'] is True and result['response_status'] == 'unsupported'
 
 
 def test_a_dose_in_the_caveat_answer_is_still_blocked(monkeypatch):
-    model = Model(text='Amber spots. Take 20 mg of Asterol twice a day.')
-    result = app(monkeypatch, model).ask('I take Asterol 20 mg. What are the side effects of Asterol?')
+    model = Model(text='Amber spots. Take 20 mg of Asterol twice a day.', plan=both('side_effects'))
+    result = app(monkeypatch, model).ask('I take Asterol 20 mg. What are the side effects of Asterol and Brinex?')
     assert '20 mg' not in result['answer'] and 'twice a day' not in result['answer']
     assert result['refused'] and result['response_status'] == 'refused'
 

@@ -10,7 +10,7 @@ from medkg.qa.linker import Linker
 from medkg.qa.pipeline import Pipeline
 from medkg.qa.router import route
 from medkg.qa.safety import assess, english
-from tests.unit.test_review_regressions import Model, span, trace
+from tests.unit.test_review_regressions import Model, both, span, trace
 
 ENTITIES = [
     {'uid':'fiction:asterol','label':'Drug','name':'Asterol','synonyms':['Asterolum']},
@@ -121,7 +121,8 @@ class Recording(Model):
 def test_target_synonyms_are_kept_in_contexts_but_not_shown_to_the_answer_model(monkeypatch):
     store = InteractionStore([{'uid':'fiction:orion','name':'Orion fever','synonyms':['Orion pyrexia'],'source':'fictional'}])
     model = Recording()
-    result = ask(monkeypatch,store,model,'What is Asterol used for?')
+    model.plan = both('indications',['fiction:asterol','fiction:brinex'])
+    result = ask(monkeypatch,store,model,'What are Asterol and Brinex used for?')
     shown = json.loads(model.prompts[0][1]['content'].split('<evidence>')[1].split('</evidence>')[0])['rows']
     assert 'synonyms' not in shown[0] and result['contexts'][0]['synonyms']==['Orion pyrexia']
 

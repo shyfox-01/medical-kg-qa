@@ -87,6 +87,53 @@ def interaction_verdict(names: dict, uids: list[str], rows: list[dict]) -> str:
     return ' '.join(parts)
 
 
+# A list from one template query about one entity is stated in code (D124): what its
+# rows are called, one and several, and how they relate to the entity.
+NOUNS = {
+    'indications': ('disease', 'diseases', 'for which {a} is indicated'),
+    'drugs_for': ('drug', 'drugs', 'indicated for {a}'),
+    'side_effects': ('side effect', 'side effects', 'of {a}'),
+    'drugs_with_side_effect': ('drug', 'drugs', 'with {a} as a side effect'),
+    'phenotypes': ('phenotype', 'phenotypes', 'of {a}'),
+    'contraindications': ('disease', 'diseases', 'in which {a} is contraindicated'),
+    'contraindicated_drugs': ('drug', 'drugs', 'contraindicated in {a}'),
+    'interactions': ('drug', 'drugs', 'interacting with {a}'),
+    'diseases_for': ('disease', 'diseases', 'with {a} as a phenotype'),
+    'genes': ('gene', 'genes', 'associated with {a}'),
+    'targets': ('gene or protein', 'genes or proteins', 'targeted by {a}'),
+    'parents': ('parent disease class', 'parent disease classes', 'of {a}'),
+    'subtypes': ('subtype', 'subtypes', 'of {a}'),
+    'off_label': ('disease', 'diseases', 'for which {a} is used off-label'),
+    'off_label_drugs': ('drug', 'drugs', 'used off-label for {a}'),
+    'targeting_drugs': ('drug', 'drugs', 'targeting {a}'),
+    'associated_diseases': ('disease', 'diseases', 'associated with {a}'),
+}
+
+
+def list_summary(intent: str, anchor: str, total: int) -> str:
+    one, several, relation = NOUNS[intent]
+    return f'The knowledge graph records {total:,} {one if total == 1 else several} {relation.format(a=anchor)}.'
+
+
+def list_answer(intent: str, anchor: str, names: list[str], total: int) -> str:
+    """The number recorded, then the names returned (the first 25 by name when there are more)."""
+    lead = list_summary(intent, anchor, total)[:-1]
+    lead += f'. The first {len(names)} by name:' if total > len(names) else ':'
+    return lead + '\n' + '\n'.join('- ' + name for name in names)
+
+
+def counts(label: str, intents: list[str]) -> str:
+    """One read query counting the rows each template would return for one entity (D125)."""
+    if label not in {spec[0] for spec in SPECS.values()} or any(SPECS[i][0] != label for i in intents):
+        raise ValueError('Counts need template intents about one entity label')
+    parts = []
+    for intent in intents:
+        _, target, relation, reverse = SPECS[intent]
+        arrow = {True: f'<-[:{relation}]-', None: f'-[:{relation}]-', False: f'-[:{relation}]->'}[reverse]
+        parts.append(f'COUNT {{ (a){arrow}(:{target}) }} AS {intent}')
+    return f'MATCH (a:{label} {{uid: $uid}}) RETURN ' + ', '.join(parts)
+
+
 def describe(intent: str, names: list[str], count: bool = False, shared: bool = False,
              target: str | None = None) -> str:
     """One sentence stating what a template query's rows are."""

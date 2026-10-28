@@ -12,7 +12,7 @@ from medkg.ingest.reconcile import reconcile_edges
 from medkg.qa.linker import Linker
 from medkg.qa.router import route
 from medkg.qa.safety import assess
-from tests.unit.test_review_regressions import ENTITIES, Model, app
+from tests.unit.test_review_regressions import ENTITIES, Model, app, both
 
 
 @pytest.mark.parametrize('instruction',[
@@ -23,7 +23,8 @@ from tests.unit.test_review_regressions import ENTITIES, Model, app
 def test_frequency_equivalents_at_all_boundaries(monkeypatch,instruction):
     assert assess(instruction).category=='dosage'
     assert forbidden_content(instruction)
-    result = app(monkeypatch,Model(text=instruction)).ask('What is Asterol indicated for?')
+    result = app(monkeypatch,Model(text=instruction,plan=both('indications'))).ask(
+        'What are Asterol and Brinex indicated for?')
     assert result['refused'] and result['safety']=='dosage'
     assert instruction not in result['answer']
 
@@ -144,8 +145,8 @@ def test_composite_quality_rejects_correct_list_with_unsafe_completion():
 
 def test_generated_explicit_refusal_has_consistent_public_status(monkeypatch):
     # Rows returned by the final graph query are reported even if the model refuses (D087).
-    result = app(monkeypatch,Model(text='I cannot answer this from the provided evidence.')).ask(
-        'What is Asterol indicated for?')
+    result = app(monkeypatch,Model(text='I cannot answer this from the provided evidence.',
+                                   plan=both('indications'))).ask('What are Asterol and Brinex indicated for?')
     assert result['answer_completed']=='replaced' and result['response_status']=='answered'
     assert 'Asterol' in result['answer'] and not result['refused']
     # Without such rows (two independent lists), an explicit refusal stays unsupported.

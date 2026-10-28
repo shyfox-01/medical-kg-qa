@@ -9,29 +9,41 @@
     :root {
       --background: #f4f6f5;
       --surface: #ffffff;
-      --text: #192f2d;
-      --muted: #536663;
-      --border: #cbd6d2;
+      --text: #14211f;
+      --muted: #55625f;
+      --border: #d3dcd9;
       --accent: #146653;
       --accent-text: #ffffff;
-      --soft: #eaf2ee;
-      --notice: #fff5dc;
-      --notice-text: #684d16;
+      --soft: #e8f1ed;
+      --bubble: #dcebe4;
+      --chip: #f1f5f3;
+      --caution: #fff4cc;
+      --caution-edge: #c79100;
+      --caution-text: #4d3a00;
+      --urgent: #fde8e8;
+      --urgent-edge: #c0302b;
+      --urgent-text: #6b1410;
       --error: #a42b2b;
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
         --background: #111b19;
-        --surface: #192724;
-        --text: #e3eeea;
-        --muted: #adc0b8;
-        --border: #3b5149;
+        --surface: #182522;
+        --text: #eef5f2;
+        --muted: #adbdb7;
+        --border: #34483f;
         --accent: #9adfc0;
         --accent-text: #10271e;
-        --soft: #243a32;
-        --notice: #342d1d;
-        --notice-text: #f1d59c;
+        --soft: #22362f;
+        --bubble: #27443a;
+        --chip: #1f312b;
+        --caution: #3a3117;
+        --caution-edge: #e0b23c;
+        --caution-text: #f6e2a6;
+        --urgent: #3d1c1b;
+        --urgent-edge: #f07a73;
+        --urgent-text: #ffd2cf;
         --error: #ffaaa5;
       }
     }
@@ -44,16 +56,16 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       line-height: 1.6;
     }
-    main { max-width: 960px; margin: 0 auto; padding: 40px 24px 0; }
-    h1 { margin: 0; font-size: clamp(1.9rem, 5vw, 2.7rem); letter-spacing: -0.04em; }
-    .subtitle { margin: 8px 0 24px; color: var(--muted); }
+    main { max-width: 860px; margin: 0 auto; padding: 40px 24px 0; }
+    h1 { margin: 0; font-size: clamp(1.9rem, 5vw, 2.6rem); letter-spacing: -0.03em; }
+    .subtitle { margin: 6px 0 22px; color: var(--muted); }
     .notice {
-      padding: 12px 16px;
       margin: 0 0 24px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--notice);
-      color: var(--notice-text);
+      padding: 10px 14px;
+      border-left: 4px solid var(--caution-edge);
+      border-radius: 6px;
+      background: var(--caution);
+      color: var(--caution-text);
       font-size: 0.9rem;
     }
     .section-label { margin: 0 0 10px; font-size: 0.9rem; font-weight: 650; }
@@ -100,9 +112,8 @@
       color: var(--text);
     }
     #ask { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-    #ask:hover:not(:disabled) { filter: brightness(0.9); }
     #conversation { margin-top: 8px; }
-    .turn { margin-top: 28px; min-width: 0; }
+    .turn { margin-top: 32px; min-width: 0; }
     /* The question box stays at the bottom of the window, as in a chat. */
     .composer {
       position: sticky;
@@ -113,25 +124,82 @@
       border-top: 1px solid var(--border);
       background: var(--background);
     }
-    .question { margin: 0 0 12px; font-size: 1.15rem; overflow-wrap: anywhere; }
+    /* The question as a chat message on the right; how it was read just below it. */
+    .question {
+      width: fit-content;
+      max-width: min(85%, 600px);
+      margin: 0 0 6px auto;
+      padding: 10px 16px;
+      border-radius: 18px 18px 4px 18px;
+      background: var(--bubble);
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+    .reading { margin: 0 0 4px auto; max-width: min(85%, 600px); color: var(--muted); font-size: 0.85rem; text-align: right; }
+    .reading b { font-weight: 600; }
     .result {
-      padding: 24px;
+      margin-top: 12px;
+      padding: 24px 28px;
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 12px;
       background: var(--surface);
       min-width: 0;
     }
-    .answer { white-space: pre-wrap; overflow-wrap: anywhere; }
-    .notes {
-      margin: 0 0 14px;
-      padding: 10px 14px;
-      border-left: 4px solid var(--notice-text);
-      border-radius: 6px;
-      background: var(--notice);
-      color: var(--notice-text);
-      font-weight: 600;
-      white-space: pre-wrap;
+    /* Answers are set for reading: larger type at full contrast, lines of about 70 characters. */
+    .answer, .summary, .chips, .callout, .more { max-width: 70ch; }
+    .answer { font-size: 1.0625rem; line-height: 1.65; overflow-wrap: anywhere; }
+    .answer > :first-child { margin-top: 0; }
+    .answer > :last-child { margin-bottom: 0; }
+    .answer p { margin: 0 0 12px; }
+    .answer h3 { margin: 18px 0 6px; font-size: 1.0625rem; font-weight: 700; }
+    .answer ul, .answer ol { margin: 0 0 12px; padding-left: 1.4em; }
+    .answer li + li { margin-top: 4px; }
+    .answer li ul { margin: 4px 0 0; }
+    .answer ul.chips { padding-left: 0; }
+    .answer ul.chips li + li { margin-top: 0; }
+    .answer .list-tools { margin: -4px 0 12px; }
+    .answer strong, .summary { font-weight: 700; }
+    .summary { margin: 0 0 14px; font-size: 1.125rem; line-height: 1.5; }
+    /* A list from the graph is shown as names to scan, not as a long column. */
+    .chips {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
     }
+    .chips li {
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--chip);
+      font-size: 0.95rem;
+      line-height: 1.35;
+      overflow-wrap: break-word;
+    }
+    .chips li.disputed { border-color: var(--caution-edge); }
+    .chips li.disputed::after { content: " ⚑"; color: var(--caution-edge); }
+    .chips li[hidden] { display: none; }
+    .list-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 10px; }
+    .list-tools .link { padding-left: 0; }
+    .more { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    /* Callouts, as on health information sites: amber to take care, red to act now. */
+    .callout {
+      margin: 0 0 16px;
+      padding: 12px 16px;
+      border-left: 5px solid var(--caution-edge);
+      border-radius: 6px;
+      background: var(--caution);
+      color: var(--caution-text);
+      font-size: 1rem;
+    }
+    .callout strong { display: block; margin-bottom: 2px; }
+    .callout ul { margin: 4px 0 0; padding-left: 1.2em; }
+    .callout.urgent { border-left-color: var(--urgent-edge); background: var(--urgent); color: var(--urgent-text); font-size: 1.0625rem; }
+    .chips + .callout, .list-tools + .callout { margin-top: 16px; }
     .confirm {
       margin-top: 16px;
       padding: 14px 16px;
@@ -153,28 +221,46 @@
     .confirm.other p { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
     .confirm p:last-child { margin-bottom: 0; }
     .thinking { color: var(--muted); }
-    .sources { margin-top: 16px; padding: 12px 16px; border-radius: 8px; background: var(--background); }
-    .sources h3 { margin: 0 0 6px; color: var(--muted); font-size: 0.85rem; font-weight: 650; }
-    .sources ol { margin: 0; padding-left: 20px; }
-    .sources li { overflow-wrap: anywhere; }
-    .sources li + li { margin-top: 4px; }
-    .sources a { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
-    .sources .kind, .sources .sections { color: var(--muted); font-size: 0.9rem; }
-    .disclaimer { margin: 12px 0 0; color: var(--muted); font-size: 0.8rem; }
-    .how h4 { margin: 16px 0 0; color: var(--muted); font-size: 0.85rem; }
-    .error { color: var(--error); }
-    .badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
-    .badge {
-      padding: 3px 9px;
-      border-radius: 5px;
-      background: var(--soft);
-      color: var(--muted);
-      font-size: 0.8rem;
+    h3.label { margin: 22px 0 8px; color: var(--muted); font-size: 0.8rem; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; }
+    /* Sources as numbered cards: the document title links to it. */
+    .sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .sources li {
+      display: flex;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--background);
+      font-size: 0.9rem;
+      line-height: 1.4;
       overflow-wrap: anywhere;
     }
+    .sources .number {
+      flex: none;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 50%;
+      background: var(--soft);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 700;
+      line-height: 1.5rem;
+      text-align: center;
+    }
+    .sources a { color: var(--accent); font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+    .sources .kind, .sources .sections { display: block; color: var(--muted); font-size: 0.85rem; }
+    .related { display: flex; flex-wrap: wrap; gap: 8px; }
+    .related button { border-radius: 18px; font-size: 0.9rem; }
+    .related button::before { content: "→ "; color: var(--accent); }
+    .disclaimer { margin: 18px 0 0; color: var(--muted); font-size: 0.8rem; }
+    .error { color: var(--error); }
+    /* Route, status, time and model calls, in one quiet line. */
+    .badges { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; color: var(--muted); font-size: 0.78rem; }
+    .badge + .badge::before { content: "·"; margin-right: 14px; }
     .route { color: var(--accent); font-weight: 650; }
-    details { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
-    summary { cursor: pointer; font-size: 0.9rem; font-weight: 650; }
+    details { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+    summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; font-weight: 650; }
+    .how h4 { margin: 16px 0 0; color: var(--muted); font-size: 0.85rem; }
     .query + .query { margin-top: 20px; }
     .description { margin: 12px 0 8px; overflow-wrap: anywhere; }
     .cypher { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -196,10 +282,13 @@
     th, td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid var(--border); }
     td { overflow-wrap: anywhere; min-width: 72px; }
     th { color: var(--muted); font-weight: 650; }
-    .more { color: var(--muted); font-size: 0.85rem; }
     @media (max-width: 480px) {
       main { padding: 24px 16px 0; }
-      .result { padding: 16px; }
+      .result { padding: 18px 16px; }
+      .question, .reading { max-width: 92%; }
+      /* On a phone the names wrap as pills sized to their text, so no word is cut. */
+      .chips { display: flex; flex-wrap: wrap; }
+      .chips li { max-width: 100%; }
       .composer { margin: 24px -16px 0; padding: 12px 16px 14px; }
     }
   </style>
@@ -215,9 +304,9 @@
     <p class="section-label" id="examples-label">Try a question</p>
     <div class="examples" role="group" aria-labelledby="examples-label">
       <button type="button">What is Lipitor used for?</button>
+      <button type="button">What are the side effects of metformin?</button>
       <button type="button">Which drugs used for migraine interact with fluoxetine?</button>
       <button type="button">Which genes are associated with cystic fibrosis?</button>
-      <button type="button">How many drugs are used for rheumatoid arthritis?</button>
       <button type="button">Does warfarin interact with aspirin?</button>
       <button type="button">How much ibuprofen should I give my 5-year-old?</button>
     </div>
@@ -243,13 +332,15 @@
     const conversation = document.getElementById("conversation");
     const welcome = document.getElementById("welcome");
     const composer = document.querySelector(".composer");
-    const buttons = document.querySelectorAll("button");
     const routeNames = new Map([
       ["template", "Graph query"], ["planner", "LLM planner"],
       ["vector", "Text search"], ["safety", "Safety gate"],
       ["language", "Language gate"], ["scope", "Scope gate"],
       ["linking", "Clarification"], ["intent", "Which question?"]
     ]);
+    // Safety replies that ask the reader to get help now are shown in red.
+    const urgent = new Set(["crisis", "emergency", "possible_emergency"]);
+    const SHOWN = 12;   // names of a list shown before "Show all"
     let history = [];
     let pending = false;
 
@@ -291,6 +382,11 @@
       section.append(wrapper);
     }
 
+    function ask(question) {
+      input.value = question;
+      form.requestSubmit();
+    }
+
     function replaceMention(question, mention, name) {
       // The confirmed name replaces what was typed; mentions are matched case-insensitively.
       const escaped = mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\W+");
@@ -311,10 +407,7 @@
         for (const option of options) {
           const button = element("button", "choose", `Yes, ${option.name} (${option.label})`);
           button.type = "button";
-          button.addEventListener("click", () => {
-            input.value = replaceMention(question, group.mention, option.name);
-            form.requestSubmit();
-          });
+          button.addEventListener("click", () => ask(replaceMention(question, group.mention, option.name)));
           choices.append(button);
         }
         box.append(choices);
@@ -339,7 +432,7 @@
       for (const option of result.intent_options) {
         const button = element("button", asking ? "choose" : "", option.question);
         button.type = "button";
-        button.addEventListener("click", () => { input.value = option.question; form.requestSubmit(); });
+        button.addEventListener("click", () => ask(option.question));
         choices.append(button);
       }
       if (asking) {
@@ -378,52 +471,187 @@
     ]);
 
     function sourcesBlock(sources) {
-      // One line per document: its title as a link, where it is from and the sections used.
-      const block = element("section", "sources");
-      block.append(element("h3", "", "Sources"));
-      const list = element("ol");
-      for (const source of sources) {
+      // One numbered card per document: its title as a link, where it is from and the sections used.
+      const list = element("ol", "sources");
+      sources.forEach((source, index) => {
         const item = element("li");
+        const text = element("div");
         const kind = sourceNames.get(source.source) ?? source.source ?? "";
         if (source.url && source.url.startsWith("https://")) {
           const link = element("a", "", source.title || kind);
           link.href = source.url;
           link.target = "_blank";
           link.rel = "noopener noreferrer";
-          item.append(link, element("span", "kind", ` — ${kind}`));
+          text.append(link, element("span", "kind", kind));
         } else {
-          item.append(element("span", "", kind));
+          text.append(element("span", "", kind));
         }
-        if (source.sections?.length) item.append(element("span", "sections", `: ${source.sections.join(" · ")}`));
+        if (source.sections?.length) text.append(element("span", "sections", source.sections.join(" · ")));
+        item.append(element("span", "number", String(index + 1)), text);
         list.append(item);
-      }
-      block.append(list);
-      return block;
+      });
+      return list;
     }
 
-    function answerParts(text) {
-      // Answers use light Markdown: "*" bullets are shown as "•" and **bold** spans are marked.
-      const bulleted = text.split("\n").map(line => line.replace(/^(\s*)[*-]\s+/, "$1• ")).join("\n");
-      return bulleted.split(/\*\*([^*\n]+)\*\*/).map((part, i) => [i % 2 ? "strong" : "text", part])
+    function inlineParts(text) {
+      // **bold** spans are marked; everything else stays text, never HTML.
+      return text.split(/\*\*([^*\n]+)\*\*/).map((part, i) => [i % 2 ? "strong" : "text", part])
         .filter(([, part]) => part);
     }
 
+    function answerBlocks(text) {
+      // The answer's light Markdown as data: paragraphs (line breaks kept), headings (a line
+      // that is all bold, or "#"), and bulleted or numbered lists with one nested level.
+      const blocks = [];
+      let paragraph = [];
+      const flush = () => {
+        if (paragraph.length) blocks.push({type: "p", lines: paragraph.map(inlineParts)});
+        paragraph = [];
+      };
+      for (const line of text.split("\n")) {
+        const heading = line.match(/^\s*(?:#{1,6}\s+(.+?)|\*\*([^*\n]+?):?\*\*:?)\s*$/);
+        const item = line.match(/^(\s*)(?:[*\-•]|(\d+)[.)])\s+(.*\S)\s*$/);
+        if (!line.trim()) {
+          flush();
+        } else if (heading) {
+          flush();
+          blocks.push({type: "h", parts: inlineParts(heading[1] ?? heading[2])});
+        } else if (item) {
+          flush();
+          // Items separated by blank lines stay one list, so its numbering continues.
+          let list = blocks.at(-1);
+          const nested = item[1].length >= 2 && list?.type === "list" && list.items.length;
+          if (nested) {
+            list.items.at(-1).children.push(inlineParts(item[3]));
+          } else {
+            if (list?.type !== "list" || list.ordered !== Boolean(item[2])) {
+              blocks.push(list = {type: "list", ordered: Boolean(item[2]), items: []});
+            }
+            list.items.push({parts: inlineParts(item[3]), children: []});
+          }
+        } else {
+          paragraph.push(line.trim());
+        }
+      }
+      flush();
+      return blocks;
+    }
+
+    function inline(node, parts) {
+      for (const [kind, part] of parts) {
+        node.append(kind === "strong" ? element("strong", "", part) : document.createTextNode(part));
+      }
+      return node;
+    }
+
     function answerBlock(text) {
-      // Text nodes and <strong> elements only: the answer is never parsed as HTML.
+      // Elements and text nodes only: the answer is never parsed as HTML.
       const block = element("div", "answer");
-      for (const [kind, part] of answerParts(text)) {
-        block.append(kind === "strong" ? element("strong", "", part) : document.createTextNode(part));
+      for (const part of answerBlocks(text)) {
+        if (part.type === "h") {
+          block.append(inline(element("h3"), part.parts));
+        } else if (part.type === "p") {
+          const paragraph = element("p");
+          part.lines.forEach((line, i) => {
+            if (i) paragraph.append(element("br"));
+            inline(paragraph, line);
+          });
+          block.append(paragraph);
+        } else if (!part.ordered && part.items.length >= 8 && part.items.every(entry => !entry.children.length
+                   && entry.parts.length === 1 && entry.parts[0][0] === "text" && entry.parts[0][1].length <= 60)) {
+          // A long list of plain names reads better as chips, as a list from the graph does.
+          chipGrid(block, part.items.map(entry => ({name: entry.parts[0][1]})));
+        } else {
+          const list = element(part.ordered ? "ol" : "ul");
+          for (const entry of part.items) {
+            const item = inline(element("li"), entry.parts);
+            if (entry.children.length) {
+              const inner = element("ul");
+              for (const child of entry.children) inner.append(inline(element("li"), child));
+              item.append(inner);
+            }
+            list.append(item);
+          }
+          block.append(list);
+        }
       }
       return block;
     }
 
+    function chipGrid(parent, items, note = "") {
+      // Names as chips, the first twelve shown, with "Show all" for the rest.
+      const chips = element("ul", "chips");
+      items.forEach((item, index) => {
+        const chip = element("li", item.conflict ? "disputed" : "", item.name);
+        if (item.conflict) chip.title = "The sources disagree about this record";
+        chip.hidden = index >= SHOWN;
+        chips.append(chip);
+      });
+      parent.append(chips);
+      const tools = element("div", "list-tools");
+      if (items.length > SHOWN) {
+        const toggle = element("button", "link", `Show all ${items.length}`);
+        toggle.type = "button";
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.addEventListener("click", () => {
+          const open = toggle.getAttribute("aria-expanded") !== "true";
+          chips.querySelectorAll("li").forEach((chip, index) => { chip.hidden = !open && index >= SHOWN; });
+          toggle.setAttribute("aria-expanded", String(open));
+          toggle.textContent = open ? "Show fewer" : `Show all ${items.length}`;
+        });
+        tools.append(toggle);
+      }
+      if (note) tools.append(element("p", "more", note));
+      if (tools.childElementCount) parent.append(tools);
+    }
+
+    function listBlock(card, listing, truncated) {
+      // A list from one graph query (D124): the number recorded in bold, then the names.
+      card.append(element("p", "summary", listing.summary));
+      chipGrid(card, listing.items, listing.total > listing.items.length
+        ? `The first ${listing.items.length} of ${listing.total.toLocaleString("en")} by name.`
+        : truncated ? "Only part of the available results is listed (retrieval limit reached)." : "");
+    }
+
+    function callout(kind, title, text) {
+      const box = element("div", `callout ${kind}`);
+      box.setAttribute("role", kind === "urgent" ? "alert" : "note");
+      if (title) box.append(element("strong", "", title));
+      if (Array.isArray(text)) {
+        const list = element("ul");
+        for (const line of text) list.append(element("li", "", line));
+        box.append(list);
+      } else {
+        box.append(document.createTextNode(text));
+      }
+      return box;
+    }
+
+    function plain(note) {
+      // "Note: answered as …" -> "Answered as …"
+      const text = note.replace(/^Note:\s*/, "");
+      return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
     function renderResult(card, result, question) {
-      // Leading "Note:" lines (safety notice, name corrections) are shown highlighted.
+      // Leading "Note:" lines (safety notices, how the question was read) are taken out of
+      // the answer: readings go under the question, cautions in an amber callout (D125).
       const lines = (result.answer ?? "").split("\n");
       let split = 0;
       while (split < lines.length && lines[split].startsWith("Note:")) split++;
+      const kinds = new Map((result.notices ?? []).map(note => [note.text, note.kind]));
+      const notes = lines.slice(0, split).map(text => ({text, kind: kinds.get(text) ?? "caution"}));
+      const readings = [];
+      if (result.read_as) {
+        const line = element("p", "reading");
+        line.append(element("b", "", "Read as: "), document.createTextNode(result.read_as));
+        readings.push(line);
+      }
+      for (const note of notes.filter(note => note.kind === "reading")) readings.push(element("p", "reading", plain(note.text)));
+      card.before(...readings);
       card.replaceChildren();
-      if (split) card.append(element("div", "notes", lines.slice(0, split).join("\n")));
+      const cautions = notes.filter(note => note.kind !== "reading").map(note => plain(note.text));
+      if (cautions.length) card.append(callout("", "Please note", cautions.join(" ")));
       // A question back to the user is shown once, in its box with the buttons.
       const askingBack = Boolean(result.suggestions?.length) || result.route === "intent";
       // The sources are listed below the answer, and the disclaimer closes the reply.
@@ -432,13 +660,38 @@
       const closing = disclaimer.test(body);
       body = body.replace(disclaimer, "");
       if (result.sources?.length) body = body.replace(/\n*Sources: [^\n]*\s*$/, "");
-      if (!askingBack) {
+      if (result.route === "safety") {
+        card.append(callout(urgent.has(result.safety) ? "urgent" : "",
+                            urgent.has(result.safety) ? "Get help now" : "This needs a clinician", body));
+      } else if (!askingBack && result.listing) {
+        listBlock(card, result.listing, result.truncated);
+        // Records another source contradicts, each with where it is from.
+        const disputed = (result.conflicts ?? []).map(({claim, source}) =>
+          `${sourceNames.get(source) ?? source}: ${claim}.`);
+        if (!disputed.length && result.listing.items.some(item => item.conflict)) {
+          disputed.push("Another source contradicts the records marked ⚑.");
+        }
+        if (disputed.length) card.append(callout("", "The sources disagree", disputed));
+      } else if (!askingBack) {
         card.append(answerBlock(body));
-        if (result.sources?.length) card.append(sourcesBlock(result.sources));
-        if (closing) card.append(element("p", "disclaimer", "Research demo; not medical advice."));
+      }
+      if (!askingBack && result.sources?.length) {
+        card.append(element("h3", "label", "Sources"), sourcesBlock(result.sources));
       }
       if (result.suggestions?.length) confirmBox(card, result, question);
       if (result.intent_options?.length && result.route !== "safety") intentBox(card, result, question);
+      if (result.related?.length) {
+        // Questions the graph has records for about the same entity (D125).
+        const related = element("div", "related");
+        for (const option of result.related) {
+          const button = element("button", "", option.question);
+          button.type = "button";
+          button.addEventListener("click", () => ask(option.question));
+          related.append(button);
+        }
+        card.append(element("h3", "label", "Related questions"), related);
+      }
+      if (closing) card.append(element("p", "disclaimer", "Research demo; not medical advice."));
       const badges = element("div", "badges");
       badges.append(element("span", "badge route", routeNames.get(result.route) ?? result.route ?? ""));
       badges.append(element("span", "badge", askingBack ? "needs your answer" : result.response_status ?? ""));
@@ -479,12 +732,16 @@
       if (result.trace_id) how.append(element("h4", "", "Trace"), element("pre", "", result.trace_id));
     }
 
-    async function ask() {
+    function busy(on) {
+      pending = on;
+      for (const button of document.querySelectorAll("button")) button.disabled = on;
+      input.readOnly = on;
+    }
+
+    async function send() {
       const question = input.value.trim();
       if (pending || !question || question.length > 4096) return;
-      pending = true;
-      for (const button of buttons) button.disabled = true;
-      input.readOnly = true;
+      busy(true);
 
       const turn = element("article", "turn");
       turn.append(element("h2", "question", question));
@@ -524,22 +781,17 @@
       } finally {
         clearInterval(timer);
         card.setAttribute("aria-busy", "false");
-        pending = false;
-        for (const button of buttons) button.disabled = false;
-        input.readOnly = false;
+        busy(false);
         reveal(turn);
       }
     }
 
     form.addEventListener("submit", event => {
       event.preventDefault();
-      ask();
+      send();
     });
     for (const button of document.querySelectorAll(".examples button")) {
-      button.addEventListener("click", () => {
-        input.value = button.textContent;
-        form.requestSubmit();
-      });
+      button.addEventListener("click", () => ask(button.textContent));
     }
     document.getElementById("new-conversation").addEventListener("click", () => {
       history = [];
@@ -551,8 +803,7 @@
     });
     if (location.hash.startsWith("#q=")) {
       try {
-        input.value = decodeURIComponent(location.hash.slice(3)).slice(0, 4096);
-        form.requestSubmit();
+        ask(decodeURIComponent(location.hash.slice(3)).slice(0, 4096));
       } catch {
         // A malformed fragment leaves the ordinary question form available.
       }

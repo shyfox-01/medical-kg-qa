@@ -83,6 +83,12 @@ def app(monkeypatch,model):
     return Pipeline(Settings(phase=3,cache=False),store=Store(),llm=model,entities=copy.deepcopy(ENTITIES))
 
 
+def both(intent,uids=('fiction:drug-a','fiction:drug-b')):
+    """A plan with one template query about two drugs. A list about one entity is stated in
+    code (D124), so tests of how the model's answer is checked ask about two."""
+    return {'steps':[{'tool':'template','args':{'intent':intent,'uids':list(uids)}}]}
+
+
 @pytest.mark.parametrize('quantity',['two','2','half a','quarter of a','one and a half','twenty-one'])
 def test_dose_words_are_blocked_before_any_provider_call(monkeypatch,quantity):
     model = Model()
@@ -96,7 +102,8 @@ def test_dose_words_are_blocked_before_any_provider_call(monkeypatch,quantity):
     'Administer one capsule every six hours.', 'Use half a tablet at bedtime.',
 ])
 def test_final_output_rejects_worded_doses_and_frequencies(monkeypatch,instruction):
-    result = app(monkeypatch,Model(text=instruction)).ask('What is Asterol indicated for?')
+    result = app(monkeypatch,Model(text=instruction,plan=both('indications'))).ask(
+        'What are Asterol and Brinex indicated for?')
     assert result['refused'] and result['safety']=='dosage'
     assert instruction not in result['answer']
     assert output_violation(instruction) is not None

@@ -106,7 +106,7 @@ SALT = re.compile(r'\s+(?:citrate|hydrochloride|hcl|sodium|potassium|calcium|mal
                   r'chloride|hydrobromide|monohydrate|dihydrate|trihydrate)$', re.I)
 
 
-# Claude's manual review of 556 short RxNorm brands (D099): personal names and
+# An LLM review of 556 short RxNorm brands (D099): personal names and
 # ordinary English words that would create unrelated mentions in free text.
 RXNORM_STOP = frozenset({
     'julie', 'ella', 'nikita', 'muse', 'propel', 'thrive', 'react', 'clarus', 'compro',
@@ -389,7 +389,7 @@ def medlineplus_proposals(path: Path, entities: list[dict]) -> list[tuple]:
 TOPIC_NOT_A_NAME = re.compile(r'\b(?:in|for)\s+(?:children|infants|babies|teens|women|men|pregnancy|older adults)\b'
                               r'|\bchildhood\b|^how to\b|\bcaregivers?\b|\brehabilitation\b|\bexposure\b|\bnutrition\b'
                               r'|\bhealth\b|\band\b|[,/]', re.I)
-# Claude's review of the titles the rule proposed (D114): a substance or exposure, not
+# An LLM review of the titles the rule proposed (D114): a substance or exposure, not
 # the disease ("Asbestos" is not asbestosis), or a narrower or different condition.
 REVIEWED_NOT_SYNONYMS = frozenset(normalize(t) for t in (
     'Asbestos', 'Mercury', 'Triglycerides', 'Cannabis', 'Opioid Overdose', 'Alcohol Use Disorder',

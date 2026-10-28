@@ -1,6 +1,6 @@
 """The emergency second reading (D117) on a question set.
 
-On eval/datasets/emergency_dev_v1.jsonl (Claude-written, labelled) it reports caught and
+On eval/datasets/emergency_dev_v1.jsonl (LLM-written, labelled) it reports caught and
 missed emergencies; on any other set it lists the questions it would escalate, which are
 false alarms unless a reviewer finds an emergency among them.
 

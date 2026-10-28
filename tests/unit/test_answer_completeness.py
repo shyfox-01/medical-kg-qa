@@ -1,7 +1,7 @@
 """The final graph query's result entities are always reported (D087), fictional entities only."""
 
 from medkg.qa.answer import ensure_reported
-from tests.unit.test_review_regressions import Model, app
+from tests.unit.test_review_regressions import Model, app, both
 
 
 def test_complete_answers_are_unchanged():
@@ -31,7 +31,8 @@ def test_a_name_inside_a_longer_reported_name_is_still_missing():
 
 
 def test_pipeline_appends_what_the_model_left_out(monkeypatch):
-    result = app(monkeypatch,Model(text='Asterol is recorded.')).ask('What is Asterol indicated for?')
+    result = app(monkeypatch,Model(text='Asterol is recorded.',plan=both('indications'))).ask(
+        'What are Asterol and Brinex indicated for?')
     assert result['answer_completed']=='appended' and 'Brinex' in result['answer']
 
 
@@ -52,7 +53,8 @@ def test_count_answers_are_not_completed(monkeypatch):
 
 
 def test_safety_refusal_is_not_overridden(monkeypatch):
-    result = app(monkeypatch,Model(text='Take two tablets of Asterol daily.')).ask('What is Asterol indicated for?')
+    result = app(monkeypatch,Model(text='Take two tablets of Asterol daily.',plan=both('indications'))).ask(
+        'What are Asterol and Brinex indicated for?')
     assert result['refused'] and result['safety']=='dosage' and 'answer_completed' not in result
 
 

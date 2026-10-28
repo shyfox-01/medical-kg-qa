@@ -65,6 +65,7 @@ class Pipeline:
                 asked = triage.question if caveat else question
                 caution = safety.CAUTION if caveat else ''
                 notices = [triage.notice] if caveat else []
+                cautions = list(notices)   # the notices shown as a caution, not as a reading (D125)
                 if not safety.english(question):
                     result.update(answer='This demo supports English questions only.',route='language',refused=True)
                     return self._finish(result,start,before)
@@ -84,6 +85,9 @@ class Pipeline:
             try:
                 with span('linking') as attrs:
                     resolved,previous = session.resolve(asked,history)
+                    # A follow-up is shown as it was read ("its" -> the previous answer's entity).
+                    if resolved!=asked:
+                        result['read_as'] = resolved
                     candidates,unresolved = self.linker.question_mentions(resolved)
                     result['candidates'] = self.linker.describe(candidates)
                     result['unresolved_mentions'] = unresolved
@@ -160,7 +164,8 @@ class Pipeline:
                             # Safety and correction notices stay in front of the question.
                             asked_back = intents.clarification(reading)
                             result.update(answer='\n'.join([*notices,'',asked_back]) if notices else asked_back,
-                                          route='intent',refused=True,intent_options=reading.offered())
+                                          route='intent',refused=True,intent_options=reading.offered(),
+                                          notices=notes(notices,cautions))
                             return self._finish(result,start,before)
                         if reading.mode=='answer':
                             # Answered, but the guess is shown and the other questions are offered.
@@ -168,6 +173,11 @@ class Pipeline:
                             notices.append(intents.note(reading))
                             result['intent_options'] = reading.offered(intents.OFFER+1)[1:]
                     result['intent'] = intent
+                    # "What about X?" repeats the previous question, which is shown (D125).
+                    if previous and intent==previous and 'read_as' not in result:
+                        anchor = next((c for c in candidates if c.label==templates.SPECS[intent][0]),None)
+                        if anchor:
+                            result['read_as'] = intents.phrase(intent,anchor)
                     if self.mode=='vector':
                         steps = [planner.Step(tool='vector_search',args={'query':resolved})]
                         result['route'] = 'vector'
@@ -255,6 +265,7 @@ class Pipeline:
                             rows.extend(text.rows)
                             result['retrieval_fallback'] = 'vector_search'
                             attrs['fallback_rows'] = len(text.rows)
+                partial = False
                 if self.mode!='vector' and self.settings.phase>=3:
                     with span('tool.conflict_evidence') as attrs:
                         pair_target = steps[0].args.get('target') if len(steps)==1 else None
@@ -291,6 +302,11 @@ class Pipeline:
                 pair = steps[0].args.get('uids',[]) if result['route']=='template' and len(steps)==1 else []
                 recorded = (intent=='interactions' and len(pair)==2 and not steps[0].args.get('count')
                             and not steps[0].args.get('shared') and bool(answer_rows))
+                # A list about one entity from one template query is stated in code, with the
+                # number recorded: the model only restated the rows, and sometimes added
+                # "(Count: 1)" to each of them (D124).
+                listed = (len(pair)==1 and bool(answer_rows) and not steps[0].args.get('count')
+                          and not steps[0].args.get('shared') and not steps[0].args.get('target'))
                 empty_answer = False
                 # "Is X used to treat Y?" answered by the pair template: whether the graph
                 # records that one pair, stated in code like the interaction pair (D112).
@@ -302,6 +318,7 @@ class Pipeline:
                     # About a person or a population: what the graph records is not advice for them.
                     if not caveat and re.search(safety.PERSONAL+'|'+safety.POPULATION,resolved,re.I):
                         notices.append(safety.NOTICES['medication_decision'])
+                        cautions.append(notices[-1])
                 elif (intent=='interactions' and len(pair)>2 and not steps[0].args.get('count')
                       and not steps[0].args.get('shared')):
                     # Interactions among several drugs: every pair, stated in code (D113).
@@ -313,6 +330,13 @@ class Pipeline:
                 elif recorded:
                     first,second = (self.linker.entities.get(uid,{}).get('name',uid) for uid in pair)
                     result['answer'] = f'Yes. The knowledge graph records an interaction between {first} and {second}.'
+                elif listed:
+                    # The list query's row limit is settled by a count (D124); the supporting
+                    # chunks and conflicting claims may still be partial. The bounds on what a
+                    # model is sent do not apply: no model words this answer.
+                    result['truncated'] = partial or len(evidence_uids)>25
+                    result['answer'],result['listing'] = self._listing(intent,pair[0],candidates,answer_rows,result)
+                    result['conflicts'] = answer.claims(rows)
                 else:
                     # Target synonyms stay in the contexts (scoring, verification) but are not
                     # shown to the answer model, which echoed them as extra entities (D092).
@@ -354,6 +378,11 @@ class Pipeline:
                                     else answer.finalize(result['answer'],rows,result['truncated']))
                 # The same sources, one entry per document, for the web page (D123).
                 result['sources'] = [] if empty_answer else answer.sources(rows)
+                # Questions the graph can answer next about the same entity (D125).
+                subject = next((c for c in candidates if not c.ambiguous and (
+                    result['route']!='template' or c.uid in pair[:1])),None)
+                if subject and not result['refused'] and not result.get('intent_options'):
+                    result['related'] = self._related(subject,intent)
             except Exception as exc:
                 result.update(answer='The request could not be completed. Please retry or simplify the question.',
                               failure_stage=stage,error_type=type(exc).__name__)
@@ -370,6 +399,7 @@ class Pipeline:
                     if answer.unsupported_response(result['answer']):
                         result['refused'] = True
                     result['answer'] = '\n'.join(notices)+'\n\n'+result['answer']
+                    result['notices'] = notes(notices,cautions)
             if self.settings.cache and not result['failure_stage']:
                 self.cache[key] = (time.monotonic()+self.settings.cache_ttl,copy.deepcopy(result))
                 if len(self.cache)>256:
@@ -396,6 +426,44 @@ class Pipeline:
                 return {k:resolve(v) for k,v in value.items()}
             return value
         return resolve(args)
+
+    def _listing(self,intent: str,uid: str,candidates: list,rows: list[dict],result: dict) -> tuple[str,dict]:
+        """The answer to a one-entity list question, written in code, and the same list for the
+        web page (D124). One query returns at most 25 rows; when it is full, the number
+        recorded is counted by a second query and the first 25 by name are listed."""
+        # One row per target and source: an entity recorded by two sources is listed once,
+        # in conflict when either record is.
+        listed = {}
+        for row in rows:
+            item = listed.setdefault(row.get('uid') or row.get('name'),
+                                     {'name':row.get('name') or row.get('uid'),'uid':row.get('uid'),'conflict':False})
+            item['conflict'] |= bool(row.get('conflict'))
+        items = list(listed.values())
+        total = len(items)
+        if len(rows)>=25:
+            query,params = templates.query(intent,[uid],count=True)
+            counted = self.store.run_generated(query,params)
+            name = self.linker.entities.get(uid,{}).get('name',uid)
+            result['cypher'].append(counted.stmt)
+            result['queries'].append({'cypher':counted.stmt,'params':params,
+                                      'description':templates.describe(intent,[name],True)})
+            total = max(total,int((counted.rows or [{}])[0].get('count') or 0))
+        result['truncated'] |= total>len(items)
+        anchor = self._written({c.uid:c for c in candidates},uid)
+        return (templates.list_answer(intent,anchor,[item['name'] for item in items],total),
+                {'summary':templates.list_summary(intent,anchor,total),'items':items,'total':total})
+
+    def _related(self,subject,intent: str | None) -> list[dict]:
+        """Up to three template questions about the answered entity that the graph has
+        records for (D125); none when they cannot be counted."""
+        offered = [i for i in RELATED.get(subject.label,()) if i!=intent]
+        try:
+            rows = self.store.read(templates.counts(subject.label,offered),{'uid':subject.uid}) if offered else []
+        except Exception:
+            return []
+        found = rows[0] if rows and isinstance(rows[0],dict) else {}
+        return [{'intent':i,'question':intents.phrase(i,subject)} for i in offered
+                if isinstance(found.get(i),int) and found[i]>0][:3]
 
     def _written(self,by_uid: dict,uid: str) -> str:
         """The name as the user wrote it, with the catalog name when they differ (D112)."""
@@ -449,6 +517,22 @@ class Pipeline:
                   **result['usage']):
             pass
         return result
+
+
+# The questions offered after an answer, by the label of the answered entity, in this order (D125).
+RELATED = {
+    'Drug': ('indications','side_effects','interactions','contraindications','targets'),
+    'Disease': ('drugs_for','phenotypes','genes','subtypes','contraindicated_drugs'),
+    'Phenotype': ('diseases_for','drugs_with_side_effect'),
+    'Gene': ('associated_diseases','targeting_drugs'),
+}
+
+
+def notes(notices: list[str],cautions: list[str]) -> list[dict]:
+    """The notices in front of an answer, for the web page: a caution (safety) or a note on
+    how the question was read (a corrected name, the question answered) (D125)."""
+    return [{'kind':'caution' if notice in cautions else 'reading','text':line}
+            for notice in notices for line in notice.split('\n') if line.strip()]
 
 
 def topic_titles(store) -> dict[str,set[str]]:

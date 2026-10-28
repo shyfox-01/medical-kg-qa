@@ -51,6 +51,11 @@ shown with the other readings one click away, and a corrected name is asked back
   note and the other questions offered, a close call is asked back as buttons.
 - Yes/no questions about a drug and a condition ("Is X contraindicated in Y?") check
   that one pair in the graph and state the verdict in code.
+- A list about one drug, disease, symptom or gene is written in code with the number
+  recorded ("The knowledge graph records 58 side effects of Metformin"), without a
+  model call; the web page shows the names as chips. A follow-up shows how it was read
+  ("Read as: What is Metformin used to treat?"), and each answer offers related
+  questions that the graph has records for.
 - Blocks crisis, emergency, diagnosis and dose-only requests before any model call.
   A personal message the rules let through is read once more by the model for a
   possible emergency told without keywords ("i took 25 iron pills…what do i do"); that
