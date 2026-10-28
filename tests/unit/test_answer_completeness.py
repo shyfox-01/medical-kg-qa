@@ -77,5 +77,25 @@ def test_uid_mentions_decide_completeness():
     assert done=='appended' and text.endswith('Also recorded in the knowledge graph: Orion fever.')
 
 
+def test_a_new_list_line_ends_a_name_spelt_with_a_comma():
+    from medkg.qa.linker import Linker
+    from medkg.qa.verify import entities_in_text, verify_answer
+    linker = Linker([{'uid':'fiction:gasp','label':'Phenotype','name':'Orion gasp','synonyms':[]},
+                     {'uid':'fiction:central','label':'Phenotype','name':'Central Orion gasp','synonyms':[]},
+                     {'uid':'fiction:inverted','label':'Disease','name':'Orion gasp, central','synonyms':[]}])
+    rows = [{'uid':'fiction:gasp','name':'Orion gasp'},{'uid':'fiction:central','name':'Central Orion gasp'}]
+    answer = 'Recorded phenotypes:\n- Orion gasp\n- Central Orion gasp'
+    mentioned = entities_in_text(answer,linker)
+    assert mentioned=={'fiction:gasp','fiction:central'}
+    assert entities_in_text('Orion gasp, central is recorded.',linker)=={'fiction:inverted'}
+
+    class Model:
+        def chat(self,messages):
+            raise AssertionError('a supported list needs no revision')
+    # Neither a false unsupported entity (a revision call) nor a falsely missing row.
+    assert verify_answer(Model(),'Which phenotypes?',answer,rows,linker)==answer
+    assert ensure_reported(answer,[r['name'] for r in rows],[r['uid'] for r in rows],mentioned)==(answer,None)
+
+
 def test_short_symbols_fall_back_to_text_matching():
     assert ensure_reported('- AR\n- ORX1',['AR','ORX1'],['fiction:ar','fiction:orx1'],{'fiction:orx1'})[1] is None

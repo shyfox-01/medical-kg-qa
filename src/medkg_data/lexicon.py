@@ -65,6 +65,9 @@ world area areas case cases group groups problem problems question questions fac
 
 
 LIST_BREAK = re.compile(r'[,;\n\u2022]')
+# A line break or bullet starts the next list item: it ends every name, even one whose
+# own spelling has a comma ("apnea, central sleep" is not "Apnea\n- Central sleep apnea", D126).
+ITEM_BREAK = re.compile(r'[\n\u2022]')
 
 
 def list_breaks(text: str, separator: re.Pattern = LIST_BREAK) -> set[int]:

@@ -6,6 +6,7 @@ import re
 from medkg_data.alias_policy import EXCLUDED_ALIASES, exact_names
 from medkg_data.lexicon import (
     GENERIC_ANCHORS,
+    ITEM_BREAK,
     LIST_BREAK,
     ambiguous_word,
     crosses_break,
@@ -31,9 +32,6 @@ CLARIFY = re.compile(r'clarif|which .{0,40} do you mean|did you mean|please (?:p
                      r'(?:could|can) ?not (?:find|identify|recogni[sz]e)|not (?:found|recogni[sz]ed)|'
                      r'no (?:matching|such) (?:entity|drug|disease)|unable to (?:find|identify)|'
                      r'does not uniquely identify',re.I)
-# A line break or bullet starts the next list item (3.14, D126): it ends every name, even one
-# whose own spelling has a comma ("apnea, central sleep" is not "Apnea\n- Central sleep apnea").
-ITEM_BREAK = re.compile(r'[\n\u2022]')
 
 # Independently authored response-content grammar, based on the project's fixed
 # safety response contract. Do not import the runtime classifier or its flags.

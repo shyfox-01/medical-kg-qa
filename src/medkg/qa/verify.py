@@ -3,13 +3,13 @@ import re
 
 from medkg.qa.answer import messages
 from medkg.qa.linker import normalize
-from medkg_data.lexicon import GENERIC_ANCHORS, ambiguous_word, crosses_break, list_breaks
+from medkg_data.lexicon import GENERIC_ANCHORS, ITEM_BREAK, ambiguous_word, crosses_break, list_breaks
 
 
 def entities_in_text(text: str,linker) -> set[str]:
     words = normalize(text).split()
     original = re.findall(r'\w+',text)
-    breaks = list_breaks(text)
+    breaks,items = list_breaks(text),list_breaks(text,ITEM_BREAK)
     found,occupied = set(),set()
     for size in linker.alias_sizes:
         if size>len(words):
@@ -21,6 +21,8 @@ def entities_in_text(text: str,linker) -> set[str]:
             alias = ' '.join(words[start:start+size])
             if alias in GENERIC_ANCHORS or ambiguous_word(alias,' '.join(original[start:start+size])):
                 continue
+            if crosses_break(start,size,items):
+                continue   # a new list item ends every name, also one spelt with a comma (D126)
             if crosses_break(start,size,breaks) and alias in linker.aliases and alias not in getattr(linker,'separated',()):
                 continue   # "A, B" names two entities, not the alias "A B" of a third
             if len(alias)>=3 and alias in linker.aliases:

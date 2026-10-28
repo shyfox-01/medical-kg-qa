@@ -642,6 +642,15 @@ regression runs score as before (for example
 [b3](../eval/runs/final_v3_b3_gemma4_local_rescored_v314_summary.json) 176/191). The
 sealed test was not rescored.
 
+The system's own checks of a model-written answer read names the same way
+(`src/medkg/qa/verify.py`, D126): the check for entities the evidence does not
+support, and the check that every returned row is named. Under the old reading, a
+list written one name per line could set off a revision call to remove an entity it
+never named, and append a listed name as missing ("Also recorded in the knowledge
+graph: Central sleep apnea"). On the 12,176 saved non-sealed answers the two readings
+differ only on the four lists above; those are written in code (D124) and skip both
+checks, so no saved answer was affected.
+
 Within one line a comma still keeps such a name, so two items written on one line can
 read as one: "Wilson disease, X-linked adrenoleukodystrophy" counts as the alias
 "disease, X-linked". A comma alone cannot tell a separator from part of a name; lists
