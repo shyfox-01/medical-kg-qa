@@ -465,7 +465,7 @@ sentences it fires only on real spacing variants.
 D108 reads unrouted questions about one name without a relation word ("What is the
 purpose of X?") as a choice among the template questions, with probabilities from
 the local model's log-probabilities. No generated question changes its route. On 28
-LLM-written development questions it reads all 24 it reaches as labelled, and
+LLM-generated development questions it reads all 24 it reaches as labelled, and
 15 are answered from templates, where the planner had answered about 8. On LiveQA,
 two "inherited" questions get associated genes instead of a refusal. The reading
 takes 0.55 s median locally; TypeSafe reports 70–500 ms for its hosted Jev model.
@@ -575,7 +575,7 @@ output varies from run to run; rerun live, the new one completed twice).
 
 ## Emergency second reading
 
-The emergency reading (D117) uses a threshold of 0.5, set on 40 LLM-written
+The emergency reading (D117) uses a threshold of 0.5, set on 40 LLM-generated
 development messages (20 emergencies without rule keywords, 20 personal questions
 that are not): all 20 emergencies caught, no false alarm, 0.48 s median per reading.
 On real questions the reading runs on messages with personal wording:

@@ -7,7 +7,7 @@ the decisions were made.
 ## How changes are evaluated
 
 - A change is designed on development data (dev splits, fresh benchmark batches,
-  LLM-written development sets), never on a test split, and must be a general rule
+  LLM-generated development sets), never on a test split, and must be a general rule
   rather than a fix for one question.
 - Every change is checked question by question (fixed, still failing, regressed) in
   paired runs against a frozen copy of the previous code, on every question where
@@ -73,7 +73,7 @@ the decisions were made.
 | Linking | MedlinePlus topic titles become lay disease names when their MeSH heading means the same disease ("Collapsed Lung", "Pinworms"); reviewed | D114 |
 | Retrieval | Text chunks come from the vector and full-text indexes merged by rank fusion (gold chunk in the top 8: 67% → 94% on the text test split); a cross-encoder was measured and left off | D115 |
 | Linking | A lower-case word matching only an acronym or gene symbol ("hard" → HARDS) is checked by the model: dropped as an ordinary word, asked back as another entry, or kept | D116 |
-| Safety | Personal messages the rules pass are read once more by the model for a possible emergency; the reading can only escalate (20/20 LLM-written emergencies, 4 real LiveQA ones, no false alarm found) | D117 |
+| Safety | Personal messages the rules pass are read once more by the model for a possible emergency; the reading can only escalate (20/20 LLM-generated emergencies, 4 real LiveQA ones, no false alarm found) | D117 |
 | Linking | Several spellings of an asked-back name are ordered by the question; unlikely ones are left out, and the user still confirms | D118 |
 | Retrieval | A generated graph query that returns nothing for a named entity is followed by a text search of the documents about it ("Can diazepam lower blood pressure?") | D119 |
 | Linking | A misspelt name run into other words ("hyptotension make me dizzy") is linked on its own when it is an unknown word that a spelling match links | D120 |
