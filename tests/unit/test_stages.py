@@ -2,7 +2,7 @@
 
 import pytest
 
-from eval.score import Vocabulary
+from eval.score import Vocabulary, score
 from eval.stages import ledger, summarize, verdict
 
 ENTITIES = [
@@ -118,3 +118,45 @@ def test_list_separators_split_names_unless_the_name_has_them():
     assert vocabulary.extract('Also recorded: Amber spots, Rash.') == {'fiction:a','fiction:b'}
     assert vocabulary.extract('Amber spots/rash') == {'fiction:c'}
     assert vocabulary.extract('Orion fever, classic type') == {'fiction:d'}
+
+
+ITEM_ENTITIES = [
+    {'uid':'fiction:gasp','label':'Phenotype','name':'Orion gasp','synonyms':[]},
+    {'uid':'fiction:central','label':'Phenotype','name':'Central Orion gasp','synonyms':[]},
+    {'uid':'fiction:inverted','label':'Disease','name':'Orion gasp, central','synonyms':[]},
+    {'uid':'fiction:vexoma','label':'Disease','name':'Vexoma','synonyms':[]},
+    {'uid':'fiction:drift','label':'Phenotype','name':'Somatic drift','synonyms':[]},
+    {'uid':'MONDO_grouped:fiction','label':'Disease','name':'Vexoma, inherited','synonyms':['Vexoma, somatic']},
+]
+
+
+@pytest.mark.parametrize('bullet', ['', '- ', '* ', '\u2022 ', '  - '])
+def test_a_new_list_item_ends_a_name_spelt_with_a_comma(bullet):
+    vocabulary = Vocabulary(ITEM_ENTITIES)
+    answer = f'{bullet}Orion gasp\n{bullet}Central Orion gasp'
+    assert vocabulary.extract(answer) == {'fiction:gasp','fiction:central'}
+    answer = f'{bullet}Vexoma\r\n{bullet}Somatic drift'
+    assert vocabulary.extract(answer) == {'fiction:vexoma','fiction:drift'}
+
+
+def test_numbered_items_and_inline_bullets_also_end_names():
+    vocabulary = Vocabulary(ITEM_ENTITIES)
+    assert vocabulary.extract('1. Orion gasp\n2. Central Orion gasp') == {'fiction:gasp','fiction:central'}
+    assert vocabulary.extract('Orion gasp \u2022 Central Orion gasp') == {'fiction:gasp','fiction:central'}
+
+
+def test_a_comma_inside_one_item_still_keeps_a_name_spelt_with_it():
+    vocabulary = Vocabulary(ITEM_ENTITIES)
+    assert vocabulary.extract('- Orion gasp, central\n- Somatic drift') == {'fiction:inverted','fiction:drift'}
+    assert vocabulary.extract('Recorded: Vexoma, somatic.') == {'MONDO_grouped:fiction'}
+    # A name wrapped onto the next line is two items, not the comma-spelt name.
+    assert vocabulary.extract('Orion gasp,\ncentral') == {'fiction:gasp'}
+
+
+def test_list_answer_naming_neighbouring_items_passes():
+    vocabulary = Vocabulary(ITEM_ENTITIES)
+    rows = [{'uid':'fiction:vexoma','name':'Vexoma'},{'uid':'fiction:drift','name':'Somatic drift'}]
+    result = {'answer':'Recorded for this gene:\n- Vexoma\n- Somatic drift','contexts':rows}
+    scored = score({'kind':'list','category':'single_hop','expected':['fiction:vexoma','fiction:drift'],
+                    'anchors':[]},result,vocabulary)
+    assert scored['passed'] and scored['unsupported_entities'] == []

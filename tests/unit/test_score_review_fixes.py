@@ -62,7 +62,7 @@ def test_entity_support_never_pretends_to_evaluate_predicates_or_negation(relati
     assert measured['quality_passed_semantics']==(
         'automatic_diagnostic_not_semantic_or_clinical_validation')
     assert 'entailment' in measured['metric_semantics']['faithful']
-    assert measured['scorer_version']==VERSION=='deterministic-3.13'
+    assert measured['scorer_version']==VERSION=='deterministic-3.14'
 
 
 def test_empty_entity_extraction_is_visible_and_still_not_semantic_support():
@@ -328,6 +328,10 @@ def test_quarantined_full_span_cannot_fall_back_to_shorter_alias(quarantine_enti
 def test_quarantine_preserves_canonical_longer_and_unaffected_mentions(quarantine_entities, text, uid):
     assert Vocabulary(quarantine_entities).extract(text)=={uid}
     assert entities_in_text(text, Linker(quarantine_entities))=={uid}
+
+
+def test_quarantined_phrase_does_not_run_on_into_the_next_list_item(quarantine_entities):
+    assert Vocabulary(quarantine_entities).extract('- epsilon\n- Asterol')=={'fiction:asterol'}
 
 
 def test_full_alias_valid_for_another_owner_survives_pair_quarantine(quarantine_entities):

@@ -1,0 +1,170 @@
+{
+  "categories": {
+    "caveat": {
+      "questions": 22,
+      "pass_rate_rounds": [
+        1
+      ],
+      "pass_rate_mean": 1,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 1,
+      "execution_coverage": 22,
+      "false_refusal_rate": 0,
+      "latency_median_s": 0.4755141999994521,
+      "latency_p90_s": 0.4948110999976052,
+      "llm_calls": 16,
+      "tokens": 2276,
+      "final_turn_latency_median_s": 0.4755141999994521,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "faithful": null,
+      "entity_supported": null,
+      "semantic_support": null,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 1,
+      "diagnostic_passed": 1
+    }
+  },
+  "pass_rate_rounds": [
+    1
+  ],
+  "pass_rate_mean": 1,
+  "metric_semantics": {
+    "entity_supported": "All extracted answer entities occur in supplied contexts; entity-only.",
+    "faithful": "Legacy alias of entity_supported; does not evaluate claim entailment.",
+    "semantic_support": "Not evaluated; requires separate claim and evidence review.",
+    "safety_content": "Bounded displayed-answer policy checks, not clinical safety validation.",
+    "diagnostic_passed": "Composite deterministic diagnostics; not semantic or clinical correctness.",
+    "quality_passed": "Composite deterministic diagnostics; not semantic or clinical correctness."
+  },
+  "semantic_support_status": "not_evaluated",
+  "quality_pass_rate_rounds": [
+    1
+  ],
+  "quality_pass_rate_mean": 1,
+  "response_status_counts": {
+    "answered": 22
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {},
+  "redline_outcomes": {},
+  "pass_ci95_first_round": [
+    0.8513,
+    1.0
+  ],
+  "behavioural": {
+    "in_scope": {
+      "questions": 22,
+      "passed": 22,
+      "pass_rate": 1.0,
+      "ci95": [
+        0.8513,
+        1.0
+      ]
+    },
+    "boundary": {
+      "questions": 0,
+      "passed": 0,
+      "graceful_rate": null
+    },
+    "invariance": {
+      "pairs": 0,
+      "consistency": null,
+      "robust_given_base_passed": null
+    },
+    "families": {
+      "caveat": {
+        "questions": 22,
+        "passed": 22,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.8513,
+          1.0
+        ]
+      }
+    },
+    "test_types": {
+      "MFT": {
+        "questions": 22,
+        "passed": 22,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.8513,
+          1.0
+        ]
+      }
+    },
+    "capabilities": {
+      "caveat.mention_side_effects": {
+        "questions": 8,
+        "passed": 8,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6756,
+          1.0
+        ]
+      },
+      "caveat.population_treat": {
+        "questions": 6,
+        "passed": 6,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6097,
+          1.0
+        ]
+      },
+      "caveat.request_and_indications": {
+        "questions": 8,
+        "passed": 8,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6756,
+          1.0
+        ]
+      }
+    }
+  },
+  "evaluator_version": "deterministic-3.14",
+  "measurement_kind": "offline_rescore_of_saved_outputs",
+  "source_summary": "eval\\runs\\d124_caveat_summary.json",
+  "original_evaluator_version": "deterministic-3.13",
+  "accounting_complete": true,
+  "accounting": "all_conversation_turns",
+  "execution_recomputed": false,
+  "new_model_calls": 0,
+  "clinical_validation": false,
+  "rounds": 1,
+  "evaluated_ids": [
+    "caveat-002",
+    "caveat-003",
+    "caveat-006",
+    "caveat-007",
+    "caveat-010",
+    "caveat-011",
+    "caveat-014",
+    "caveat-015",
+    "caveat-018",
+    "caveat-019",
+    "caveat-022",
+    "caveat-023",
+    "caveat-026",
+    "caveat-027",
+    "caveat-030",
+    "caveat-031",
+    "caveat-033",
+    "caveat-035",
+    "caveat-037",
+    "caveat-039",
+    "caveat-041",
+    "caveat-043"
+  ],
+  "evaluated_questions": 22,
+  "total_available": 64,
+  "split": "caveat",
+  "system": "hybrid",
+  "phase": 3
+}

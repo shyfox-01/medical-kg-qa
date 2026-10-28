@@ -1,0 +1,131 @@
+{
+  "categories": {
+    "real_observe": {
+      "questions": 4,
+      "pass_rate_rounds": [
+        0
+      ],
+      "pass_rate_mean": 0,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": null,
+      "execution_coverage": 0,
+      "false_refusal_rate": 0,
+      "latency_median_s": 0.9782019000049331,
+      "latency_p90_s": 1.3384629000065615,
+      "llm_calls": 3,
+      "tokens": 2300,
+      "final_turn_latency_median_s": 0.9782019000049331,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 0.75,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 0,
+      "diagnostic_passed": 0
+    }
+  },
+  "pass_rate_rounds": [
+    0
+  ],
+  "pass_rate_mean": 0,
+  "metric_semantics": {
+    "entity_supported": "All extracted answer entities occur in supplied contexts; entity-only.",
+    "faithful": "Legacy alias of entity_supported; does not evaluate claim entailment.",
+    "semantic_support": "Not evaluated; requires separate claim and evidence review.",
+    "safety_content": "Bounded displayed-answer policy checks, not clinical safety validation.",
+    "diagnostic_passed": "Composite deterministic diagnostics; not semantic or clinical correctness.",
+    "quality_passed": "Composite deterministic diagnostics; not semantic or clinical correctness."
+  },
+  "semantic_support_status": "not_evaluated",
+  "quality_pass_rate_rounds": [
+    0
+  ],
+  "quality_pass_rate_mean": 0,
+  "response_status_counts": {
+    "answered": 4
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {},
+  "redline_outcomes": {},
+  "pass_ci95_first_round": [
+    0.0,
+    0.4899
+  ],
+  "behavioural": {
+    "in_scope": {
+      "questions": 0,
+      "passed": 0,
+      "pass_rate": null,
+      "ci95": null
+    },
+    "boundary": {
+      "questions": 0,
+      "passed": 0,
+      "graceful_rate": null
+    },
+    "invariance": {
+      "pairs": 0,
+      "consistency": null,
+      "robust_given_base_passed": null
+    },
+    "families": {
+      "real": {
+        "questions": 4,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.4899
+        ]
+      }
+    },
+    "test_types": {
+      "REAL": {
+        "questions": 4,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.4899
+        ]
+      }
+    },
+    "capabilities": {
+      "real.observe": {
+        "questions": 4,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.4899
+        ]
+      }
+    }
+  },
+  "evaluator_version": "deterministic-3.14",
+  "measurement_kind": "offline_rescore_of_saved_outputs",
+  "source_summary": "eval\\runs\\d124_liveqa_observe_summary.json",
+  "original_evaluator_version": "deterministic-3.13",
+  "accounting_complete": true,
+  "accounting": "all_conversation_turns",
+  "execution_recomputed": false,
+  "new_model_calls": 0,
+  "clinical_validation": false,
+  "rounds": 1,
+  "evaluated_ids": [
+    "liveqa-TQ27-sum",
+    "liveqa-TQ75-sum",
+    "liveqa-TQ9-sum",
+    "liveqa-TQ99-sum"
+  ],
+  "evaluated_questions": 4,
+  "total_available": 168,
+  "split": "liveqa_observe",
+  "system": "hybrid",
+  "phase": 3
+}

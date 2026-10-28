@@ -67,12 +67,12 @@ world area areas case cases group groups problem problems question questions fac
 LIST_BREAK = re.compile(r'[,;\n\u2022]')
 
 
-def list_breaks(text: str) -> set[int]:
+def list_breaks(text: str, separator: re.Pattern = LIST_BREAK) -> set[int]:
     """Indices of word tokens followed by a list separator (comma, semicolon, line
     break, bullet) before the next token. "Arthralgia, Arthritis" is two names, not
     the alias "arthralgia arthritis" of a third entity."""
     spans = [m.span() for m in re.finditer(r'\w+', text)]
-    return {i for i in range(len(spans) - 1) if LIST_BREAK.search(text[spans[i][1]:spans[i + 1][0]])}
+    return {i for i in range(len(spans) - 1) if separator.search(text[spans[i][1]:spans[i + 1][0]])}
 
 
 def crosses_break(start: int, size: int, breaks: set[int]) -> bool:

@@ -1,0 +1,216 @@
+{
+  "categories": {
+    "yes_no": {
+      "questions": 40,
+      "pass_rate_rounds": [
+        1
+      ],
+      "pass_rate_mean": 1,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 1,
+      "execution_coverage": 40,
+      "false_refusal_rate": 0.025,
+      "latency_median_s": 0.014329900000120688,
+      "latency_p90_s": 0.01864459999887913,
+      "llm_calls": 2,
+      "tokens": 2747,
+      "final_turn_latency_median_s": 0.014329900000120688,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "faithful": null,
+      "entity_supported": null,
+      "semantic_support": null,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 1,
+      "diagnostic_passed": 1
+    }
+  },
+  "pass_rate_rounds": [
+    1
+  ],
+  "pass_rate_mean": 1,
+  "metric_semantics": {
+    "entity_supported": "All extracted answer entities occur in supplied contexts; entity-only.",
+    "faithful": "Legacy alias of entity_supported; does not evaluate claim entailment.",
+    "semantic_support": "Not evaluated; requires separate claim and evidence review.",
+    "safety_content": "Bounded displayed-answer policy checks, not clinical safety validation.",
+    "diagnostic_passed": "Composite deterministic diagnostics; not semantic or clinical correctness.",
+    "quality_passed": "Composite deterministic diagnostics; not semantic or clinical correctness."
+  },
+  "semantic_support_status": "not_evaluated",
+  "quality_pass_rate_rounds": [
+    1
+  ],
+  "quality_pass_rate_mean": 1,
+  "response_status_counts": {
+    "answered": 39,
+    "unsupported": 1
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {},
+  "redline_outcomes": {},
+  "pass_ci95_first_round": [
+    0.9124,
+    1.0
+  ],
+  "behavioural": {
+    "in_scope": {
+      "questions": 40,
+      "passed": 40,
+      "pass_rate": 1.0,
+      "ci95": [
+        0.9124,
+        1.0
+      ]
+    },
+    "boundary": {
+      "questions": 0,
+      "passed": 0,
+      "graceful_rate": null
+    },
+    "invariance": {
+      "pairs": 0,
+      "consistency": null,
+      "robust_given_base_passed": null
+    },
+    "families": {
+      "yesno": {
+        "questions": 40,
+        "passed": 40,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.9124,
+          1.0
+        ]
+      }
+    },
+    "test_types": {
+      "MFT": {
+        "questions": 40,
+        "passed": 40,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.9124,
+          1.0
+        ]
+      }
+    },
+    "capabilities": {
+      "yesno.contraindications_no": {
+        "questions": 9,
+        "passed": 9,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.7008,
+          1.0
+        ]
+      },
+      "yesno.contraindications_yes": {
+        "questions": 7,
+        "passed": 7,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6457,
+          1.0
+        ]
+      },
+      "yesno.indications_no": {
+        "questions": 8,
+        "passed": 8,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6756,
+          1.0
+        ]
+      },
+      "yesno.indications_yes": {
+        "questions": 7,
+        "passed": 7,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6457,
+          1.0
+        ]
+      },
+      "yesno.side_effects_no": {
+        "questions": 6,
+        "passed": 6,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6097,
+          1.0
+        ]
+      },
+      "yesno.side_effects_yes": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      }
+    }
+  },
+  "evaluator_version": "deterministic-3.14",
+  "measurement_kind": "offline_rescore_of_saved_outputs",
+  "source_summary": "eval\\runs\\final_v3_b4_gemma4_local_summary.json",
+  "original_evaluator_version": "deterministic-3.13",
+  "accounting_complete": true,
+  "accounting": "all_conversation_turns",
+  "execution_recomputed": false,
+  "new_model_calls": 0,
+  "clinical_validation": false,
+  "rounds": 1,
+  "evaluated_ids": [
+    "v3-b4-0001",
+    "v3-b4-0003",
+    "v3-b4-0005",
+    "v3-b4-0006",
+    "v3-b4-0007",
+    "v3-b4-0009",
+    "v3-b4-0010",
+    "v3-b4-0011",
+    "v3-b4-0013",
+    "v3-b4-0014",
+    "v3-b4-0015",
+    "v3-b4-0016",
+    "v3-b4-0017",
+    "v3-b4-0018",
+    "v3-b4-0020",
+    "v3-b4-0022",
+    "v3-b4-0023",
+    "v3-b4-0024",
+    "v3-b4-0026",
+    "v3-b4-0027",
+    "v3-b4-0028",
+    "v3-b4-0030",
+    "v3-b4-0031",
+    "v3-b4-0032",
+    "v3-b4-0033",
+    "v3-b4-0034",
+    "v3-b4-0035",
+    "v3-b4-0037",
+    "v3-b4-0038",
+    "v3-b4-0039",
+    "v3-b4-0040",
+    "v3-b4-0043",
+    "v3-b4-0047",
+    "v3-b4-0049",
+    "v3-b4-0051",
+    "v3-b4-0053",
+    "v3-b4-0054",
+    "v3-b4-0057",
+    "v3-b4-0058",
+    "v3-b4-0059"
+  ],
+  "evaluated_questions": 40,
+  "total_available": 40,
+  "split": "b4",
+  "system": "hybrid",
+  "phase": 3
+}

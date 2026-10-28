@@ -609,13 +609,43 @@ which the rules block at once.
 Lists written in code (D124) act on 477 non-sealed questions: those whose final turn
 was a list from one template query about one entity in the latest run of its set
 (v2 dev and test, v3 b1–b3, caveat, LiveQA observe). Run once with the new system and
-compared with those runs, 467 pass, against 469 before. The two that now fail list
-exactly the recorded entities: the scorer reads two neighbouring lines of the
-alphabetical list as one name that has a comma in its own spelling ("Apnea" above
-"Central sleep apnea" as the disease "apnea, central sleep"; "Medulloblastoma" above
-"Somatic mutation" as "medulloblastoma, somatic"). The model's lists escaped this
-because it ended each line with an identifier. Model calls on these questions fall from 545 to 24 (what remains is
-the emergency reading of personal messages), and the median time from 3.6 s to 0.01 s.
+compared with those runs, 470 pass, against 469 before, and none that passed before
+fails ([v2 test](../eval/runs/d124_v2_test_rescored_v314_summary.json),
+[b1](../eval/runs/d124_v3_b1_rescored_v314_summary.json); scorer 3.14). The question
+gained had failed because the model wrote that list on one line ("Wilson disease,
+X-linked adrenoleukodystrophy" reads as the alias "disease, X-linked"; see
+[Reading names in answers](#reading-names-in-answers)). Model calls on these questions
+fall from 545 to 24 (what remains is the emergency reading of personal messages), and
+the median time from 3.6 s to 0.01 s.
+
+## Reading names in answers
+
+The scorer reads entity names from the displayed answer by exact catalog names and
+aliases, longest first (`eval/score.py`, separate from the system's linker). A name
+never runs across a list separator: "Arthralgia, Arthritis" is two names, not the
+alias "arthralgia arthritis" of a third entity. A comma or semicolon may fall inside a
+name whose own spelling has one ("apnea, central sleep", "medulloblastoma, somatic").
+A new line, with or without a bullet ("-", "*", "•", "1."), always ends a name, also
+one spelt with a comma (scorer 3.14, D126). Scorer 3.13 let an alphabetical list written
+one name per line join neighbours: "Apnea" above "Central sleep apnea" was read
+as the disease "apnea, central sleep" instead of two phenotypes, and "Medulloblastoma"
+above "Somatic mutation" as "medulloblastoma, somatic".
+
+Every saved non-sealed run (157 runs, 11,489 scored answers) was scored again offline
+with 3.13 and 3.14 on the same catalog, without new model calls; the latest runs of each
+set were also rescored with `eval/rescore.py` (`*_rescored_v314_summary.json`). Four answers
+score differently, all in lists written one name per line: three failures become passes
+(v2-0080, v2-0167, v3-b1-0109) and one pass keeps passing with the right entities
+("Cholangitis" above "Chronic diarrhea" had been "chronic cholangitis"). The full
+regression runs score as before (for example
+[v2 test](../eval/runs/final_v2_test_gemma4_local_rescored_v314_summary.json) 233/240,
+[b3](../eval/runs/final_v3_b3_gemma4_local_rescored_v314_summary.json) 176/191). The
+sealed test was not rescored.
+
+Within one line a comma still keeps such a name, so two items written on one line can
+read as one: "Wilson disease, X-linked adrenoleukodystrophy" counts as the alias
+"disease, X-linked". A comma alone cannot tell a separator from part of a name; lists
+written one name per line avoid the question.
 
 ## Known failure modes
 

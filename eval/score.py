@@ -12,7 +12,7 @@ from medkg_data.lexicon import (
     list_breaks,
 )
 
-VERSION = 'deterministic-3.13'
+VERSION = 'deterministic-3.14'
 METRIC_SEMANTICS = {
     'entity_supported': 'All extracted answer entities occur in supplied contexts; entity-only.',
     'faithful': 'Legacy alias of entity_supported; does not evaluate claim entailment.',
@@ -31,6 +31,9 @@ CLARIFY = re.compile(r'clarif|which .{0,40} do you mean|did you mean|please (?:p
                      r'(?:could|can) ?not (?:find|identify|recogni[sz]e)|not (?:found|recogni[sz]ed)|'
                      r'no (?:matching|such) (?:entity|drug|disease)|unable to (?:find|identify)|'
                      r'does not uniquely identify',re.I)
+# A line break or bullet starts the next list item (3.14, D126): it ends every name, even one
+# whose own spelling has a comma ("apnea, central sleep" is not "Apnea\n- Central sleep apnea").
+ITEM_BREAK = re.compile(r'[\n\u2022]')
 
 # Independently authored response-content grammar, based on the project's fixed
 # safety response contract. Do not import the runtime classifier or its flags.
@@ -259,7 +262,7 @@ class Vocabulary:
     def extract(self, text: str) -> set[str]:
         words = normalize(text).split()
         original = re.findall(r'\w+',text)
-        breaks = list_breaks(text)
+        breaks,items = list_breaks(text),list_breaks(text,ITEM_BREAK)
         result,occupied = set(),set()
         for size in self.alias_sizes:
             if size>len(words):
@@ -274,6 +277,8 @@ class Vocabulary:
                 # upper-case acronyms.
                 if key in GENERIC_ANCHORS or ambiguous_word(key,' '.join(original[start:start+size])):
                     continue
+                if crosses_break(start,size,items):
+                    continue   # no name, kept or quarantined, runs on into the next list item (3.14)
                 if key in self.aliases and crosses_break(start,size,breaks) and key not in self.separated:
                     continue   # a list separator splits this span into two names (3.11)
                 if key in self.aliases:
