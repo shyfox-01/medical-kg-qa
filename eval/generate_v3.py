@@ -562,7 +562,7 @@ def anchors_of(path: Path) -> set[str]:
 
 
 def finish(rows: list[dict], part: str, start: int = 1) -> list[dict]:
-    prefix = {'b1': 'v3-b1', 'b2': 'v3-b2', 'test': 'v3-t', 'b3': 'v3-b3'}[part]
+    prefix = {'b1': 'v3-b1', 'b2': 'v3-b2', 'test': 'v3-t', 'b3': 'v3-b3', 'b5': 'v3-b5'}[part]
     for i, row in enumerate(rows, start):
         base = row.pop('_base', None)
         if base is not None:
