@@ -9,7 +9,7 @@ from collections import OrderedDict
 from medkg.config import ROOT, Settings
 from medkg.graph.store import GraphStore
 from medkg.llm import LLMClient
-from medkg.qa import answer, confirm, planner, safety, scope, session
+from medkg.qa import answer, chain, confirm, planner, safety, scope, session
 from medkg.qa import intent as intents
 from medkg.qa.linker import Linker, label_choices
 from medkg.qa.router import has_relation_cue, is_count, route, wants_shared
@@ -73,7 +73,7 @@ class Pipeline:
                 if scope.blocked(question):
                     result.update(answer=scope.MESSAGE,route='scope',refused=True)
                     return self._finish(result,start,before)
-            key = json.dumps([question,history,self.mode,self.settings.phase],sort_keys=True)
+            key = json.dumps([question,history,self.mode,self.settings.phase,self.settings.reasoning],sort_keys=True)
             if self.settings.cache and key in self.cache:
                 expires,cached = self.cache[key]
                 if expires>time.monotonic():
@@ -196,6 +196,10 @@ class Pipeline:
                             result['focus'] = [anchors[0].name,targets[0].name]
                         steps = [planner.Step(tool='template',args=args)]
                         result['route'] = 'template'
+                    elif self.settings.reasoning=='chain' and self.settings.phase>=3:
+                        # One reasoning chain carries the question to its answer (D127).
+                        steps = []
+                        result['route'] = 'chain'
                     else:
                         planned = planner.plan(self.llm,resolved,result['candidates'],self.settings.phase)
                         steps = planned.steps
@@ -265,6 +269,22 @@ class Pipeline:
                             rows.extend(text.rows)
                             result['retrieval_fallback'] = 'vector_search'
                             attrs['fallback_rows'] = len(text.rows)
+                reasoned = None
+                if result['route']=='chain':
+                    stage = 'reasoning'
+                    with span('reasoning') as attrs:
+                        reasoned = chain.run(self,resolved,candidates,caution)
+                        attrs['steps'] = len(reasoned.steps)
+                    rows.extend(reasoned.rows)
+                    answer_rows = reasoned.answer_rows
+                    result['cypher'].extend(q['cypher'] for q in reasoned.queries)
+                    result['queries'].extend(reasoned.queries)
+                    result['chain'] = reasoned.steps
+                    if reasoned.fallback:
+                        result['chain_fallback'] = reasoned.fallback
+                    if reasoned.rejected:
+                        result['chain_rejected'] = reasoned.rejected
+                    result['truncated'] |= reasoned.truncated
                 partial = False
                 if self.mode!='vector' and self.settings.phase>=3:
                     with span('tool.conflict_evidence') as attrs:
@@ -325,6 +345,8 @@ class Pipeline:
                     by_uid = {c.uid:c for c in candidates}
                     result['answer'] = templates.interaction_verdict(
                         {uid:self._written(by_uid,uid) for uid in pair},pair,answer_rows)
+                elif reasoned is not None and reasoned.declined is not None:
+                    result.update(answer=chain.DECLINE,refused=True,decline_reason=reasoned.declined)
                 elif not rows:
                     result.update(answer='No supporting evidence was retrieved.',refused=True)
                 elif recorded:
@@ -338,13 +360,19 @@ class Pipeline:
                     result['answer'],result['listing'] = self._listing(intent,pair[0],candidates,answer_rows,result)
                     result['conflicts'] = answer.claims(rows)
                 else:
-                    # Target synonyms stay in the contexts (scoring, verification) but are not
-                    # shown to the answer model, which echoed them as extra entities (D092).
-                    shown = [{k:v for k,v in row.items() if k!='synonyms'} for row in rows]
-                    with span('generation'):
-                        result['answer'] = self.llm.chat(answer.messages(resolved,shown,queries=query_evidence,
-                                                                         entities=entities,caution=caution))
-                    if self.settings.phase>=3:
+                    if reasoned is not None:
+                        # Written and checked inside the chain, which saw every observation.
+                        result['answer'] = reasoned.answer
+                        if reasoned.revised:
+                            result['answer_revised'] = True
+                    else:
+                        # Target synonyms stay in the contexts (scoring, verification) but are not
+                        # shown to the answer model, which echoed them as extra entities (D092).
+                        shown = [{k:v for k,v in row.items() if k!='synonyms'} for row in rows]
+                        with span('generation'):
+                            result['answer'] = self.llm.chat(answer.messages(resolved,shown,queries=query_evidence,
+                                                                             entities=entities,caution=caution))
+                    if self.settings.phase>=3 and reasoned is None:
                         stage = 'verification'
                         with span('verification'):
                             from medkg.qa.verify import verify_answer

@@ -97,6 +97,17 @@ receives at most one schema-repair attempt. Generated Cypher receives at most tw
 execution/validation repair attempts. This is separate from SDK retries, which
 are disabled.
 
+With `REASONING=chain` (D127) these questions go to one conversation instead: the
+model calls one tool per turn through native function calling (overview, relation,
+cypher, text, cannot_answer) and sees each observation before the next call, for at
+most four lookups. Uids must come from the linked entities or an earlier observation
+(`"$N"` stands for observation N's list), generated Cypher is checked for relation
+direction and missing parameters before the same guard, and three invalid replies end
+the chain. The conversation stays inside `LLM_CONTEXT_TOKENS` (12,288) by shortening
+older observations to eight names. The answer is checked like a planner answer, and
+sent back once when it leaves out an entity of the question or denies rows a lookup
+found.
+
 Generated queries pass lexical validation, a fixed schema allowlist, EXPLAIN and
 a read transaction with a ten-second timeout. Procedures, writes/admin commands,
 unbounded paths and unsupported quantified path patterns are rejected. Literal

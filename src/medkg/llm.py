@@ -19,6 +19,10 @@ MAX_PROVIDER_BACKOFF = 60.0
 # the whole completion budget reasoning and returns empty content.
 THINKING_OFF = {'thinking': {'thinking': {'type': 'disabled'}},  # GLM
                 'reasoning_effort': {'reasoning_effort': 'none'}}  # OpenAI-style, Ollama
+# And that enable it: Gemma 4 sometimes reasons with thinking off, and its reasoning is then
+# dropped, leaving an empty reply; allowed to reason, it goes on to reply (D127).
+THINKING_ON = {'thinking': {'thinking': {'type': 'enabled'}},
+               'reasoning_effort': {'reasoning_effort': 'low'}}
 
 
 def provider_backoff(exc: Exception, failures: int) -> float:
@@ -158,6 +162,18 @@ class LLMClient:
             finally:
                 attrs.update({k:self.usage[k]-before[k] for k in before})
 
+    def call(self, messages: list[dict], tools: list[dict], max_tokens: int = 1400, think: bool = False) -> dict:
+        """One reply that may call the declared tools (D127): its text and its tool calls, each
+        with an id, a name and the arguments as a JSON string. Models with native function
+        calling (Gemma 4) emit calls in their own format, which the server parses. think lets
+        the model reason before it replies; the reasoning is not returned."""
+        before = dict(self.usage)
+        with span('llm',model=self.model,**{'openinference.span.kind':'LLM'}) as attrs:
+            try:
+                return self._chat(messages,max_tokens,tools=tools,think=think)
+            finally:
+                attrs.update({k:self.usage[k]-before[k] for k in before})
+
     def choose(self, messages: list[dict], options: int) -> dict[int, float] | None:
         """Probabilities of the replies 0..options, read from the first output token (D108).
 
@@ -185,8 +201,9 @@ class LLMClient:
         return {k: v / total for k, v in scores.items() if v} if total else None
 
     def _chat(self, messages: list[dict], max_tokens: int = 1400, top_logprobs: int = 0,
-              sink: list | None = None) -> str:
-        reserve = sum(len(m['content'].encode('utf8')) + 100 for m in messages) + max_tokens
+              sink: list | None = None, tools: list[dict] | None = None, think: bool = False):
+        reserve = sum(len((m.get('content') or '').encode('utf8')) + 100
+                      + (len(json.dumps(m['tool_calls'])) if m.get('tool_calls') else 0) for m in messages) + max_tokens
         identifier = str(uuid.uuid4())
         lock = self.ledger.with_suffix('.lock')
         with ledger_lock(lock):
@@ -206,6 +223,8 @@ class LLMClient:
             kwargs = dict(model=self.model, messages=messages, temperature=0, max_tokens=max_tokens)
             if top_logprobs:
                 kwargs.update(logprobs=True, top_logprobs=top_logprobs)
+            if tools:
+                kwargs['tools'] = tools
             # The existing free endpoint rejects concurrent requests (HTTP 429).
             # A process-shared slot bounds concurrency without SDK retry storms;
             # LLM_COOLDOWN_S (default 1) spaces calls and can be 0 for paid providers.
@@ -216,7 +235,7 @@ class LLMClient:
                     time.sleep(wait)
                 try:
                     response = self.client.chat.completions.create(**kwargs,
-                        extra_body=THINKING_OFF[self.settings.llm_thinking_param])
+                        extra_body=(THINKING_ON if think else THINKING_OFF)[self.settings.llm_thinking_param])
                 except Exception as exc:
                     failures = min(pacing['failures']+1,4)
                     delay = provider_backoff(exc,failures)
@@ -233,7 +252,15 @@ class LLMClient:
             if top_logprobs and sink is not None:
                 logprobs = response.choices[0].logprobs
                 sink.extend(logprobs.content[0].top_logprobs if logprobs and logprobs.content else [])
-            content = (response.choices[0].message.content or '').strip()
+            message = response.choices[0].message
+            content = (message.content or '').strip()
+            if tools is not None:
+                calls = [{'id':call.id,'name':call.function.name,'arguments':call.function.arguments}
+                         for call in message.tool_calls or []]
+                if not content and not calls:
+                    raise ValueError('Empty completion')
+                status = 'complete'
+                return {'content':content,'tool_calls':calls}
             if not content:
                 raise ValueError('Empty completion')
             status = 'complete'

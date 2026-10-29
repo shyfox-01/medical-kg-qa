@@ -38,6 +38,11 @@ class Settings:
     safety_region: str = field(default_factory=lambda: env('SAFETY_REGION', 'US').upper())
     phase: int = field(default_factory=lambda: int(env('MEDKG_PHASE', '3')))
     cache: bool = field(default_factory=lambda: env('CACHE', 'false').lower() == 'true')
+    # Questions no template answers: one reasoning chain ("chain", D127) or the earlier plan
+    # of separate planning, query and answer calls ("plan").
+    reasoning: str = field(default_factory=lambda: env('REASONING', 'plan').lower())
+    # The model's context window in tokens; the reasoning chain keeps its conversation inside it.
+    llm_context: int = field(default_factory=lambda: int(env('LLM_CONTEXT_TOKENS', '12288')))
     cache_ttl: float = field(default_factory=lambda: float(env('CACHE_TTL_S', '3600')))
 
     def require(self, llm: bool = False) -> None:

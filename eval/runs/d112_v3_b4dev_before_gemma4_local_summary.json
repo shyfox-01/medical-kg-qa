@@ -168,7 +168,7 @@
     "endpoint_host": "127.0.0.1:11434",
     "thinking_param": "reasoning_effort"
   },
-  "system_source": "E:\\codex\\temp\\claude\\claude\\E--medical-project\\26dd9dd3-72ef-4f55-98a3-e42921d73e7b\\scratchpad\\old_src_d112\\src",
+  "system_source": ".cache\\old-src-d112\\src",
   "split": "b4_dev",
   "rounds": 1,
   "dataset": "eval/datasets/structured_v3_b4.jsonl",

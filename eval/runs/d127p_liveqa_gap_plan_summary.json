@@ -1,0 +1,163 @@
+{
+  "categories": {
+    "real_gap": {
+      "questions": 24,
+      "pass_rate_rounds": [
+        0
+      ],
+      "pass_rate_mean": 0,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": null,
+      "execution_coverage": 0,
+      "false_refusal_rate": 0.7083333333333334,
+      "latency_median_s": 10.952099799993448,
+      "latency_p90_s": 16.14086290000705,
+      "llm_calls": 71,
+      "tokens": 121797,
+      "final_turn_latency_median_s": 10.952099799993448,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 0.4166666666666667,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 0,
+      "diagnostic_passed": 0
+    }
+  },
+  "pass_rate_rounds": [
+    0
+  ],
+  "pass_rate_mean": 0,
+  "metric_semantics": {
+    "entity_supported": "All extracted answer entities occur in supplied contexts; entity-only.",
+    "faithful": "Legacy alias of entity_supported; does not evaluate claim entailment.",
+    "semantic_support": "Not evaluated; requires separate claim and evidence review.",
+    "safety_content": "Bounded displayed-answer policy checks, not clinical safety validation.",
+    "diagnostic_passed": "Composite deterministic diagnostics; not semantic or clinical correctness.",
+    "quality_passed": "Composite deterministic diagnostics; not semantic or clinical correctness."
+  },
+  "semantic_support_status": "not_evaluated",
+  "quality_pass_rate_rounds": [
+    0
+  ],
+  "quality_pass_rate_mean": 0,
+  "response_status_counts": {
+    "answered": 6,
+    "unsupported": 16,
+    "error": 1,
+    "refused": 1
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {
+    "query": 1
+  },
+  "redline_outcomes": {},
+  "pass_ci95_first_round": [
+    0.0,
+    0.138
+  ],
+  "behavioural": {
+    "in_scope": {
+      "questions": 0,
+      "passed": 0,
+      "pass_rate": null,
+      "ci95": null
+    },
+    "boundary": {
+      "questions": 0,
+      "passed": 0,
+      "graceful_rate": null
+    },
+    "invariance": {
+      "pairs": 0,
+      "consistency": null,
+      "robust_given_base_passed": null
+    },
+    "families": {
+      "real": {
+        "questions": 24,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.138
+        ]
+      }
+    },
+    "test_types": {
+      "REAL": {
+        "questions": 24,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.138
+        ]
+      }
+    },
+    "capabilities": {
+      "real.gap": {
+        "questions": 24,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.138
+        ]
+      }
+    }
+  },
+  "evaluator_version": "deterministic-3.14",
+  "accounting": "all_conversation_turns",
+  "dataset_sha256": "95a289dd63f3c876d390912a83811258b12aeb818b34b45f8de2144ee6f78fbd",
+  "code_sha256": "0d929172cb5ae8cf1a64be8d15c3218901d0cc1f945ca2035a88716a691e67e8",
+  "vocabulary_sha256": "3c11e5f28b643f8dc3baac6eaeb2f5c45fad38ccb2739c466160100b82c278a4",
+  "system": "hybrid",
+  "phase": 3,
+  "llm": {
+    "model": "medkg-gemma4-26b",
+    "endpoint_host": "127.0.0.1:11434",
+    "thinking_param": "reasoning_effort"
+  },
+  "system_source": ".cache\\frozen-d127\\src",
+  "split": "liveqa_gap",
+  "rounds": 1,
+  "dataset": "eval/datasets/liveqa_v2.jsonl",
+  "total_available": 30,
+  "evaluated_questions": 24,
+  "sampling_cap": null,
+  "evaluated_ids": [
+    "liveqa-TQ10-orig",
+    "liveqa-TQ10-sum",
+    "liveqa-TQ100-orig",
+    "liveqa-TQ100-sum",
+    "liveqa-TQ101-orig",
+    "liveqa-TQ101-sum",
+    "liveqa-TQ18-orig",
+    "liveqa-TQ18-sum",
+    "liveqa-TQ22-orig",
+    "liveqa-TQ22-sum",
+    "liveqa-TQ25-orig",
+    "liveqa-TQ33-orig",
+    "liveqa-TQ33-sum",
+    "liveqa-TQ54-orig",
+    "liveqa-TQ54-sum",
+    "liveqa-TQ6-orig",
+    "liveqa-TQ6-sum",
+    "liveqa-TQ61-orig",
+    "liveqa-TQ64-orig",
+    "liveqa-TQ74-orig",
+    "liveqa-TQ74-sum",
+    "liveqa-TQ76-orig",
+    "liveqa-TQ76-sum",
+    "liveqa-TQ80-orig"
+  ],
+  "cache_enabled": false,
+  "judge_status": "uncalibrated",
+  "clinical_validation": false
+}

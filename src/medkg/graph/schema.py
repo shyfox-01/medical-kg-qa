@@ -7,6 +7,11 @@ RELATIONS = ('INDICATED_FOR', 'CONTRAINDICATED_FOR', 'OFF_LABEL_FOR', 'INTERACTS
 PROPERTIES = {'uid', 'name', 'synonyms', 'source', 'kind', 'evidence', 'confidence',
               'extractor_version', 'conflict', 'url', 'title', 'retrieved_at', 'text',
               'section', 'order', 'embedding'}
+# The labels each relation goes from and to, as in SCHEMA_PROMPT.
+ENDS = {'INDICATED_FOR': ('Drug', 'Disease'), 'CONTRAINDICATED_FOR': ('Drug', 'Disease'),
+        'OFF_LABEL_FOR': ('Drug', 'Disease'), 'INTERACTS_WITH': ('Drug', 'Drug'),
+        'HAS_SIDE_EFFECT': ('Drug', 'Phenotype'), 'HAS_PHENOTYPE': ('Disease', 'Phenotype'),
+        'ASSOCIATED_WITH': ('Disease', 'Gene'), 'TARGETS': ('Drug', 'Gene'), 'SUBTYPE_OF': ('Disease', 'Disease')}
 SCHEMA_PROMPT = '''
 Nodes: Disease, Drug, Phenotype, Gene. Each has uid, name, synonyms.
 (Drug)-[INDICATED_FOR|CONTRAINDICATED_FOR|OFF_LABEL_FOR]->(Disease)

@@ -592,6 +592,128 @@ fever and abdominal pain after stopping long-term prednisone, and leg signs of a
 deep-vein thrombosis on a combined pill; an LLM review judged all four urgent (not
 clinician labels). The rules had answered three and blocked one as a dose question.
 
+## One reasoning chain for planner questions
+
+Questions no template answers go to the planner: one model call writes a plan of up to
+four tool steps, code runs it, and another call writes the answer from the rows. The
+plan is written before any step has run, so a step cannot follow from what the last
+one found, and the answer call never sees why the steps were chosen. The reasoning
+chain (`REASONING=chain`, D127) keeps one conversation from the question to the
+answer instead: the model calls one tool at a time through native function calling
+(overview, relation, cypher, text, cannot_answer), reads what it found and goes on or
+answers, in the same context. Code still runs every tool and checks it:
+
+- Uids must be ones the linked entities or an observation gave. A different case or a
+  missing prefix ("drugbank:DB00451", "DB00451") is written as recorded; any other uid
+  is sent back. `"$N"` stands for every entity observation N found, in a lookup and in
+  the answer, so long lists are never copied. In the answer, code fills the names in.
+- A generated query is checked against the schema before it runs: each labelled
+  relation pattern must go between the labels it joins, in its direction, and every
+  `$parameter` needs a value. It then goes through the same guard as before.
+- Answers are checked like the planner's (unsupported names, rows left out) and, once
+  each, sent back when the question names an entity no lookup used, or when the answer
+  says none were found right after a lookup that found some. The second is asked again
+  with thinking on.
+- An invalid or empty reply is sent back with what was wrong; after three, the model
+  answers from what it has found, or the question is declined.
+
+The window is 12,288 tokens. The system prompt (schema, tools, rules and the
+generated-Cypher examples) is about 3,000 of them, 1,400 are kept for each reply, and
+older observations are shortened (eight names each) when the conversation would not
+fit. Every call sends the whole conversation, so the chain sends a median of 8,953
+prompt tokens per question against 3,465 for the planner, over a median of 3 calls for
+both.
+
+It was compared on the 379 questions whose final turn took the planner route in the
+latest run of each set (LiveQA observe: the first 40 of 123), both from one frozen copy
+of the code, the planner as it is. The chain was then revised three times and run
+again after each (summaries `eval/runs/d127p_*` for the planner and the first run,
+`d127q_*`, `d127r_*` and `d127s_*` for the revisions; `d127s_v2_*_plan` is the planner
+run again):
+
+| | Passed (315 scored) | Answered | Declined | Errors | Median time |
+|---|---:|---:|---:|---:|---:|
+| Planner | 230 | 266 | 110 | 2 | 9.7 s |
+| Chain, first run | 220 | 296 | 81 | 0 | 20.0 s |
+| Chain, revision 1 | 222 | 297 | 80 | 0 | 9.0 s |
+| Chain, revision 2 | 225 | 298 | 80 | 0 | 9.1 s |
+| Chain, revision 3 | 230 | 291 | 86 | 0 | 10.2 s |
+
+Passed by set:
+
+| Set | Questions | Planner | Chain, first run | Chain, revision 3 |
+|---|---:|---:|---:|---:|
+| v2 dev | 39 | 38 | 37 | 39 |
+| v2 test | 68 | 66 | 60 | 65 |
+| v3 b1 / b2 / b3 / b4 | 122 | 108 | 106 | 111 |
+| Caveat | 6 | 6 | 5 | 6 |
+| Text dev | 32 | 4 | 4 | 3 |
+| Text test | 45 | 7 | 7 | 5 |
+| LiveQA (scored) | 3 | 1 | 1 | 1 |
+| Graph questions | 238 | 219 | 209 | 222 |
+| Text questions | 77 | 11 | 11 | 8 |
+
+Reading the failures of each run gave the next revision:
+
+- **Arguments in the wrong place.** The model often wrapped its arguments in `params`,
+  set query parameters beside the query, or repeated the whole call inside `params`.
+  They are moved where they belong.
+- **Empty replies.** With thinking off, Gemma 4 sometimes reasons in its thought
+  channel and stops there; the server drops the thought, so nothing comes back. Such a
+  reply is asked again once with thinking on.
+- **Uids and queries that could not match.** Uids with another case or without their
+  prefix, a relation written against its direction, or a parameter with no value had
+  been rejected by the database with messages the model rarely fixed from. They are
+  now fixed or explained before the query runs; a missing list parameter
+  (`WHERE d.uid IN $drugs`) is told it can be `"$N"`.
+- **A condition left out.** "Thyroid medications avoided in hyperthyroidism" was
+  answered with the thyroid medications alone. An entity of the question no lookup
+  used is pointed out once.
+- **Long lists typed out.** Copying 25 names was the slowest part of an answer and
+  dropped or misspelt some. The answer gives a list as `$N`; a list the model has
+  already written out is not filled in a second time.
+- **Rows denied.** After a query that matched both conditions, the model often opened
+  with "No drugs … were found": five v2 test questions in revision 1 and, after it had
+  been sent back once, four questions in revision 2. The observation of a
+  query now says that each row meets all its conditions, and such an answer is sent
+  back once, with thinking on.
+- **A choice padded back out.** For "drugs indicated for A, B and C" the model may
+  return every drug for any of them with the diseases collected per row, then name
+  the one for all three. Rows left out of an answer are normally added back; rows with
+  a collected column are not, since the model chose among them.
+- **Readings of the question.** A mention linked as two types ("bursitis", a Disease
+  and a Phenotype) is read as the one the relation takes, "drugs for" a disease as
+  `INDICATED_FOR` (not off-label use), and text answers keep the passages' wording.
+
+These numbers favour the chain. Each revision came from reading the chain's failures
+on these same 379 questions, the v2 and text test splits among them. That breaks the
+rule that changes are designed on development data only ([decisions](decisions.md#how-changes-are-evaluated)),
+so the chain's results on those two splits are not held-out results, and the
+planner was not revised in the same way. On the two test splits the final chain
+passes 70 against the planner's 73, on the other sets 160 against 157.
+
+The planner run again on v2 dev and test passed 103 of 107 (104 in the first run, one
+question changed outcome), so it varies little between runs. The chain varies more:
+a v2 test question passed in a check run of the final code and failed in the full
+run. Revision 3 is also slower: an answer asked again with thinking on takes about
+20 s more, and the 90th-percentile time rose from 18.0 s to 26.8 s (planner: 17.3 s).
+On the same 107 v2 questions the chain's median was 9.5 s, the planner's 7.9 s when
+run again. The first chain run's median (20.0 s) did not come back in the reruns
+although calls and tokens per question barely changed; its cause was not found.
+
+The planner therefore stays the default and the chain is an option. It ties the
+planner only after three revisions read from these questions, sends about 2.6 times
+the prompt tokens (median 8,953 against 3,465) and takes longer at the tail. A fresh
+batch, run once with both before any change, is needed to choose between them.
+
+Where the chain still fails, the model reasons wrongly from correct rows or writes the
+wrong query: an exclusion written the wrong way round (`NOT EXISTS` for
+"contraindicated in"), "only" read as "every" for a list of conditions, an aggregate
+misread. Code cannot catch these without knowing the answer. Text questions are scored
+by phrases from the passage, and the chain paraphrases more often than the planner's
+answer call. On the unscored LiveQA questions the chain answers more (35 of 64 against 21);
+whether those answers are grounded and relevant has not been checked.
+
 ## Regression checks for targeted changes
 
 The word check (D116) acts on two benchmark questions and the spelling order (D118)
@@ -672,6 +794,10 @@ written one name per line avoid the question.
 - **Generated Cypher and plans.** Invalid plans fell from 10 to 0 after boolean
   normalisation (D062). Intersections now use a template (D082); exclusions and
   multi-hop chains still depend on free-form generated Cypher.
+- **Reasoning from correct rows.** The optional reasoning chain (D127) still draws
+  wrong answers from correct rows or writes the wrong query (an exclusion the wrong way
+  round, "only" read as "every"), and its answers vary more between runs than the
+  planner's.
 - **Provider availability.** The free endpoint produced four invalid rounds
   before a valid one; timeouts and rate limits are paced with a shared backoff
   but not retried (D063). A local model avoids this but scores lower (D083).
@@ -688,6 +814,9 @@ written one name per line avoid the question.
   scores after these rounds overstate performance on new questions.
 
 - One round per system version; no repeated-run variance on test.
+- The reasoning chain (D127) was revised from its failures on the v2 and text test
+  splits as well as on development sets, so its results on those splits are not
+  held-out; it has not been run on fresh questions.
 - The final run is the second use of the test split. All changes between the
   two were developed and checked on dev only, but the split is no longer fresh.
 - Mostly template wording; small subgroups (5 typo questions on test).

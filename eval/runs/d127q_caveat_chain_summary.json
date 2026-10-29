@@ -1,0 +1,143 @@
+{
+  "categories": {
+    "caveat": {
+      "questions": 6,
+      "pass_rate_rounds": [
+        1
+      ],
+      "pass_rate_mean": 1,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 1,
+      "execution_coverage": 6,
+      "false_refusal_rate": 0,
+      "latency_median_s": 10.206601950005279,
+      "latency_p90_s": 13.478486200008774,
+      "llm_calls": 24,
+      "tokens": 72144,
+      "final_turn_latency_median_s": 10.206601950005279,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "faithful": null,
+      "entity_supported": null,
+      "semantic_support": null,
+      "query_safe": 0,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 1,
+      "diagnostic_passed": 1
+    }
+  },
+  "pass_rate_rounds": [
+    1
+  ],
+  "pass_rate_mean": 1,
+  "metric_semantics": {
+    "entity_supported": "All extracted answer entities occur in supplied contexts; entity-only.",
+    "faithful": "Legacy alias of entity_supported; does not evaluate claim entailment.",
+    "semantic_support": "Not evaluated; requires separate claim and evidence review.",
+    "safety_content": "Bounded displayed-answer policy checks, not clinical safety validation.",
+    "diagnostic_passed": "Composite deterministic diagnostics; not semantic or clinical correctness.",
+    "quality_passed": "Composite deterministic diagnostics; not semantic or clinical correctness."
+  },
+  "semantic_support_status": "not_evaluated",
+  "quality_pass_rate_rounds": [
+    1
+  ],
+  "quality_pass_rate_mean": 1,
+  "response_status_counts": {
+    "answered": 6
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {},
+  "redline_outcomes": {},
+  "pass_ci95_first_round": [
+    0.6097,
+    1.0
+  ],
+  "behavioural": {
+    "in_scope": {
+      "questions": 6,
+      "passed": 6,
+      "pass_rate": 1.0,
+      "ci95": [
+        0.6097,
+        1.0
+      ]
+    },
+    "boundary": {
+      "questions": 0,
+      "passed": 0,
+      "graceful_rate": null
+    },
+    "invariance": {
+      "pairs": 0,
+      "consistency": null,
+      "robust_given_base_passed": null
+    },
+    "families": {
+      "caveat": {
+        "questions": 6,
+        "passed": 6,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6097,
+          1.0
+        ]
+      }
+    },
+    "test_types": {
+      "MFT": {
+        "questions": 6,
+        "passed": 6,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6097,
+          1.0
+        ]
+      }
+    },
+    "capabilities": {
+      "caveat.population_with": {
+        "questions": 6,
+        "passed": 6,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.6097,
+          1.0
+        ]
+      }
+    }
+  },
+  "evaluator_version": "deterministic-3.14",
+  "accounting": "all_conversation_turns",
+  "dataset_sha256": "5c10227d38abe0c6db0dbdf813d3d55c58532770e2be11a46c99439b3c28f6ed",
+  "code_sha256": "a5c98083fae95fd348f16c33c35f3582bc498624436a604dbe47c7667abcece7",
+  "vocabulary_sha256": "3c11e5f28b643f8dc3baac6eaeb2f5c45fad38ccb2739c466160100b82c278a4",
+  "system": "hybrid",
+  "phase": 3,
+  "llm": {
+    "model": "medkg-gemma4-26b",
+    "endpoint_host": "127.0.0.1:11434",
+    "thinking_param": "reasoning_effort"
+  },
+  "system_source": ".cache\\frozen-d127q\\src",
+  "split": "caveat",
+  "rounds": 1,
+  "dataset": "eval/datasets/caveat_v1.jsonl",
+  "total_available": 64,
+  "evaluated_questions": 6,
+  "sampling_cap": null,
+  "evaluated_ids": [
+    "caveat-034",
+    "caveat-036",
+    "caveat-038",
+    "caveat-040",
+    "caveat-042",
+    "caveat-044"
+  ],
+  "cache_enabled": false,
+  "judge_status": "uncalibrated",
+  "clinical_validation": false
+}
