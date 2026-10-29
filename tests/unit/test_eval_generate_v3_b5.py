@@ -37,3 +37,10 @@ def test_existing_outputs_are_never_overwritten(tmp_path):
 def test_b5_ids():
     rows = v3.finish([{'kind': 'list', 'question': 'Which drugs treat Orion fever?'}], 'b5')
     assert rows[0]['id'] == 'v3-b5-0001' and rows[0]['split'] == 'b5'
+
+
+def test_b6_excludes_b5_too_and_keeps_its_own_ids():
+    from eval import generate_v3_b6 as b6
+    assert b6.PREVIOUS_DATASETS[-1] == 'structured_v3_b5.jsonl' and b6.SEED_B6 != b5.SEED_B5
+    rows = v3.finish([{'kind': 'list', 'question': 'Which drugs treat Orion fever?'}], 'b6')
+    assert rows[0]['id'] == 'v3-b6-0001' and rows[0]['split'] == 'b6'

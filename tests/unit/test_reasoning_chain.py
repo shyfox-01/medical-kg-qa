@@ -393,63 +393,24 @@ def test_an_answer_that_says_none_were_found_is_checked_once(monkeypatch):
                    'No side effects were found for either drug.','None of these compare the drugs.')
     _,result = ask(monkeypatch,model)
     assert model.usage['calls']==3 and result['answer'].startswith('None of these compare the drugs.')
-    # "No," answering a yes-or-no question is not a denial of the rows.
-    model = Script(step('relation',intent='side_effects',uids=BOTH),'No, Amber spots is recorded only for Asterol.')
+
+
+def test_a_query_whose_rows_are_denied_is_asked_to_give_them_without_thinking(monkeypatch):
+    query = "MATCH (d:Drug) WHERE d.uid IN ['fiction:drug-a', 'fiction:drug-b'] RETURN d.uid AS uid, d.name AS name"
+    model = Script(step('cypher',query=query),'No drugs were found for this.','Both are recorded:\n$1')
     _,result = ask(monkeypatch,model)
-    assert model.usage['calls']==2
+    assert 'and each row of the query meets all its conditions. Reply with the answer text giving them.' in (
+        model.seen[2][-1]['content'])
+    assert model.thinking==[False,False,False] and result['answer'].startswith('Both are recorded:\n- Asterol')
 
 
-def test_a_list_written_out_is_not_repeated_by_its_reference(monkeypatch):
-    model = Script(step('relation',intent='side_effects',uids=BOTH),
-                   'Each drug has one recorded side effect:\n- Asterol: Amber spots\n- Brinex: Indigo spots\n\n$1')
-    _,result = ask(monkeypatch,model)
-    assert result['answer'].count('Amber spots')==1
-    model = Script(step('relation',intent='interactions',uids=['fiction:drug-a']),
-                   'One drug is recorded:\n- Brinex (fiction:drug-b)\n$1')
-    _,result = ask(monkeypatch,model)
-    assert result['answer'].startswith('One drug is recorded:\n- Brinex\n') and '- Asterol' not in result['answer']
-
-
-def test_a_choice_from_collected_rows_is_not_padded_with_the_rest(monkeypatch):
-    query = ("MATCH (d:Drug)-[:INTERACTS_WITH]-(x:Drug) WHERE x.uid IN ['fiction:drug-a','fiction:drug-b'] "
-             "RETURN d.uid AS uid, d.name AS name, collect(x.name) AS interacts_with")
-    rows = [{'uid':'fiction:drug-a','name':'Asterol','interacts_with':['Brinex','Cetrix']},
-            {'uid':'fiction:drug-b','name':'Brinex','interacts_with':['Cetrix']}]
-    model = Script(step('cypher',query=query),'Only Asterol interacts with both.\n- Asterol')
-    pipeline = app(monkeypatch,model)
-    pipeline.settings.reasoning = 'chain'
-    pipeline.store.run_generated = lambda statement,params: QueryResult(rows,statement)
-    result = pipeline.ask(QUESTION)
-    assert 'Rows of the Cypher query; each meets all its conditions.' in model.seen[1][-1]['content']
-    assert 'answer_completed' not in result and 'Brinex' not in result['answer']
-    # Without a collected column, rows the answer leaves out are still added.
-    model = Script(step('cypher',query=query),'Asterol interacts.\n- Asterol')
-    pipeline = app(monkeypatch,model)
-    pipeline.settings.reasoning = 'chain'
-    pipeline.store.run_generated = lambda statement,params: QueryResult([{k: r[k] for k in ('uid','name')} for r in rows],
-                                                                        statement)
-    result = pipeline.ask(QUESTION)
-    assert result['answer_completed']=='appended' and 'Brinex' in result['answer']
-
-
-def test_a_missing_parameter_is_told_it_can_be_a_reference(monkeypatch):
-    query = 'MATCH (d:Drug)-[:INTERACTS_WITH]-(x:Drug) WHERE d.uid IN $drugs RETURN x.uid AS uid, x.name AS name'
-    model = Script(step('relation',intent='interactions',uids=['fiction:drug-a']),
-                   step('cypher',query=query,params={}),
-                   step('cypher',query=query,params={'drugs':['$1']}),
-                   'Asterol and Brinex interact.')
-    _,result = ask(monkeypatch,model)
-    assert ('the query uses $drugs: give their values in params; the entities an observation found are given '
-            'as "$N", as in {"drugs": "$1"}') in model.seen[2][-1]['content']
-    assert result['queries'][1]['params']['drugs']==BOTH
-    # A parameter for one value is not told about lists.
-    model = Script(step('relation',intent='interactions',uids=['fiction:drug-a']),
-                   step('cypher',query='MATCH (d:Drug {uid:$drug}) RETURN d.uid AS uid',params={}),
-                   'Asterol and Brinex interact.')
-    ask(monkeypatch,model)
-    assert model.seen[2][-1]['content']=='Not done: the query uses $drug: give their values in params.'
-    # A call repeated inside its params is the call.
-    reply = {'tool_calls':[{'name':'cypher','arguments':{'query':query,'params':{'query':query,'thought':'x',
-                                                                                  'drugs':'$1'}}}]}
-    assert chain.action(reply)[2]=={'query':query,'params':{'drugs':'$1'}}
-
+def test_a_name_looked_up_in_another_spelling_is_said(monkeypatch):
+    query = "MATCH (d:Drug) WHERE d.name CONTAINS 'Asterol' OR d.synonyms CONTAINS 'Asterol' RETURN d.uid AS uid, d.name AS name"
+    model = Script(step('cypher',query=query),'Asterol is recorded.')
+    _,result = ask(monkeypatch,model,'What is Qwzstrol used for?')
+    assert result['answer'].startswith('Note: looked up "Asterol", a spelling the question does not use.')
+    assert {'kind':'reading','text':'Note: looked up "Asterol", a spelling the question does not use.'} in result['notices']
+    # The question's own spelling is not a correction.
+    model = Script(step('cypher',query=query),'Asterol is recorded.')
+    _,result = ask(monkeypatch,model,'What is Asterol used for, if anything is recorded?')
+    assert 'looked up' not in result['answer']

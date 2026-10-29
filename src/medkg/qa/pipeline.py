@@ -303,6 +303,10 @@ class Pipeline:
                     result['cypher'].extend(q['cypher'] for q in reasoned.queries)
                     result['queries'].extend(reasoned.queries)
                     result['chain'] = reasoned.steps
+                    # A name the model looked up in another spelling is shown, never used silently (D105).
+                    if reasoned.searched:
+                        notices.append('Note: looked up ' + ', '.join(f'"{n}"' for n in reasoned.searched)
+                                       + ', a spelling the question does not use.')
                     if reasoned.fallback:
                         result['chain_fallback'] = reasoned.fallback
                     if reasoned.rejected:

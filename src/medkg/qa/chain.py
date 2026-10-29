@@ -79,6 +79,8 @@ RULES = '''Rules:
 - Keep each relation's meaning and direction: CONTRAINDICATED_FOR, HAS_SIDE_EFFECT and
   INTERACTS_WITH are never uses or indications; SUBTYPE_OF points from child to parent. Drugs
   for, or used to treat, a disease are INDICATED_FOR it; OFF_LABEL_FOR only when asked.
+  CONTRAINDICATED_FOR goes from a drug to a disease only: drugs not to be combined with, or
+  contraindicated with, another drug are the ones INTERACTS_WITH it.
 - To answer, reply with the answer text and no tool call. It opens with one sentence that
   answers the question, then gives the records behind it. For the entities an observation
   found, write its reference ("$N") on a line of its own: their names are filled in from the
@@ -94,6 +96,8 @@ REFERENCE = re.compile(r'\$(\d+)\b')
 # An opening sentence that says nothing was found ("No drugs for X were found to ...").
 NONE_FOUND = re.compile(r'^\W*(?:no|none)\b(?!,)|^\W*there (?:are|is|were|was) no\b|\b(?:were|was) not found\b', re.I)
 BULLET = re.compile(r'^\s*[-*•]\s*')
+# A query that finds an entity by a name written into it ("d.name CONTAINS 'urethritis'").
+NAMED = re.compile(r"\.(?:name|synonyms)\s*(?:=|CONTAINS|STARTS\s+WITH)\s*'([^']{3,})'", re.I)
 
 SOURCES = {'medlineplus': 'MedlinePlus', 'openfda': 'FDA label', 'primekg': 'PrimeKG',
            'openfda_extracted': 'FDA label (extracted)'}
@@ -114,6 +118,7 @@ class Observation:
     chained: bool = False      # its uids came from an earlier observation
     sources: list[str] = field(default_factory=list)   # the uids the lookup was given, for the page
     description: str = ''
+    query: bool = False        # the rows of a generated query, each meeting all its conditions
 
 
 @dataclass
@@ -126,6 +131,7 @@ class Chain:
     steps: list[dict] = field(default_factory=list)          # thought, tool, args and observation, for the page
     truncated: bool = False
     revised: bool = False
+    searched: list[str] = field(default_factory=list)   # names looked up that the question does not write
     fallback: str | None = None   # why the chain ended early, for evaluation
     rejected: list[str] = field(default_factory=list)   # what was wrong with each invalid reply
 
@@ -438,15 +444,23 @@ class Run:
                 last = self.observations[-1] if self.observations else None
                 if (tool == 'answer' and not self.denied and last and last.graph
                         and any(r.get('name') for r in last.rows) and NONE_FOUND.search(re.split(r'(?<=[.!?])\s|\n', args['text'].strip(), maxsplit=1)[0])):
-                    # "No drugs for X interact with Y" right after a lookup that found some: asked once,
-                    # with thinking on, since the same quick reading had been repeated.
-                    self.denied = self.think = True
+                    # "No drugs for X interact with Y" right after a lookup that found some. The rows of
+                    # a generated query meet all of its conditions, so it is asked again to give them,
+                    # with thinking off; a quick yes/no reading had repeated the same misreading. A
+                    # relation's rows may leave a condition out: asked once with thinking on, as the
+                    # same quick reading had been repeated.
+                    self.denied = True
                     names = list(dict.fromkeys(r['name'] for r in last.rows if r.get('name')))
-                    self.tell(reply, None, f'Check: the answer says none were found, but observation '
-                              f'{len(self.observations)} found {len(names)}: {json.dumps(names[:SHORT])}'
-                              f'{" and more" if len(names) > SHORT else ""}. If they answer the question, reply '
-                              'with the answer text giving them; if not, look up what does, or reply with the '
-                              'answer text saying why.')
+                    found = (f'observation {len(self.observations)} found {len(names)}: {json.dumps(names[:SHORT])}'
+                             f'{" and more" if len(names) > SHORT else ""}')
+                    if last.query:
+                        self.tell(reply, None, f'Check: the answer says none were found, but {found}, and each row '
+                                  'of the query meets all its conditions. Reply with the answer text giving them.')
+                    else:
+                        self.think = True
+                        self.tell(reply, None, f'Check: the answer says none were found, but {found}. If they '
+                                  'answer the question, reply with the answer text giving them; if not, look up '
+                                  'what does, or reply with the answer text saying why.')
                     continue
                 if tool == 'answer':
                     self.chain.steps.append({'thought': thought, 'tool': tool, 'args': {}})
@@ -797,6 +811,10 @@ class Run:
             message = str(getattr(exc, 'message', None) or exc)
             raise ValueError('the query was rejected: ' + message[:300]) from exc
         retrieved.rows = [named(row) for row in retrieved.rows]
+        if retrieved.rows:
+            asked = self.question.casefold()
+            self.chain.searched += [n for n in dict.fromkeys(NAMED.findall(query))
+                                    if n.casefold() not in asked and n not in self.chain.searched]
         found = {r.get('uid') for r in retrieved.rows}
         if len(retrieved.rows) > 1 and len(found) == 1 and found <= set(self.linked):
             # The entity the query starts from, once per match: the results were not returned.
@@ -811,7 +829,7 @@ class Run:
         full, short = graph_facts(number, 'Rows of the Cypher query; each meets all its conditions.', retrieved.rows)
         given = [s.strip() for s in written if UID.fullmatch(s.strip())]
         return Observation(full, short, retrieved.rows, graph=not counting, chained=chained, sources=given,
-                           description='A generated graph query')
+                           description='A generated graph query', query=True)
 
     def text(self, number: int, args: dict) -> Observation:
         query = args['query']
