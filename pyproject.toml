@@ -26,7 +26,7 @@ medkg = "medkg.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-medkg = ["api/static/*.html"]
+medkg = ["api/static/*.html", "api/static/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -155,8 +155,15 @@ No secrets, full prompts or provider error bodies enter traces or usage reports.
 FastAPI validates question/history bounds and serializes asks for one process.
 GET /health checks liveness; GET /ready checks Neo4j connectivity and LLM
 configuration without sending an LLM request. POST /ask returns the public result.
-POST /ask/stream first emits a processing event, then sends verified final-answer
-chunks and the full result as SSE. It does not expose unverified model tokens.
+POST /ask/stream first emits a processing event, then progress events as the
+question is answered (D128): the linked entities, a "thinking" event before each
+reasoning-chain call, each lookup's sources, the earlier observations it used and
+its result entities, and "writing" before an answer is generated. The question runs
+on a worker thread and a failing event callback never reaches the answer. Verified
+final-answer chunks and the full result follow. It does not expose unverified model
+tokens. GET /starmap serves the star map built by `scripts/build_starmap.py` (every
+entity's position, type and body region, gzipped); the API adds each event entity's
+point on that map, and the page lights it.
 CLI supports stdio for external evaluation and an explicit --fake fixture mode.
 Native uvicorn binds localhost; Compose publishes ports on 127.0.0.1 only.
 

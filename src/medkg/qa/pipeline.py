@@ -9,7 +9,7 @@ from collections import OrderedDict
 from medkg.config import ROOT, Settings
 from medkg.graph.store import GraphStore
 from medkg.llm import LLMClient
-from medkg.qa import answer, chain, confirm, planner, safety, scope, session
+from medkg.qa import answer, chain, confirm, events, planner, safety, scope, session
 from medkg.qa import intent as intents
 from medkg.qa.linker import Linker, label_choices
 from medkg.qa.router import has_relation_cue, is_count, route, wants_shared
@@ -28,11 +28,27 @@ class Pipeline:
         self.titles = None   # MedlinePlus topic titles, read on the first question (D121)
         self.mode = mode
         self.cache = OrderedDict()
+        self.events = None   # the progress callback of the question being answered (D128)
 
     def close(self) -> None:
         self.store.close()
 
-    def ask(self, question: str, history: list[dict] | None = None) -> dict:
+    def emit(self, event: str, **data) -> None:
+        """Report progress to the caller's callback, if any; its failures never reach the answer."""
+        if self.events is not None:
+            try:
+                self.events(event, data)
+            except Exception:
+                pass
+
+    def ask(self, question: str, history: list[dict] | None = None, events=None) -> dict:
+        self.events = events
+        try:
+            return self._ask(question, history)
+        finally:
+            self.events = None
+
+    def _ask(self, question: str, history: list[dict] | None = None) -> dict:
         start, history = time.perf_counter(), history or []
         before = dict(self.llm.usage)
         if hasattr(self.store,'executed_statements'):
@@ -207,6 +223,8 @@ class Pipeline:
                             result['planning_fallback'] = planned._fallback_reason
                         result['route'] = 'planner'
                     attrs.update(route=result['route'],steps=len(steps))
+                self.emit('linked',route=result['route'],
+                          entities=[{'uid':c.uid,'name':c.name,'label':c.label} for c in candidates])
                 rows,outputs = [],[]
                 # Result rows of the final graph query step, when they are the answer: the only
                 # graph step, or one chained on earlier outputs. Two independent lists left
@@ -247,6 +265,10 @@ class Pipeline:
                             result['queries'].append({'cypher':retrieved.stmt,'params':params,
                                                       **({'description':description} if description else {})})
                         outputs.append(retrieved.rows)
+                        self.emit('step',**events.step(
+                            'text' if step.tool=='vector_search' else 'graph',description,
+                            args.get('uids') or ([] if step.tool=='template' else [c.uid for c in candidates]),
+                            retrieved.rows,events.plan_refs(step.args),[args['target']] if args.get('target') else []))
                         if step.tool in ('template','text2cypher'):
                             graph_steps += 1
                             chained = '"$step' in json.dumps(step.args)
@@ -267,6 +289,7 @@ class Pipeline:
                                 and self.mode=='hybrid' and self.settings.phase>=3):
                             text = self._hybrid_tool('vector_search',{'query':resolved,'uids':about})
                             rows.extend(text.rows)
+                            self.emit('step',**events.step('text',None,about,text.rows))
                             result['retrieval_fallback'] = 'vector_search'
                             attrs['fallback_rows'] = len(text.rows)
                 reasoned = None
@@ -369,6 +392,7 @@ class Pipeline:
                         # Target synonyms stay in the contexts (scoring, verification) but are not
                         # shown to the answer model, which echoed them as extra entities (D092).
                         shown = [{k:v for k,v in row.items() if k!='synonyms'} for row in rows]
+                        self.emit('writing')
                         with span('generation'):
                             result['answer'] = self.llm.chat(answer.messages(resolved,shown,queries=query_evidence,
                                                                              entities=entities,caution=caution))

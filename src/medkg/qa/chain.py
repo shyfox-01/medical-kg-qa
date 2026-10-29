@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from neo4j.exceptions import Neo4jError
 
 from medkg.graph.schema import ENDS, SCHEMA_PROMPT
+from medkg.qa import events
 from medkg.qa.answer import document_title, unsupported_response
 from medkg.retrieval import templates, text2cypher
 
@@ -111,6 +112,8 @@ class Observation:
     rows: list[dict] = field(default_factory=list)
     graph: bool = False        # a relation or cypher result (the rows can answer a list question)
     chained: bool = False      # its uids came from an earlier observation
+    sources: list[str] = field(default_factory=list)   # the uids the lookup was given, for the page
+    description: str = ''
 
 
 @dataclass
@@ -360,6 +363,8 @@ class Run:
         self.trace = ''      # the arguments of every lookup made, for what the question names but none used
         self.checked = self.denied = False
         self.think = False   # the next reply is asked for with thinking on
+        self.refs: set[int] = set()   # the observations the current lookup used ("$N"), for the page
+        self.direct: list[str] = []   # and the uids it was given itself
 
     # --- the conversation ---------------------------------------------------------------
     def ask(self) -> dict:
@@ -370,6 +375,7 @@ class Run:
                 break
             self.messages[index]['content'] = self.observations[number].short
         think, self.think = self.think, False
+        self.p.emit('thinking')
         try:
             return self.p.llm.call(self.messages, TOOLS, max_tokens=COMPLETION, think=think)
         except ValueError:
@@ -461,6 +467,9 @@ class Run:
                 self.tell(reply, call or (reply.get('tool_calls') or [None])[0], f'Not done: {str(exc)[:300]}.')
                 continue
             self.observations.append(observation)
+            self.p.emit('step', **events.step(
+                'graph' if observation.graph else tool if tool in ('text', 'overview') else 'count',
+                observation.description, observation.sources, observation.rows, self.refs))
             self.chain.steps.append({'thought': thought, 'tool': tool, 'args': args,
                                      'observation': observation.short, 'rows': len(observation.rows)})
             remaining = LOOKUPS - lookups - 1
@@ -645,6 +654,7 @@ class Run:
         for item in value:
             if re.fullmatch(r'\$\d+', item.strip()):
                 number = int(item.strip()[1:])
+                self.refs.add(number)
                 if not 1 <= number <= len(self.observations):
                     raise ValueError(f'there is no observation {number}: one "$N" stands for every entity of '
                                      'observation N')
@@ -657,6 +667,7 @@ class Run:
                 self.trace += ' ' + ' '.join(found).casefold()
             else:
                 ids.append(item)
+                self.direct.append(item)
         return list(dict.fromkeys(ids))[:25], chained
 
     def canonical(self) -> dict[str, str]:
@@ -682,6 +693,7 @@ class Run:
 
     def lookup(self, tool: str, args: dict) -> Observation:
         number = len(self.observations) + 1
+        self.refs, self.direct = set(), []
         if tool == 'overview':
             return self.overview(number, args)
         if tool == 'relation':
@@ -706,7 +718,7 @@ class Run:
                 + '; '.join(f'{i} {n}' for i, n in counts.items()) + '.')
         row = {'uid': uid, 'name': entity.name, 'counts': counts}
         self.keep([row])
-        return Observation(text, text, [row])
+        return Observation(text, text, [row], sources=[uid], description=f'Records for {entity.name}')
 
     def relation(self, number: int, args: dict) -> Observation:
         intent = args['intent']
@@ -733,7 +745,8 @@ class Run:
         shown = len({r.get('uid') or r.get('name') for r in rows})
         self.keep(rows, (total or 0) > shown if total is not None else retrieved.truncated)
         full, short = graph_facts(number, description, rows, total, dict(zip(uids, names)))
-        return Observation(full, short, rows, graph=not count, chained=chained)
+        return Observation(full, short, rows, graph=not count, chained=chained, sources=list(self.direct),
+                           description=description)
 
     def cypher(self, number: int, args: dict) -> Observation:
         query, params = args['query'], args.get('params') or {}
@@ -796,7 +809,9 @@ class Run:
         # Said outright: an answer read "No drugs for X interact with Y" from the rows of a query
         # that matched both conditions.
         full, short = graph_facts(number, 'Rows of the Cypher query; each meets all its conditions.', retrieved.rows)
-        return Observation(full, short, retrieved.rows, graph=not counting, chained=chained)
+        given = [s.strip() for s in written if UID.fullmatch(s.strip())]
+        return Observation(full, short, retrieved.rows, graph=not counting, chained=chained, sources=given,
+                           description='A generated graph query')
 
     def text(self, number: int, args: dict) -> Observation:
         query = args['query']
@@ -813,7 +828,7 @@ class Run:
         rows = self.p._hybrid_tool('vector_search', search).rows[:CHUNKS]
         self.keep(rows)
         full, short = text_facts(number, rows)
-        return Observation(full, short, rows)
+        return Observation(full, short, rows, sources=list(self.direct), description=f'Passages about {query}')
 
 
 def run(pipeline, question: str, candidates: list, caution: str = '') -> Chain:

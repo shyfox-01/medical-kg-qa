@@ -7,16 +7,16 @@
   <title>Medical GraphRAG</title>
   <style>
     :root {
-      --background: #f4f6f5;
-      --surface: #ffffff;
-      --text: #14211f;
-      --muted: #55625f;
-      --border: #d3dcd9;
-      --accent: #146653;
-      --accent-text: #ffffff;
-      --soft: #e8f1ed;
-      --bubble: #dcebe4;
-      --chip: #f1f5f3;
+      --background: #f1ebe0;
+      --surface: #f8f4ec;
+      --text: #23201c;
+      --muted: #6b645a;
+      --border: #dcd3c4;
+      --accent: #a8432f;
+      --accent-text: #fffaf3;
+      --soft: #f3e6dd;
+      --bubble: #e8dfd0;
+      --chip: #f4eee4;
       --caution: #fff4cc;
       --caution-edge: #c79100;
       --caution-text: #4d3a00;
@@ -28,16 +28,16 @@
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --background: #111b19;
-        --surface: #182522;
-        --text: #eef5f2;
-        --muted: #adbdb7;
-        --border: #34483f;
-        --accent: #9adfc0;
-        --accent-text: #10271e;
-        --soft: #22362f;
-        --bubble: #27443a;
-        --chip: #1f312b;
+        --background: #070708;
+        --surface: #100f0e;
+        --text: #efe7da;
+        --muted: #a39a8c;
+        --border: #2b2722;
+        --accent: #ffc58a;
+        --accent-text: #1c130a;
+        --soft: #231b14;
+        --bubble: #1d1915;
+        --chip: #16130f;
         --caution: #3a3117;
         --caution-edge: #e0b23c;
         --caution-text: #f6e2a6;
@@ -57,7 +57,8 @@
       line-height: 1.6;
     }
     main { max-width: 860px; margin: 0 auto; padding: 40px 24px 0; }
-    h1 { margin: 0; font-size: clamp(1.9rem, 5vw, 2.6rem); letter-spacing: -0.03em; }
+    h1 { margin: 0; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+         font-size: clamp(1.9rem, 5vw, 2.6rem); font-weight: 600; letter-spacing: -0.01em; }
     .subtitle { margin: 6px 0 22px; color: var(--muted); }
     .notice {
       margin: 0 0 24px;
@@ -220,7 +221,39 @@
     .confirm.other { border-width: 1px; border-color: var(--border); background: transparent; }
     .confirm.other p { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
     .confirm p:last-child { margin-bottom: 0; }
-    .thinking { color: var(--muted); }
+    .thinking { display: flex; gap: 12px; color: var(--muted); }
+    .thinking .clock { margin-left: auto; font-variant-numeric: tabular-nums; }
+    /* The star map of the knowledge graph above the answer, folded once it is given (D128). */
+    .starmap {
+      position: relative;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--background);
+      transition: height 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+    .starmap-scene, .starmap-still { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1); }
+    .starmap-scene canvas { position: absolute; left: 0; top: 0; }
+    .starmap-scene canvas:last-child { cursor: grab; touch-action: pan-y; }
+    .starmap-scene canvas.dragging { cursor: grabbing; }
+    .starmap-fold { position: absolute; inset: 0; display: flex; align-items: center; gap: 12px; padding-right: 12px; opacity: 0; pointer-events: none; transition: opacity 0.45s; }
+    .starmap.folded .starmap-fold { opacity: 1; pointer-events: auto; transition-delay: 0.4s; }
+    .starmap-cap { flex: 1; min-width: 0; line-height: 1.35; }
+    .starmap-route { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 1.05rem; overflow-wrap: anywhere; }
+    .starmap-meta { color: var(--muted); font-size: 0.8rem; }
+    .starmap-acts { display: flex; gap: 2px; flex: none; }
+    .starmap-tip {
+      position: absolute; z-index: 1; padding: 4px 9px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--surface); color: var(--text); font-size: 0.8rem; white-space: nowrap; pointer-events: none;
+      opacity: 0; transform: translate(-50%, -135%); transition: opacity 0.15s;
+    }
+    .starmap-tip.show { opacity: 1; }
+    .starmap-hint { position: absolute; right: 12px; bottom: 10px; color: var(--muted); font-size: 0.75rem; opacity: 0; pointer-events: none; transition: opacity 0.6s; }
+    .starmap-hint.show { opacity: 0.85; }
+    .starmap-hint.gone, .starmap.folded .starmap-hint { opacity: 0; }
+    .chips li { transition: border-color 0.2s, background 0.2s; }
+    .chips li.lit, .chips li:hover { border-color: var(--accent); background: var(--soft); }
     h3.label { margin: 22px 0 8px; color: var(--muted); font-size: 0.8rem; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; }
     /* Sources as numbered cards: the document title links to it. */
     .sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
@@ -324,6 +357,7 @@
       </form>
     </div>
   </main>
+  <script src="/static/starmap.js"></script>
   <script>
     "use strict";
 
@@ -333,7 +367,7 @@
     const welcome = document.getElementById("welcome");
     const composer = document.querySelector(".composer");
     const routeNames = new Map([
-      ["template", "Graph query"], ["planner", "LLM planner"],
+      ["template", "Graph query"], ["planner", "LLM planner"], ["chain", "Reasoning chain"],
       ["vector", "Text search"], ["safety", "Safety gate"],
       ["language", "Language gate"], ["scope", "Scope gate"],
       ["linking", "Clarification"], ["intent", "Which question?"]
@@ -738,6 +772,43 @@
       input.readOnly = on;
     }
 
+    async function stream(question, onEvent) {
+      // The answer with its progress events (D128): one "event:" and "data:" block each, the
+      // full result last. A server without the stream is asked the plain way.
+      const body = JSON.stringify({question, history: history.slice(-4)});
+      const headers = {"Content-Type": "application/json"};
+      let response = await fetch("/ask/stream", {method: "POST", headers, body});
+      if (response.status === 404 || response.status === 405 || !response.body) {
+        response = await fetch("/ask", {method: "POST", headers, body});
+        return {status: response.status, result: response.status === 200 ? await response.json() : null};
+      }
+      if (response.status !== 200) return {status: response.status, result: null};
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "", result = null;
+      for (;;) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        let cut;
+        while ((cut = buffer.indexOf("\n\n")) >= 0) {
+          const block = buffer.slice(0, cut);
+          buffer = buffer.slice(cut + 2);
+          let kind = "message", data = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event: ")) kind = line.slice(7);
+            else if (line.startsWith("data: ")) data += line.slice(6);
+          }
+          if (!data) continue;
+          const payload = JSON.parse(data);
+          if (kind === "result") result = payload;
+          else if (kind === "error") return {status: 500, result: null};
+          else onEvent(kind, payload);
+        }
+      }
+      return {status: result ? 200 : 500, result};
+    }
+
     async function send() {
       const question = input.value.trim();
       if (pending || !question || question.length > 4096) return;
@@ -747,36 +818,49 @@
       turn.append(element("h2", "question", question));
       const card = element("div", "result");
       card.setAttribute("aria-busy", "true");
-      const thinking = element("div", "thinking", "Thinking… 0 s");
+      const thinking = element("div", "thinking");
       thinking.setAttribute("role", "status");
+      const saying = element("span", "", "Thinking…");
+      const clock = element("span", "clock", "0 s");
+      thinking.append(saying, clock);
       card.append(thinking);
-      turn.append(card);
+      // The star map of this question goes between it and the answer, when it can be shown.
+      const stage = element("div");
+      turn.append(stage, card);
       conversation.append(turn);
       welcome.hidden = true;
       input.value = "";
       reveal(turn);
       const started = performance.now();
       const timer = setInterval(() => {
-        thinking.textContent = `Thinking… ${Math.floor((performance.now() - started) / 1000)} s`;
+        clock.textContent = `${Math.floor((performance.now() - started) / 1000)} s`;
       }, 1000);
+      let live = null;
+      const early = [];
+      const mapped = (typeof StarMap === "undefined" ? Promise.resolve(null) : StarMap.start(stage, saying)).then(view => {
+        live = view;
+        if (!view) stage.remove(); else for (const [kind, data] of early) view.event(kind, data);
+        return view;
+      });
 
       try {
-        const response = await fetch("/ask", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({question, history: history.slice(-4)})
-        });
-        if (response.status !== 200) {
-          const message = response.status === 503
+        const {status, result} = await stream(question, (kind, data) => live ? live.event(kind, data) : early.push([kind, data]));
+        if (status !== 200 || !result) {
+          await mapped;
+          live?.close();
+          const message = status === 503
             ? "The service is not ready: start Neo4j and check the LLM settings (GET /ready)."
-            : `Request failed (HTTP ${response.status}).`;
+            : status === 500 ? "The request could not be completed." : `Request failed (HTTP ${status}).`;
           card.replaceChildren(element("p", "error", message));
         } else {
-          const result = await response.json();
+          await mapped;
+          if (live) await live.finish(result);
           renderResult(card, result, question);
+          live?.link(card);
           history.push({question, focus: result.focus || [], intent: result.intent ?? null});
         }
       } catch {
+        live?.close();
         card.replaceChildren(element("p", "error", "Could not reach the server."));
       } finally {
         clearInterval(timer);

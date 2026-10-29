@@ -7,11 +7,16 @@ held-out benchmark.
 > **Research demo, not medical advice.** Do not use it to diagnose, choose doses or
 > make treatment decisions.
 
-![Web demo: a two-relation question answered from the knowledge graph](docs/images/demo.png)
+![The web demo's star map: light travelling from fluoxetine and from migraine to the drugs that meet both conditions](docs/images/starmap.jpg)
 
-*The web demo (`GET /`): a disease → drug → drug chain answered by the LLM planner,
-with its sources. How each answer was found (the linked names, the executed Cypher
-and the evidence rows) is one click away under "How this was answered".*
+*While a question is answered, the page draws the knowledge graph as a star map: each
+of its 42,975 entities is a point, and what each lookup finds lights up as the answer
+is worked out. Here "Which drugs used for migraine interact with fluoxetine?" sends
+light from fluoxetine and from migraine to the drugs that meet both. The map then
+folds above the answer, which lists the names, the sources and, one click away, the
+executed Cypher and the evidence rows.*
+
+![Web demo: a two-relation question answered from the knowledge graph](docs/images/demo.png)
 
 Unclear wording and misspelt names are confirmed rather than guessed: the guess is
 shown with the other readings one click away, and a corrected name is asked back.
@@ -66,6 +71,11 @@ shown with the other readings one click away, and a corrected name is asked back
   A question that only mentions a dose, or also asks for knowledge, gets the
   knowledge part answered behind a fixed notice; an answer containing a dose or a
   diagnosis is still replaced by a refusal.
+- The web page shows the graph as a star map: every entity placed once by graph
+  structure, one nebula per type with each body region on the same bearing, and the
+  lookups lit as the answer is worked out, from progress events streamed by the API.
+  A night sky in dark mode, a star atlas in light mode; drag to turn it, hover a name
+  in the answer to find its star.
 - CLI, FastAPI (JSON and SSE streaming), OpenTelemetry tracing, Docker Compose and
   CI against a fictional fixture graph.
 
@@ -207,6 +217,7 @@ CPU embeddings take tens of minutes.
 python -m scripts.download_structured
 python -m scripts.load_primekg
 python -m scripts.embed_entities
+python -m scripts.build_starmap                     # the web page's star map (about two minutes)
 python -m scripts.download_text
 python -m scripts.load_text --openfda-limit 500
 python -m scripts.extract_openfda --limit 80        # optional: FDA contraindication/interaction edges
@@ -224,8 +235,9 @@ curl -X POST localhost:8000/ask -H "content-type: application/json" \
      -d '{"question": "What is Lipitor used for?", "history": []}'
 ```
 
-`POST /ask/stream` streams the same answer as server-sent events. `GET /ready`
-checks the database and LLM configuration.
+`POST /ask/stream` streams progress (the linked entities, each lookup's results)
+and then the same answer as server-sent events; the page uses it to draw the star map
+from `GET /starmap`. `GET /ready` checks the database and LLM configuration.
 
 On Windows with the local Neo4j install and Ollama running, one command starts
 everything and opens the page: Neo4j in its own window (on port 7688 when another
