@@ -87,7 +87,7 @@ class EmptyGraphStore(RecordingStore):
 def test_empty_template_falls_back_to_documents_about_the_anchor(monkeypatch):
     monkeypatch.setattr('medkg.qa.pipeline.request_trace',trace)
     monkeypatch.setattr('medkg.qa.pipeline.span',span)
-    pipeline = Pipeline(Settings(phase=3,cache=False),store=EmptyGraphStore(),llm=Model(),entities=ENTITIES)
+    pipeline = Pipeline(Settings(phase=3,cache=False,reasoning='plan'),store=EmptyGraphStore(),llm=Model(),entities=ENTITIES)
     calls = []
 
     def text_tool(name,args):
@@ -107,7 +107,7 @@ def test_pipeline_queries_the_disease_reading_and_keeps_it_as_focus(monkeypatch)
     monkeypatch.setattr('medkg.qa.pipeline.request_trace',trace)
     monkeypatch.setattr('medkg.qa.pipeline.span',span)
     store = RecordingStore()
-    pipeline = Pipeline(Settings(phase=3,cache=False),store=store,llm=Model(),entities=ENTITIES)
+    pipeline = Pipeline(Settings(phase=3,cache=False,reasoning='plan'),store=store,llm=Model(),entities=ENTITIES)
     result = pipeline.ask('Which drugs are indicated for Orion fever?')
     assert result['route']=='template' and result['intent']=='drugs_for'
     assert store.params[0]['uid']=='fiction:orion-disease'

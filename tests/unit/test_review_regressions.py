@@ -80,7 +80,7 @@ class Store:
 def app(monkeypatch,model):
     monkeypatch.setattr('medkg.qa.pipeline.request_trace',trace)
     monkeypatch.setattr('medkg.qa.pipeline.span',span)
-    return Pipeline(Settings(phase=3,cache=False),store=Store(),llm=model,entities=copy.deepcopy(ENTITIES))
+    return Pipeline(Settings(phase=3,cache=False,reasoning='plan'),store=Store(),llm=model,entities=copy.deepcopy(ENTITIES))
 
 
 def both(intent,uids=('fiction:drug-a','fiction:drug-b')):

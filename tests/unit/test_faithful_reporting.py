@@ -56,7 +56,7 @@ def test_generated_query_rows_are_described_as_the_answer(monkeypatch):
     monkeypatch.setattr('medkg.qa.pipeline.text2cypher.retrieve',lambda *args: generated)
     model = RecordingModel()
     model.plan = {'steps':[{'tool':'text2cypher','args':{'question':'Which drugs are indicated for Orion fever but not in Asterol trials?'}}]}
-    pipeline = Pipeline(Settings(phase=3,cache=False),store=EmptyStore(),llm=model,entities=ENTITIES)
+    pipeline = Pipeline(Settings(phase=3,cache=False,reasoning='plan'),store=EmptyStore(),llm=model,entities=ENTITIES)
     result = pipeline.ask('Which drugs are indicated for Orion fever but not in Asterol trials?')
     assert result['route']=='planner'
     query = evidence(model.prompts[0])['executed_graph_queries'][0]

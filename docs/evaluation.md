@@ -31,6 +31,8 @@ asked back ("Did you mean …?") counts as a failure.
 | v2 test | 240 | 234 (97.5%) |
 | v3 batches b1 / b2 / b3 | 195 / 195 / 191 | 185 / 190 / 178 |
 | b4: drug–disease yes/no | 40 | 40 (100%) |
+| b5, fresh, with the earlier planner | 363 | 342 (94.2%) |
+| b5 planner-route questions: reasoning chain / planner | 75 | 66 / 60 |
 | Partial answers behind a safety notice | 64 | 64 (100%) |
 | Safety, injection, non-English and non-medical controls | all sets | 100% |
 
@@ -701,10 +703,32 @@ On the same 107 v2 questions the chain's median was 9.5 s, the planner's 7.9 s w
 run again. The first chain run's median (20.0 s) did not come back in the reruns
 although calls and tokens per question barely changed; its cause was not found.
 
-The planner therefore stays the default and the chain is an option. It ties the
-planner only after three revisions read from these questions, sends about 2.6 times
-the prompt tokens (median 8,953 against 3,465) and takes longer at the tail. A fresh
-batch, run once with both before any change, is needed to choose between them.
+A tie reached by three revisions read from these questions could not choose between
+the two, so a fresh batch decided. b5 (`eval/generate_v3_b5.py`, 363 questions) is
+built like b3 at twice the size, with anchors disjoint from every earlier structured
+set; 93 of its questions were reworded by qwen3.5 9B. The protocol was committed before
+any run: one frozen copy answers all of b5 with the planner, then the questions whose
+final turn took the planner route with the chain, nothing changed in between, and the
+chain becomes the default when it passes at least as many of those questions
+([planner](../eval/runs/b5_plan_summary.json), [chain](../eval/runs/b5_chain_summary.json)):
+
+| b5, planner-route questions (75) | Passed | Median time | 90th percentile | Prompt tokens (median) |
+|---|---:|---:|---:|---:|
+| Planner | 60 | 7.7 s | 11.8 s | 3,139 |
+| Reasoning chain | **66** | 11.0 s | 38.4 s | 8,803 |
+
+The chain fixed 9 questions and broke 3 (exact McNemar p = 0.15; two of the fixed
+pairs are one question with a different wrapper). The fixes are mostly compound
+questions the planner declined with "No supporting evidence was retrieved": "oral
+candidiasis medications to avoid in skin atrophy", the side effects of the drugs for a
+disease, a misspelt disease. The three it broke are an exclusion, a drug added to an
+intersection, and "contraindicated when combined with" read as having no answer. With
+the planner, b5 as a whole passed 342 of 363 (94.2%), the current system's first look
+at fresh questions; the 288 questions on other routes do not reach either.
+
+The chain is therefore the default (`REASONING=plan` restores the planner). Its cost is
+time: an answer asked again with thinking on, or a long list, pushes the slowest tenth
+of questions past half a minute.
 
 Where the chain still fails, the model reasons wrongly from correct rows or writes the
 wrong query: an exclusion written the wrong way round (`NOT EXISTS` for
@@ -794,7 +818,7 @@ written one name per line avoid the question.
 - **Generated Cypher and plans.** Invalid plans fell from 10 to 0 after boolean
   normalisation (D062). Intersections now use a template (D082); exclusions and
   multi-hop chains still depend on free-form generated Cypher.
-- **Reasoning from correct rows.** The optional reasoning chain (D127) still draws
+- **Reasoning from correct rows.** The reasoning chain (D127) still draws
   wrong answers from correct rows or writes the wrong query (an exclusion the wrong way
   round, "only" read as "every"), and its answers vary more between runs than the
   planner's.
@@ -816,7 +840,7 @@ written one name per line avoid the question.
 - One round per system version; no repeated-run variance on test.
 - The reasoning chain (D127) was revised from its failures on the v2 and text test
   splits as well as on development sets, so its results on those splits are not
-  held-out; it has not been run on fresh questions.
+  held-out. Its fresh comparison (b5) has 75 questions, 12 of them discordant.
 - The final run is the second use of the test split. All changes between the
   two were developed and checked on dev only, but the split is no longer fresh.
 - Mostly template wording; small subgroups (5 typo questions on test).

@@ -25,11 +25,11 @@ shown with the other readings one click away, and a corrected name is asked back
   1.72M relations) plus **MedlinePlus** summaries and **openFDA** drug labels
   (1,264 documents, 4,693 chunks).
 - Routes common questions to parameterised Cypher templates; anything else goes to
-  an LLM planner that chains up to four guarded tools: generated Cypher, text
-  search (the vector and full-text indexes merged by rank fusion), full-text search
-  of names and graph expansion. An optional reasoning chain (`REASONING=chain`)
-  instead calls one tool at a time and reads each result before choosing the next;
-  it ties the planner on its questions at 2.6 times the prompt tokens
+  a reasoning chain: the model calls one guarded tool at a time (a relation lookup,
+  generated Cypher, text search with the vector and full-text indexes merged by rank
+  fusion) and reads each result before choosing the next, in one conversation. On a
+  fresh batch it passed 66 of 75 such questions against 60 for the earlier one-shot
+  planner (`REASONING=plan`), at about 2.8 times the prompt tokens
   ([comparison](docs/evaluation.md#one-reasoning-chain-for-planner-questions)).
 - Every generated query passes a static guard, `EXPLAIN` and a read-only
   transaction. Answers are generated from retrieved evidence only, checked against
@@ -314,9 +314,8 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
 - Scoring checks which entities an answer names, not whether every sentence is
   true. Answers have not been reviewed by people or clinicians.
 - Gold comes from PrimeKG, so it inherits that source's gaps and errors.
-- The reasoning chain was revised from failures that include the test splits, so
-  its tie with the planner is not a held-out result; it stays optional until it is run
-  on fresh questions.
+- The reasoning chain is slower at the tail (the slowest tenth of its questions take
+  over 30 s on the local model) and was chosen on 75 fresh questions, a small sample.
 - Free-form generated Cypher still fails on some complex questions, and the free
   LLM endpoint used here times out and rate-limits under load. The local Gemma 4
   setup avoids that and matches it on dev, but needs about 32 GB of RAM.

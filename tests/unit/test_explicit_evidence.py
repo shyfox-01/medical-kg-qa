@@ -71,7 +71,7 @@ def test_brand_name_list_names_the_brand_and_the_entity_it_was_read_as(monkeypat
     monkeypatch.setattr('medkg.qa.pipeline.request_trace',trace)
     monkeypatch.setattr('medkg.qa.pipeline.span',span)
     model = RecordingModel()
-    pipeline = Pipeline(Settings(phase=3,cache=False),store=IndicationStore(),llm=model,entities=ENTITIES)
+    pipeline = Pipeline(Settings(phase=3,cache=False,reasoning='plan'),store=IndicationStore(),llm=model,entities=ENTITIES)
     result = pipeline.ask('What is Brandex prescribed to treat?')
     assert result['route']=='template' and result['intent']=='indications'
     assert not model.prompts

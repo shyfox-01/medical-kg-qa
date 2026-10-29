@@ -76,7 +76,7 @@ def test_quarantined_unresolved_name_stops_before_planning_and_retrieval(policy,
             raise AssertionError('Quarantined identity must not reach the model')
 
     store = SimpleNamespace(executed_statements=[])
-    pipeline = Pipeline(Settings(cache=False), store=store, llm=Model(), entities=policy, mode=mode)
+    pipeline = Pipeline(Settings(cache=False, reasoning='plan'), store=store, llm=Model(), entities=policy, mode=mode)
     result = pipeline.ask('What is Asterol A indicated for?')
     assert result['refused'] and result['route'] == 'linking'
     assert result['quarantined_mentions'] == ['asterol a']

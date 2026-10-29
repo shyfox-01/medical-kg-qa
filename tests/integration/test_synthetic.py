@@ -108,7 +108,7 @@ def test_multi_hop_questions_reach_planner_and_traverse_both_relations(
                 f'<-[r2:{other}]-(b:{end}) RETURN DISTINCT b.uid AS uid,b.name AS name,'
                 '[r1.source,r2.source] AS sources LIMIT 25','params':{'uid':anchor}}
     entities = [r for r in fictional.entities() if r['uid'].startswith('synthetic:')]
-    result = Pipeline(store=fictional,llm=PlannedModel(),entities=entities).ask(question)
+    result = Pipeline(settings=Settings(reasoning='plan'),store=fictional,llm=PlannedModel(),entities=entities).ask(question)
     assert result['failure_stage'] is None and result['route']=='planner'
     assert expected in result['answer'] and result['refused'] is False
     assert relation in result['cypher'][0] and other in result['cypher'][0]
@@ -145,7 +145,7 @@ def test_non_gene_multi_hop_traversal(fictional):
                 '-[r2:HAS_PHENOTYPE]->(p:Phenotype) RETURN DISTINCT p.uid AS uid,p.name AS name,'
                 '[r1.source,r2.source] AS sources LIMIT 25','params':{'uid':'synthetic:drug-a'}}
     entities = [e for e in fictional.entities() if e['uid'].startswith('synthetic:')]
-    result = Pipeline(store=fictional,llm=PlannedModel(),entities=entities).ask(
+    result = Pipeline(settings=Settings(reasoning='plan'),store=fictional,llm=PlannedModel(),entities=entities).ask(
         'What symptoms are associated with diseases treated by Asterol?')
     assert result['route']=='planner' and result['failure_stage'] is None
     assert 'Glimmer sign' in result['answer'] and result['response_status']=='answered'
@@ -165,7 +165,7 @@ def test_reverse_non_gene_multi_hop_traversal(fictional):
         '{uid:"synthetic:phenotype-a"}) MERGE (d)-[r:HAS_SIDE_EFFECT]->(p) SET r.source="synthetic"')
     try:
         entities = [e for e in fictional.entities() if e['uid'].startswith('synthetic:')]
-        result = Pipeline(store=fictional,llm=PlannedModel(),entities=entities).ask(
+        result = Pipeline(settings=Settings(reasoning='plan'),store=fictional,llm=PlannedModel(),entities=entities).ask(
             'What side effects are associated with drugs treating Virell syndrome?')
         assert result['route']=='planner' and result['failure_stage'] is None
         assert 'Glimmer sign' in result['answer'] and result['response_status']=='answered'
@@ -185,7 +185,7 @@ def test_invalid_plan_recovers_through_guarded_path_and_records_actual_constrain
                 '<-[r2:TARGETS]-(d:Drug) RETURN DISTINCT d.uid AS uid,d.name AS name,'
                 '[r1.source,r2.source] AS sources LIMIT 25','params':{'uid':'synthetic:disease-a'}}
     entities = [e for e in fictional.entities() if e['uid'].startswith('synthetic:')]
-    result = Pipeline(store=fictional,llm=RecoveringModel(),entities=entities).ask(
+    result = Pipeline(settings=Settings(reasoning='plan'),store=fictional,llm=RecoveringModel(),entities=entities).ask(
         'Which drugs target genes associated with Virell syndrome?')
     assert result['failure_stage'] is None and result['planning_fallback']=='invalid_plan_schema'
     assert 'Asterol' in result['answer']

@@ -31,7 +31,7 @@ def pipeline(monkeypatch, plan=None):
     monkeypatch.setattr('medkg.qa.pipeline.span', span)
     monkeypatch.setattr('medkg.qa.pipeline.text2cypher.retrieve',
                         lambda store, llm, question, candidates: QueryResult([], 'MATCH (n) RETURN n'))
-    found = Pipeline(Settings(phase=3, cache=False), store=EmptyGraphStore(), llm=Model(plan=plan),
+    found = Pipeline(Settings(phase=3, cache=False, reasoning='plan'), store=EmptyGraphStore(), llm=Model(plan=plan),
                      entities=ENTITIES)
     calls = []
 

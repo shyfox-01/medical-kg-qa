@@ -97,7 +97,7 @@ receives at most one schema-repair attempt. Generated Cypher receives at most tw
 execution/validation repair attempts. This is separate from SDK retries, which
 are disabled.
 
-With `REASONING=chain` (D127) these questions go to one conversation instead: the
+By default (`REASONING=chain`, D127; `plan` keeps the planner above) these questions go to one conversation instead: the
 model calls one tool per turn through native function calling (overview, relation,
 cypher, text, cannot_answer) and sees each observation before the next call, for at
 most four lookups. Uids must come from the linked entities or an earlier observation

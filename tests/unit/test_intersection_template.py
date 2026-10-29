@@ -89,7 +89,7 @@ def test_pipeline_runs_the_intersection_template(monkeypatch):
     monkeypatch.setattr('medkg.qa.pipeline.request_trace',trace)
     monkeypatch.setattr('medkg.qa.pipeline.span',span)
     store = RecordingStore()
-    pipeline = Pipeline(Settings(phase=3,cache=False),store=store,llm=Model(),entities=ENTITIES)
+    pipeline = Pipeline(Settings(phase=3,cache=False,reasoning='plan'),store=store,llm=Model(),entities=ENTITIES)
     result = pipeline.ask('Which drugs are indicated for both Orion fever and Lyra disease?')
     statement,params = store.calls[0]
     assert result['route']=='template' and result['intent']=='drugs_for'

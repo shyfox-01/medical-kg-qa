@@ -97,7 +97,7 @@ class InteractionStore:
 def ask(monkeypatch,store,model,question):
     monkeypatch.setattr('medkg.qa.pipeline.request_trace',trace)
     monkeypatch.setattr('medkg.qa.pipeline.span',span)
-    return Pipeline(Settings(phase=3,cache=False),store=store,llm=model,entities=ENTITIES).ask(question)
+    return Pipeline(Settings(phase=3,cache=False,reasoning='plan'),store=store,llm=model,entities=ENTITIES).ask(question)
 
 
 def test_a_recorded_pairwise_interaction_is_stated_in_code(monkeypatch):
@@ -133,7 +133,7 @@ def test_same_label_duplicates_get_a_clarification_listing_the_options(monkeypat
     monkeypatch.setattr('medkg.qa.pipeline.request_trace',trace)
     monkeypatch.setattr('medkg.qa.pipeline.span',span)
     model = Model()
-    result = Pipeline(Settings(phase=3,cache=False),store=InteractionStore([]),llm=model,entities=entities).ask(
+    result = Pipeline(Settings(phase=3,cache=False,reasoning='plan'),store=InteractionStore([]),llm=model,entities=entities).ask(
         'Which drugs treat Vela syndrome?')
     assert result['refused'] and result['route']=='linking' and model.usage['calls']==0
     assert sorted(result['clarification'])==['fiction:vela-1','fiction:vela-2'] and 'Which one do you mean?' in result['answer']

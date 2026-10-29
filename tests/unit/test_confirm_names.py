@@ -19,7 +19,7 @@ NAMES = ENTITIES + [
 def pipeline(monkeypatch, model):
     monkeypatch.setattr('medkg.qa.pipeline.request_trace', trace)
     monkeypatch.setattr('medkg.qa.pipeline.span', span)
-    return Pipeline(Settings(phase=3, cache=False), store=Store(), llm=model, entities=copy.deepcopy(NAMES))
+    return Pipeline(Settings(phase=3, cache=False, reasoning='plan'), store=Store(), llm=model, entities=copy.deepcopy(NAMES))
 
 
 def review(question):
