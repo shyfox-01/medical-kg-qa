@@ -148,6 +148,7 @@ per set. Method, per-category tables and failure analysis are in
 | v2 test | 240 | 234 (97.5%) |
 | Fresh v3 batches b1 / b2 / b3 | 195 / 195 / 191 | 185 / 190 / 178 |
 | Drug–disease yes/no questions (b4) | 40 | 40 (100%) |
+| Fresh v3 batch b6, first look | 328 | 313 (95.4%) |
 | Safety, prompt injection, non-English, non-medical | every set | 100% |
 
 **Sealed test** ([design](docs/evaluation/v3-design.md)): 272 questions covering every
@@ -327,7 +328,7 @@ The code licence does not cover upstream data. See [NOTICE](NOTICE.md).
   true. Answers have not been reviewed by people or clinicians.
 - Gold comes from PrimeKG, so it inherits that source's gaps and errors.
 - The reasoning chain is slower at the tail (the slowest tenth of its questions take
-  over 30 s on the local model) and was chosen on 75 fresh questions, a small sample.
+  over 20 s on the local model) and was chosen on 75 fresh questions, a small sample.
 - Free-form generated Cypher still fails on some complex questions, and the free
   LLM endpoint used here times out and rate-limits under load. The local Gemma 4
   setup avoids that and matches it on dev, but needs about 32 GB of RAM.

@@ -1,0 +1,612 @@
+{
+  "categories": {
+    "boundary": {
+      "questions": 5,
+      "pass_rate_rounds": [
+        0.8
+      ],
+      "pass_rate_mean": 0.8,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 1,
+      "execution_coverage": 2,
+      "false_refusal_rate": 0,
+      "latency_median_s": 10.023740700009512,
+      "latency_p90_s": 13.202657600020757,
+      "llm_calls": 20,
+      "tokens": 65457,
+      "final_turn_latency_median_s": 10.023740700009512,
+      "precision": 0.9,
+      "recall": 1.0,
+      "f1": 0.9333333333333333,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 0.6,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 0.8,
+      "diagnostic_passed": 0.8
+    },
+    "clarification": {
+      "questions": 3,
+      "pass_rate_rounds": [
+        1
+      ],
+      "pass_rate_mean": 1,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": null,
+      "execution_coverage": 0,
+      "false_refusal_rate": 1,
+      "latency_median_s": 10.017713200009894,
+      "latency_p90_s": 10.017713200009894,
+      "llm_calls": 12,
+      "tokens": 40823,
+      "final_turn_latency_median_s": 10.017713200009894,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "faithful": null,
+      "entity_supported": null,
+      "semantic_support": null,
+      "query_safe": 0,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 1,
+      "diagnostic_passed": 1
+    },
+    "directional": {
+      "questions": 3,
+      "pass_rate_rounds": [
+        1
+      ],
+      "pass_rate_mean": 1,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 0.6666666666666666,
+      "execution_coverage": 3,
+      "false_refusal_rate": 0,
+      "latency_median_s": 8.134333399997558,
+      "latency_p90_s": 8.134333399997558,
+      "llm_calls": 8,
+      "tokens": 25293,
+      "final_turn_latency_median_s": 8.134333399997558,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 1,
+      "diagnostic_passed": 1
+    },
+    "lexical_variation": {
+      "questions": 4,
+      "pass_rate_rounds": [
+        0.5
+      ],
+      "pass_rate_mean": 0.5,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 0.6666666666666666,
+      "execution_coverage": 3,
+      "false_refusal_rate": 0,
+      "latency_median_s": 13.961544399993727,
+      "latency_p90_s": 16.255209599999944,
+      "llm_calls": 20,
+      "tokens": 58464,
+      "final_turn_latency_median_s": 13.961544399993727,
+      "precision": 0.6,
+      "recall": 0.6666666666666666,
+      "f1": 0.6666666666666666,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 0.25,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 0.5,
+      "diagnostic_passed": 0.5
+    },
+    "multi_constraint": {
+      "questions": 4,
+      "pass_rate_rounds": [
+        0.75
+      ],
+      "pass_rate_mean": 0.75,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 0.5,
+      "execution_coverage": 4,
+      "false_refusal_rate": 0,
+      "latency_median_s": 19.85131865000585,
+      "latency_p90_s": 21.257134400017094,
+      "llm_calls": 17,
+      "tokens": 58505,
+      "final_turn_latency_median_s": 19.85131865000585,
+      "precision": 0.9861111111111112,
+      "recall": 1.0,
+      "f1": 1.0,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 0.75,
+      "diagnostic_passed": 0.75
+    },
+    "multi_hop": {
+      "questions": 16,
+      "pass_rate_rounds": [
+        0.9375
+      ],
+      "pass_rate_mean": 0.9375,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 0.625,
+      "execution_coverage": 16,
+      "false_refusal_rate": 0,
+      "latency_median_s": 10.233061449995148,
+      "latency_p90_s": 13.056634100008523,
+      "llm_calls": 60,
+      "tokens": 183338,
+      "final_turn_latency_median_s": 10.233061449995148,
+      "precision": 0.9375,
+      "recall": 0.9166666666666666,
+      "f1": 0.9166666666666666,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 0.9375,
+      "diagnostic_passed": 0.9375
+    },
+    "out_of_scope": {
+      "questions": 2,
+      "pass_rate_rounds": [
+        1
+      ],
+      "pass_rate_mean": 1,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": null,
+      "execution_coverage": 0,
+      "false_refusal_rate": null,
+      "latency_median_s": 1.7216388000088045,
+      "latency_p90_s": 1.6092425000097137,
+      "llm_calls": 2,
+      "tokens": 5378,
+      "final_turn_latency_median_s": 1.7216388000088045,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "faithful": null,
+      "entity_supported": null,
+      "semantic_support": null,
+      "query_safe": 1,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 1,
+      "diagnostic_passed": 1,
+      "correct_refusal_rate": 1
+    },
+    "single_hop": {
+      "questions": 4,
+      "pass_rate_rounds": [
+        1
+      ],
+      "pass_rate_mean": 1,
+      "pass_rate_std": 0.0,
+      "execution_accuracy": 1,
+      "execution_coverage": 4,
+      "false_refusal_rate": 0,
+      "latency_median_s": 5.5169172499881824,
+      "latency_p90_s": 6.777002199989511,
+      "llm_calls": 12,
+      "tokens": 35035,
+      "final_turn_latency_median_s": 5.5169172499881824,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "faithful": 1,
+      "entity_supported": 1,
+      "semantic_support": null,
+      "query_safe": 0.75,
+      "forbidden_content": 0,
+      "count_exact": null,
+      "quality_passed": 1,
+      "diagnostic_passed": 1
+    }
+  },
+  "pass_rate_rounds": [
+    0.8780487804878049
+  ],
+  "pass_rate_mean": 0.8780487804878049,
+  "metric_semantics": {
+    "entity_supported": "All extracted answer entities occur in supplied contexts; entity-only.",
+    "faithful": "Legacy alias of entity_supported; does not evaluate claim entailment.",
+    "semantic_support": "Not evaluated; requires separate claim and evidence review.",
+    "safety_content": "Bounded displayed-answer policy checks, not clinical safety validation.",
+    "diagnostic_passed": "Composite deterministic diagnostics; not semantic or clinical correctness.",
+    "quality_passed": "Composite deterministic diagnostics; not semantic or clinical correctness."
+  },
+  "semantic_support_status": "not_evaluated",
+  "quality_pass_rate_rounds": [
+    0.8780487804878049
+  ],
+  "quality_pass_rate_mean": 0.8780487804878049,
+  "response_status_counts": {
+    "answered": 36,
+    "unsupported": 5
+  },
+  "pass_rate_std": 0.0,
+  "inconsistent_ids": [],
+  "failure_stages": {},
+  "redline_outcomes": {},
+  "pass_ci95_first_round": [
+    0.7446,
+    0.9468
+  ],
+  "behavioural": {
+    "in_scope": {
+      "questions": 36,
+      "passed": 32,
+      "pass_rate": 0.8889,
+      "ci95": [
+        0.7468,
+        0.9559
+      ]
+    },
+    "boundary": {
+      "questions": 5,
+      "passed": 4,
+      "graceful_rate": 0.8
+    },
+    "invariance": {
+      "pairs": 5,
+      "consistency": 0.8,
+      "robust_given_base_passed": 0.8
+    },
+    "families": {
+      "boundary": {
+        "questions": 5,
+        "passed": 4,
+        "pass_rate": 0.8,
+        "ci95": [
+          0.3755,
+          0.9638
+        ]
+      },
+      "clarify": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      },
+      "dir": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      },
+      "inv": {
+        "questions": 5,
+        "passed": 4,
+        "pass_rate": 0.8,
+        "ci95": [
+          0.3755,
+          0.9638
+        ]
+      },
+      "lexical": {
+        "questions": 4,
+        "passed": 2,
+        "pass_rate": 0.5,
+        "ci95": [
+          0.15,
+          0.85
+        ]
+      },
+      "multi": {
+        "questions": 15,
+        "passed": 14,
+        "pass_rate": 0.9333,
+        "ci95": [
+          0.7018,
+          0.9881
+        ]
+      },
+      "refusal": {
+        "questions": 2,
+        "passed": 2,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.3424,
+          1.0
+        ]
+      },
+      "single": {
+        "questions": 4,
+        "passed": 4,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.5101,
+          1.0
+        ]
+      }
+    },
+    "test_types": {
+      "BOUNDARY": {
+        "questions": 5,
+        "passed": 4,
+        "pass_rate": 0.8,
+        "ci95": [
+          0.3755,
+          0.9638
+        ]
+      },
+      "DIR": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      },
+      "INV": {
+        "questions": 5,
+        "passed": 4,
+        "pass_rate": 0.8,
+        "ci95": [
+          0.3755,
+          0.9638
+        ]
+      },
+      "MFT": {
+        "questions": 28,
+        "passed": 25,
+        "pass_rate": 0.8929,
+        "ci95": [
+          0.728,
+          0.9629
+        ]
+      }
+    },
+    "capabilities": {
+      "boundary.disease_typo": {
+        "questions": 2,
+        "passed": 2,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.3424,
+          1.0
+        ]
+      },
+      "boundary.three_entities": {
+        "questions": 3,
+        "passed": 2,
+        "pass_rate": 0.6667,
+        "ci95": [
+          0.2077,
+          0.9385
+        ]
+      },
+      "clarify.unknown_name": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      },
+      "dir.add_exclusion": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      },
+      "inv.lowercase": {
+        "questions": 2,
+        "passed": 2,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.3424,
+          1.0
+        ]
+      },
+      "inv.no_question_mark": {
+        "questions": 3,
+        "passed": 2,
+        "pass_rate": 0.6667,
+        "ci95": [
+          0.2077,
+          0.9385
+        ]
+      },
+      "lexical.brand": {
+        "questions": 2,
+        "passed": 1,
+        "pass_rate": 0.5,
+        "ci95": [
+          0.0945,
+          0.9055
+        ]
+      },
+      "lexical.consumer_term": {
+        "questions": 1,
+        "passed": 0,
+        "pass_rate": 0.0,
+        "ci95": [
+          0.0,
+          0.7935
+        ]
+      },
+      "lexical.drug_typo": {
+        "questions": 1,
+        "passed": 1,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.2065,
+          1.0
+        ]
+      },
+      "multi.class_side_effects": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      },
+      "multi.exclusion": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      },
+      "multi.gene_mediated": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      },
+      "multi.indicated_contraindicated": {
+        "questions": 3,
+        "passed": 2,
+        "pass_rate": 0.6667,
+        "ci95": [
+          0.2077,
+          0.9385
+        ]
+      },
+      "multi.indicated_interacts": {
+        "questions": 3,
+        "passed": 3,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.4385,
+          1.0
+        ]
+      },
+      "refusal.out_of_scope": {
+        "questions": 2,
+        "passed": 2,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.3424,
+          1.0
+        ]
+      },
+      "single.off_label": {
+        "questions": 2,
+        "passed": 2,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.3424,
+          1.0
+        ]
+      },
+      "single.parents": {
+        "questions": 1,
+        "passed": 1,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.2065,
+          1.0
+        ]
+      },
+      "single.subtypes": {
+        "questions": 1,
+        "passed": 1,
+        "pass_rate": 1.0,
+        "ci95": [
+          0.2065,
+          1.0
+        ]
+      }
+    }
+  },
+  "evaluator_version": "deterministic-3.14",
+  "accounting": "all_conversation_turns",
+  "dataset_sha256": "83e986e72bdd15c720014176c87faf04c660e7e6e3b8c2b21e7f839e4bd15691",
+  "code_sha256": "a7f329db2c8e9beccc3dfe69028f9b3c69561f85de8f7600e39aba109cbcd41d",
+  "vocabulary_sha256": "3c11e5f28b643f8dc3baac6eaeb2f5c45fad38ccb2739c466160100b82c278a4",
+  "system": "hybrid",
+  "phase": 3,
+  "llm": {
+    "model": "medkg-gemma4-26b",
+    "endpoint_host": "127.0.0.1:11434",
+    "thinking_param": "reasoning_effort"
+  },
+  "system_source": ".cache\\frozen-d127v\\src",
+  "split": "b3",
+  "rounds": 1,
+  "dataset": "eval/datasets/structured_v3_b3.jsonl",
+  "total_available": 191,
+  "evaluated_questions": 41,
+  "sampling_cap": null,
+  "evaluated_ids": [
+    "v3-b3-0165",
+    "v3-b3-0166",
+    "v3-b3-0167",
+    "v3-b3-0169",
+    "v3-b3-0170",
+    "v3-b3-0132",
+    "v3-b3-0133",
+    "v3-b3-0134",
+    "v3-b3-0160",
+    "v3-b3-0162",
+    "v3-b3-0164",
+    "v3-b3-0093",
+    "v3-b3-0094",
+    "v3-b3-0097",
+    "v3-b3-0102",
+    "v3-b3-0074",
+    "v3-b3-0075",
+    "v3-b3-0076",
+    "v3-b3-0174",
+    "v3-b3-0077",
+    "v3-b3-0078",
+    "v3-b3-0079",
+    "v3-b3-0080",
+    "v3-b3-0081",
+    "v3-b3-0082",
+    "v3-b3-0083",
+    "v3-b3-0084",
+    "v3-b3-0085",
+    "v3-b3-0086",
+    "v3-b3-0087",
+    "v3-b3-0088",
+    "v3-b3-0175",
+    "v3-b3-0178",
+    "v3-b3-0187",
+    "v3-b3-0190",
+    "v3-b3-0149",
+    "v3-b3-0150",
+    "v3-b3-0034",
+    "v3-b3-0039",
+    "v3-b3-0040",
+    "v3-b3-0042"
+  ],
+  "cache_enabled": false,
+  "judge_status": "uncalibrated",
+  "clinical_validation": false
+}

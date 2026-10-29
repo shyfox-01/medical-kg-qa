@@ -33,6 +33,7 @@ asked back ("Did you mean …?") counts as a failure.
 | b4: drug–disease yes/no | 40 | 40 (100%) |
 | b5, fresh, with the earlier planner | 363 | 342 (94.2%) |
 | b5 planner-route questions: reasoning chain / planner | 75 | 66 / 60 |
+| b6, fresh, current system | 328 | 313 (95.4%) |
 | Partial answers behind a safety notice | 64 | 64 (100%) |
 | Safety, injection, non-English and non-medical controls | all sets | 100% |
 
@@ -727,8 +728,8 @@ the planner, b5 as a whole passed 342 of 363 (94.2%), the current system's first
 at fresh questions; the 288 questions on other routes do not reach either.
 
 The chain is therefore the default (`REASONING=plan` restores the planner). Its cost is
-time: an answer asked again with thinking on, or a long list, pushes the slowest tenth
-of questions past half a minute.
+time: an answer asked again with thinking on, or a long list, pushed the slowest tenth
+of questions past half a minute (shortened by D129 below).
 
 Where the chain still fails, the model reasons wrongly from correct rows or writes the
 wrong query: an exclusion written the wrong way round (`NOT EXISTS` for
@@ -737,6 +738,58 @@ misread. Code cannot catch these without knowing the answer. Text questions are 
 by phrases from the passage, and the chain paraphrases more often than the planner's
 answer call. On the unscored LiveQA questions the chain answers more (35 of 64 against 21);
 whether those answers are grounded and relevant has not been checked.
+
+### Since the choice: quicker checks, names in another spelling (D129)
+
+The chain's slowest tenth of questions on the development sets spent its time in one
+place: an answer that denied a lookup's rows ("No drugs … were found") was asked again
+with thinking on, and that reply alone wrote 500–1,150 tokens, 16–28 s on the local
+model (per-call tokens recorded on six of the slowest questions). b5's failures, used
+as development data after its first look, showed two more defects: a misspelt name the
+linker did not match was corrected by the model in a generated query
+(`d.name CONTAINS 'candidiasis'` for "candideima", which is candidemia), unseen; and
+"substances contraindicated when combined with" a drug was declined, since
+`CONTRAINDICATED_FOR` goes only from a drug to a disease. Three changes followed:
+
+- A generated query's rows meet all its conditions, so an answer denying them is asked
+  again to give them, with thinking off. A relation's rows may leave a condition out
+  and keep the thinking re-ask. A first version asked first whether the rows answer the
+  question, read from one token; the quick reading repeated the same misreading and
+  the development sets fell from 125 to 110 of 136, so it was withdrawn.
+- A name the model looked up in a spelling the question does not use is said in front
+  of the answer ("Note: looked up "urethritis", a spelling the question does not use."),
+  as a corrected name is (D105).
+- Drug–drug contraindications are interactions: said in the chain's rules.
+
+| Planner-route questions, chain | Questions | Before | After | Median time | 90th percentile |
+|---|---:|---:|---:|---:|---:|
+| Development sets (v2 dev, v3 b1–b3, caveat, text dev) | 198 | 158 | 156 | 10.0 → 8.5 s | 28.3 → 21.3 s |
+| b5 (development data now) | 75 | 66 | 61 | 11.0 → 9.3 s | 38.4 → 24.9 s |
+
+Summaries: `eval/runs/d127v_*` after, `d127s_*` and `b5_chain` before.
+
+On b5 the three questions the rules were written for passed and eight others failed,
+none of them in the same way (an intersection with extra drugs, relation rows misread,
+an unknown name declined in other words); on the development sets three passed and
+five failed. Run-to-run variation of the chain is of this size, so the effect on
+correctness could not be told from these sets. A fresh batch b6 (`eval/generate_v3_b6.py`,
+328 questions, anchors disjoint from every earlier set, b5 included) decided, under a
+rule committed before any run: the current code answers all of b6, the code b5 measured
+answers its 59 reasoning-chain questions, and the changes stay when the current code
+passes at least as many ([current](../eval/runs/b6_current_summary.json),
+[before](../eval/runs/b6_before_summary.json)):
+
+| b6, reasoning-chain questions (59) | Passed | Median time | 90th percentile |
+|---|---:|---:|---:|
+| The code b5 measured | 52 | 11.4 s | 28.4 s |
+| With these changes | 52 | 10.2 s | 20.8 s |
+
+One question flipped each way, both three-disease intersections, so the changes stay:
+the same passes in about three quarters of the tail time. The note was given once, for
+"salipngitis" looked up as salpingitis (answered correctly). With the current code, b6 as
+a whole passed 313 of 328 (95.4%), its first look at fresh questions: 230 of 231 on the
+template route, 52 of 59 through the chain, all 28 safety, language and scope controls,
+and 3 of the 10 names asked back (a question asked back counts as a failure).
 
 ## Regression checks for targeted changes
 

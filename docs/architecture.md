@@ -106,7 +106,9 @@ direction and missing parameters before the same guard, and three invalid replie
 the chain. The conversation stays inside `LLM_CONTEXT_TOKENS` (12,288) by shortening
 older observations to eight names. The answer is checked like a planner answer, and
 sent back once when it leaves out an entity of the question or denies rows a lookup
-found.
+found (a generated query's rows with thinking off, a relation's with thinking on, D129).
+A name the model looked up in a spelling the question does not use is said in front of
+the answer.
 
 Generated queries pass lexical validation, a fixed schema allowlist, EXPLAIN and
 a read transaction with a ten-second timeout. Procedures, writes/admin commands,
